@@ -1,39 +1,386 @@
-<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh-cn"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>Pod memory usage in k8s</title><meta content="index,follow" name="robots"/><meta content="Pod memory usage in k8s" property="og:title"/><meta content="https://qingwave.github.io/pod-memory-usage-in-k8s" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/pod-memory-usage-in-k8s" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
+<!DOCTYPE html>
+<html lang="zh-CN">
 
-  window.dataLayer = window.dataLayer || [];
-  function gtag() {
-    window.dataLayer.push(arguments);
-  }
-  gtag("js", new Date());
-  gtag("config", id);
-})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.95a5b0bf.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Thu Nov 15 2018 12:42:15 GMT+0000 (Coordinated Universal Time)">Nov 15, 2018</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">Pod memory usage in k8s</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="cadvisor-内存使用率指标">Cadvisor 内存使用率指标</h2><h3 id="cadvisor-中有关-pod-内存使用率的指标">Cadvisor 中有关 pod 内存使用率的指标</h3><table><thead><tr><th>指标</th><th>说明</th></tr></thead><tbody><tr><td>container_memory_cache</td><td>Number of bytes of page cache memory.</td></tr><tr><td>container_memory_rss</td><td>Size of RSS in bytes.(包括匿名映射页和交换区缓存)</td></tr><tr><td>container_memory_swap</td><td>Container swap usage in bytes.</td></tr><tr><td>container_memory_usage_bytes</td><td>Current memory usage in bytes,including all memory regardless ofwhen it was accessed. (包括 cache, rss, swap 等)</td></tr><tr><td>container_memory_max_usage_bytes</td><td>Maximum memory usage recorded in bytes.</td></tr><tr><td>container_memory_working_set_bytes</td><td>Current working set in bytes. （工作区内存使用量=活跃的匿名与和缓存,以及 file-baked 页 &#x3C;=container_memory_usage_bytes）</td></tr><tr><td>container_memory_failcnt</td><td>Number of memory usage hits limits.</td></tr><tr><td>container_memory_failures_total</td><td>Cumulative count of memory allocation failures.</td></tr></tbody></table><p>其中 <code>container_memory_max_usage_bytes > container_memory_usage_bytes >= container_memory_working_set_bytes > container_memory_rss</code></p><h3 id="cadvisor-中相关定义">Cadvisor 中相关定义</h3><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">type MemoryStats struct { // Current memory usage, this includes all memory regardless of when it was // accessed. // Units: Bytes. Usage uint64 json:"usage"</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">// Maximum memory usage recorded.</span></span>
-<span class="line"><span style="color:#f8f8f2">	// Units: Bytes.</span></span>
-<span class="line"><span style="color:#f8f8f2">	MaxUsage uint64 `json:"max_usage"`</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">	// Number of bytes of page cache memory.</span></span>
-<span class="line"><span style="color:#f8f8f2">	// Units: Bytes.</span></span>
-<span class="line"><span style="color:#f8f8f2">	Cache uint64 `json:"cache"`</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">	// The amount of anonymous and swap cache memory (includes transparent</span></span>
-<span class="line"><span style="color:#f8f8f2">	// hugepages).</span></span>
-<span class="line"><span style="color:#f8f8f2">	// Units: Bytes.</span></span>
-<span class="line"><span style="color:#f8f8f2">	RSS uint64 `json:"rss"`</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">	// The amount of swap currently used by the processes in this cgroup</span></span>
-<span class="line"><span style="color:#f8f8f2">	// Units: Bytes.</span></span>
-<span class="line"><span style="color:#f8f8f2">	Swap uint64 `json:"swap"`</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">	// The amount of working set memory, this includes recently accessed memory,</span></span>
-<span class="line"><span style="color:#f8f8f2">	// dirty memory, and kernel memory. Working set is &#x3C;= "usage".</span></span>
-<span class="line"><span style="color:#f8f8f2">	// Units: Bytes.</span></span>
-<span class="line"><span style="color:#f8f8f2">	WorkingSet uint64 `json:"working_set"`</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">	Failcnt uint64 `json:"failcnt"`</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">	ContainerData    MemoryStatsMemoryData `json:"container_data,omitempty"`</span></span>
-<span class="line"><span style="color:#f8f8f2">	HierarchicalData MemoryStatsMemoryData `json:"hierarchical_data,omitempty"`</span></span>
-<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><blockquote><p>You might think that memory utilization is easily tracked with container_memory_usage_bytes, however, this metric also includes cached (think filesystem cache) items that can be evicted under memory pressure. The better metric is container_memory_working_set_bytes as this is what the OOM killer is watching for. To calculate container memory utilization we use: sum(container_memory_working_set_bytes{name!~“POD”}) by (name)</p></blockquote><p>kubelet 通过 watch container_memory_working_set_bytes 来判断是否 OOM， 所以用 working set 来评价容器内存使用量更科学</p><h2 id="cgroup-中关于-mem-指标">Cgroup 中关于 mem 指标</h2><p>cgroup 目录相关文件</p><table><thead><tr><th>文件名</th><th>说明</th><th>cadvisor 中对应指标</th></tr></thead><tbody><tr><td>memory.usage_in_bytes</td><td>已使用的内存量(包含 cache 和 buffer)(字节)，相当于 linux 的 used_meme</td><td>container_memory_usage_bytes</td></tr><tr><td>memory.limit_in_bytes</td><td>限制的内存总量(字节)，相当于 linux 的 total_mem</td><td></td></tr><tr><td>memory.failcnt</td><td>申请内存失败次数计数</td><td></td></tr><tr><td>memory.memsw.usage_in_bytes</td><td>已使用的内存和 swap(字节)</td><td></td></tr><tr><td>memory.memsw.limit_in_bytes</td><td>限制的内存和 swap 容量(字节)</td><td></td></tr><tr><td>memory.memsw.failcnt</td><td>申请内存和 swap 失败次数计数</td><td></td></tr><tr><td>memory.stat</td><td>内存相关状态</td><td></td></tr></tbody></table><p>memory.stat 中包含有的内存信息</p><table><thead><tr><th>统计</th><th>描述</th><th>cadvisor 中对应指标</th></tr></thead><tbody><tr><td>cache</td><td>页缓存，包括 tmpfs（shmem），单位为字节</td><td>container_memory_cache</td></tr><tr><td>rss</td><td>匿名和 swap 缓存，不包括 tmpfs（shmem），单位为字节</td><td>container_memory_rss</td></tr><tr><td>mapped_file</td><td>memory-mapped 映射的文件大小，包括 tmpfs（shmem），单位为字节</td><td></td></tr><tr><td>pgpgin</td><td>存入内存中的页数</td><td></td></tr><tr><td>pgpgout</td><td>从内存中读出的页数</td><td></td></tr><tr><td>swap</td><td>swap 用量，单位为字节</td><td>container_memory_swap</td></tr><tr><td>active_anon</td><td>在活跃的最近最少使用（least-recently-used，LRU）列表中的匿名和 swap 缓存，包括 tmpfs（shmem），单位为字节</td><td></td></tr><tr><td>inactive_anon</td><td>不活跃的 LRU 列表中的匿名和 swap 缓存，包括 tmpfs（shmem），单位为字节</td><td></td></tr><tr><td>active_file</td><td>活跃 LRU 列表中的 file-backed 内存，以字节为单位</td><td></td></tr><tr><td>inactive_file</td><td>不活跃 LRU 列表中的 file-backed 内存，以字节为单位</td><td></td></tr><tr><td>unevictable</td><td>无法再生的内存，以字节为单位</td><td></td></tr><tr><td>hierarchical_memory_limit</td><td>包含 memory cgroup 的层级的内存限制，单位为字节</td><td></td></tr><tr><td>hierarchical_memsw_limit</td><td>包含 memory cgroup 的层级的内存加 swap 限制，单位为字节</td><td></td></tr></tbody></table><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">active_anon + inactive_anon = anonymous memory + file cache for tmpfs + swap cache = rss + file cache for tmpfs</span></span>
-<span class="line"><span style="color:#f8f8f2">active_file + inactive_file = cache - size of tmpfs</span></span>
-<span class="line"><span style="color:#f8f8f2">working set = usage - total_inactive(k8s根据workingset 来判断是否驱逐pod)</span></span></code></pre><p>mstat 看到的 active/inactive memory 就分别是 active list 和 inactive list 中的内存大小。如果 inactive list 很大，表明在必要时可以回收的页面很多；而如果 inactive list 很小，说明可以回收的页面不多。 Active/inactive memory 是针对用户进程所占用的内存而言的，内核占用的内存（包括 slab）不在其中。 至于在源代码中看到的 ACTIVE_ANON 和 ACTIVE_FILE，分别表示 anonymous pages 和 file-backed pages。用户进程的内存页分为两种：与文件关联的内存（比如程序文件、数据文件所对应的内存页）和与文件无关的内存（比如进程的堆栈，用 malloc 申请的内存），前者称为 file-backed pages，后者称为 anonymous pages。File-backed pages 在发生换页(page-in 或 page-out)时，是从它对应的文件读入或写出；anonymous pages 在发生换页时，是对交换区进行读/写操作。</p><h2 id="参考">参考</h2><ul><li><a href="https://blog.freshtracks.io/a-deep-dive-into-kubernetes-metrics-part-3-container-resource-metrics-361c5ee46e66">https://blog.freshtracks.io/a-deep-dive-into-kubernetes-metrics-part-3-container-resource-metrics-361c5ee46e66</a></li><li><a href="https://github.com/google/cadvisor/blob/08f0c2397cbca790a4db0f1212cb592cc88f6e26/info/v1/container.go#L338:6">https://github.com/google/cadvisor/blob/08f0c2397cbca790a4db0f1212cb592cc88f6e26/info/v1/container.go#L338:6</a></li></ul></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/docker" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#docker</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/cadvisor" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#cadvisor</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="/" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noodp" />
+    <title class="pjax-title">
+        Pod memory usage in k8s
+        
+    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="Pod memory usage in k8s" />
+<meta property="og:description" content="Cadvisor内存使用率指标 Cadvisor中有关pod内存使用率的指标 指标 说明 container_memory_cache Number of bytes of page cache memory. container_memory_rss Size of RSS in bytes.(包括匿名映射页和交换区缓存) container_memory_swap Container swap usage in bytes. container_memory_usage_bytes Current memory usage in bytes,including all memory regardless ofwhen it was accessed. (包括 cache, rss, s" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://qingwave.github.io/pod-memory-usage-in-k8s/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2018-11-15T12:42:15+00:00" />
+<meta property="article:modified_time" content="2021-11-20T10:59:07+00:00" /><meta property="og:site_name" content="Qingwave" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
+
+<meta name="twitter:title" content="Pod memory usage in k8s"/>
+<meta name="twitter:description" content="Cadvisor内存使用率指标 Cadvisor中有关pod内存使用率的指标 指标 说明 container_memory_cache Number of bytes of page cache memory. container_memory_rss Size of RSS in bytes.(包括匿名映射页和交换区缓存) container_memory_swap Container swap usage in bytes. container_memory_usage_bytes Current memory usage in bytes,including all memory regardless ofwhen it was accessed. (包括 cache, rss, s"/>
+<meta name="application-name" content="Qingwave">
+<meta name="apple-mobile-web-app-title" content="Qingwave">
+
+<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/pod-memory-usage-in-k8s/" /><link rel="prev" href="https://qingwave.github.io/pod-terminating-long-time/" /><link rel="next" href="https://qingwave.github.io/golang-pprof/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "Pod memory usage in k8s",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/qingwave.github.io\/pod-memory-usage-in-k8s\/"
+        },"genre": "posts","keywords": "k8s, docker, cadvisor","wordcount":  1499 ,
+        "url": "https:\/\/qingwave.github.io\/pod-memory-usage-in-k8s\/","datePublished": "2018-11-15T12:42:15+00:00","dateModified": "2021-11-20T10:59:07+00:00","publisher": {
+            "@type": "Organization",
+            "name": ""},"author": {
+                "@type": "Person",
+                "name": "Qingwave"
+            },"description": ""
+    }
+    </script></head>
+
+<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
+        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
+        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
+        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
+        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
+        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
+        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
+    </script>
+    <div id="back-to-top"></div>
+    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div>
+<main class="main">
+            <div class="container"><div class="toc" id="toc-auto">
+        <h2 class="toc-title">目录</h2>
+        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#cadvisor内存使用率指标">Cadvisor内存使用率指标</a>
+      <ul>
+        <li><a href="#cadvisor中有关pod内存使用率的指标">Cadvisor中有关pod内存使用率的指标</a></li>
+        <li><a href="#cadvisor中相关定义">Cadvisor中相关定义</a></li>
+      </ul>
+    </li>
+    <li><a href="#cgroup中关于mem指标">Cgroup中关于mem指标</a></li>
+    <li><a href="#参考">参考</a></li>
+  </ul>
+</nav></div>
+    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">Pod memory usage in k8s</h1><div class="post-meta">
+            <div class="post-meta-line"><time datetime="Nov 15, 2018">Nov 15, 2018</time>
+            </div>
+        </div><div class="details toc" id="toc-static"  kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#cadvisor内存使用率指标">Cadvisor内存使用率指标</a>
+      <ul>
+        <li><a href="#cadvisor中有关pod内存使用率的指标">Cadvisor中有关pod内存使用率的指标</a></li>
+        <li><a href="#cadvisor中相关定义">Cadvisor中相关定义</a></li>
+      </ul>
+    </li>
+    <li><a href="#cgroup中关于mem指标">Cgroup中关于mem指标</a></li>
+    <li><a href="#参考">参考</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><h2 id="cadvisor内存使用率指标" class="headerLink">
+    <a href="#cadvisor%e5%86%85%e5%ad%98%e4%bd%bf%e7%94%a8%e7%8e%87%e6%8c%87%e6%a0%87" class="header-mark"></a>Cadvisor内存使用率指标</h2><h3 id="cadvisor中有关pod内存使用率的指标" class="headerLink">
+    <a href="#cadvisor%e4%b8%ad%e6%9c%89%e5%85%b3pod%e5%86%85%e5%ad%98%e4%bd%bf%e7%94%a8%e7%8e%87%e7%9a%84%e6%8c%87%e6%a0%87" class="header-mark"></a>Cadvisor中有关pod内存使用率的指标</h3><table>
+<thead>
+<tr>
+<th>指标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>container_memory_cache</td>
+<td>Number of bytes of page cache memory.</td>
+</tr>
+<tr>
+<td>container_memory_rss</td>
+<td>Size of RSS in bytes.(包括匿名映射页和交换区缓存)</td>
+</tr>
+<tr>
+<td>container_memory_swap</td>
+<td>Container swap usage in bytes.</td>
+</tr>
+<tr>
+<td>container_memory_usage_bytes</td>
+<td>Current memory usage in bytes,including all memory regardless ofwhen it was accessed. (包括 cache, rss, swap等)</td>
+</tr>
+<tr>
+<td>container_memory_max_usage_bytes</td>
+<td>Maximum memory usage recorded in bytes.</td>
+</tr>
+<tr>
+<td>container_memory_working_set_bytes</td>
+<td>Current working set in bytes. （工作区内存使用量=活跃的匿名与和缓存,以及file-baked页 &lt;=container_memory_usage_bytes）</td>
+</tr>
+<tr>
+<td>container_memory_failcnt</td>
+<td>Number of memory usage hits limits.</td>
+</tr>
+<tr>
+<td>container_memory_failures_total</td>
+<td>Cumulative count of memory allocation failures.</td>
+</tr>
+<tr>
+<td>其中</td>
+<td></td>
+</tr>
+<tr>
+<td><code>container_memory_max_usage_bytes &gt; container_memory_usage_bytes &gt;= container_memory_working_set_bytes &gt; container_memory_rss</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="cadvisor中相关定义" class="headerLink">
+    <a href="#cadvisor%e4%b8%ad%e7%9b%b8%e5%85%b3%e5%ae%9a%e4%b9%89" class="header-mark"></a>Cadvisor中相关定义</h3><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">type MemoryStats struct { // Current memory usage, this includes all memory regardless of when it was // accessed. // Units: Bytes. Usage uint64 json:&#34;usage&#34;
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">// Maximum memory usage recorded.
+</span></span><span class="line"><span class="cl">	// Units: Bytes.
+</span></span><span class="line"><span class="cl">	MaxUsage uint64 `json:&#34;max_usage&#34;`
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	// Number of bytes of page cache memory.
+</span></span><span class="line"><span class="cl">	// Units: Bytes.
+</span></span><span class="line"><span class="cl">	Cache uint64 `json:&#34;cache&#34;`
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	// The amount of anonymous and swap cache memory (includes transparent
+</span></span><span class="line"><span class="cl">	// hugepages).
+</span></span><span class="line"><span class="cl">	// Units: Bytes.
+</span></span><span class="line"><span class="cl">	RSS uint64 `json:&#34;rss&#34;`
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	// The amount of swap currently used by the processes in this cgroup
+</span></span><span class="line"><span class="cl">	// Units: Bytes.
+</span></span><span class="line"><span class="cl">	Swap uint64 `json:&#34;swap&#34;`
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	// The amount of working set memory, this includes recently accessed memory,
+</span></span><span class="line"><span class="cl">	// dirty memory, and kernel memory. Working set is &lt;= &#34;usage&#34;.
+</span></span><span class="line"><span class="cl">	// Units: Bytes.
+</span></span><span class="line"><span class="cl">	WorkingSet uint64 `json:&#34;working_set&#34;`
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	Failcnt uint64 `json:&#34;failcnt&#34;`
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	ContainerData    MemoryStatsMemoryData `json:&#34;container_data,omitempty&#34;`
+</span></span><span class="line"><span class="cl">	HierarchicalData MemoryStatsMemoryData `json:&#34;hierarchical_data,omitempty&#34;`
+</span></span><span class="line"><span class="cl">}
+</span></span></code></pre></div><blockquote>
+<p>You might think that memory utilization is easily tracked with container_memory_usage_bytes, however, this metric also includes cached (think filesystem cache) items that can be evicted under memory pressure. The better metric is container_memory_working_set_bytes as this is what the OOM killer is watching for.
+To calculate container memory utilization we use: sum(container_memory_working_set_bytes{name!~&ldquo;POD&rdquo;}) by (name)</p>
+</blockquote>
+<p>kubelet 通过 watch container_memory_working_set_bytes 来判断是否OOM， 所以用 working set来评价容器内存使用量更科学</p>
+<h2 id="cgroup中关于mem指标" class="headerLink">
+    <a href="#cgroup%e4%b8%ad%e5%85%b3%e4%ba%8emem%e6%8c%87%e6%a0%87" class="header-mark"></a>Cgroup中关于mem指标</h2><p>cgroup目录相关文件</p>
+<table>
+<thead>
+<tr>
+<th>文件名</th>
+<th>说明</th>
+<th>cadvisor中对应指标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>memory.usage_in_bytes</td>
+<td>已使用的内存量(包含cache和buffer)(字节)，相当于linux的used_meme</td>
+<td>container_memory_usage_bytes</td>
+</tr>
+<tr>
+<td>memory.limit_in_bytes</td>
+<td>限制的内存总量(字节)，相当于linux的total_mem</td>
+<td></td>
+</tr>
+<tr>
+<td>memory.failcnt</td>
+<td>申请内存失败次数计数</td>
+<td></td>
+</tr>
+<tr>
+<td>memory.memsw.usage_in_bytes</td>
+<td>已使用的内存和swap(字节)</td>
+<td></td>
+</tr>
+<tr>
+<td>memory.memsw.limit_in_bytes</td>
+<td>限制的内存和swap容量(字节)</td>
+<td></td>
+</tr>
+<tr>
+<td>memory.memsw.failcnt</td>
+<td>申请内存和swap失败次数计数</td>
+<td></td>
+</tr>
+<tr>
+<td>memory.stat</td>
+<td>内存相关状态</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>memory.stat中包含有的内存信息</p>
+<table>
+<thead>
+<tr>
+<th>统计</th>
+<th>描述</th>
+<th>cadvisor中对应指标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cache</td>
+<td>页缓存，包括 tmpfs（shmem），单位为字节</td>
+<td>container_memory_cache</td>
+</tr>
+<tr>
+<td>rss</td>
+<td>匿名和 swap 缓存，不包括 tmpfs（shmem），单位为字节</td>
+<td>container_memory_rss</td>
+</tr>
+<tr>
+<td>mapped_file</td>
+<td>memory-mapped 映射的文件大小，包括 tmpfs（shmem），单位为字节</td>
+<td></td>
+</tr>
+<tr>
+<td>pgpgin</td>
+<td>存入内存中的页数</td>
+<td></td>
+</tr>
+<tr>
+<td>pgpgout</td>
+<td>从内存中读出的页数</td>
+<td></td>
+</tr>
+<tr>
+<td>swap</td>
+<td>swap 用量，单位为字节</td>
+<td>container_memory_swap</td>
+</tr>
+<tr>
+<td>active_anon</td>
+<td>在活跃的最近最少使用（least-recently-used，LRU）列表中的匿名和 swap 缓存，包括 tmpfs（shmem），单位为字节</td>
+<td></td>
+</tr>
+<tr>
+<td>inactive_anon</td>
+<td>不活跃的 LRU 列表中的匿名和 swap 缓存，包括 tmpfs（shmem），单位为字节</td>
+<td></td>
+</tr>
+<tr>
+<td>active_file</td>
+<td>活跃 LRU 列表中的 file-backed 内存，以字节为单位</td>
+<td></td>
+</tr>
+<tr>
+<td>inactive_file</td>
+<td>不活跃 LRU 列表中的 file-backed 内存，以字节为单位</td>
+<td></td>
+</tr>
+<tr>
+<td>unevictable</td>
+<td>无法再生的内存，以字节为单位</td>
+<td></td>
+</tr>
+<tr>
+<td>hierarchical_memory_limit</td>
+<td>包含 memory cgroup 的层级的内存限制，单位为字节</td>
+<td></td>
+</tr>
+<tr>
+<td>hierarchical_memsw_limit</td>
+<td>包含 memory cgroup 的层级的内存加 swap 限制，单位为字节</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">active_anon + inactive_anon = anonymous memory + file cache for tmpfs + swap cache = rss + file cache for tmpfs 
+</span></span><span class="line"><span class="cl">active_file + inactive_file = cache - size of tmpfs
+</span></span><span class="line"><span class="cl">working set = usage - total_inactive(k8s根据workingset 来判断是否驱逐pod)
+</span></span></code></pre></div><p>mstat看到的active/inactive memory就分别是active list和inactive list中的内存大小。如果inactive list很大，表明在必要时可以回收的页面很多；而如果inactive list很小，说明可以回收的页面不多。
+Active/inactive memory是针对用户进程所占用的内存而言的，内核占用的内存（包括slab）不在其中。
+至于在源代码中看到的ACTIVE_ANON和ACTIVE_FILE，分别表示anonymous pages和file-backed pages。用户进程的内存页分为两种：与文件关联的内存（比如程序文件、数据文件所对应的内存页）和与文件无关的内存（比如进程的堆栈，用malloc申请的内存），前者称为file-backed pages，后者称为anonymous pages。File-backed pages在发生换页(page-in或page-out)时，是从它对应的文件读入或写出；anonymous pages在发生换页时，是对交换区进行读/写操作。</p>
+<h2 id="参考" class="headerLink">
+    <a href="#%e5%8f%82%e8%80%83" class="header-mark"></a>参考</h2><ul>
+<li><a href="https://blog.freshtracks.io/a-deep-dive-into-kubernetes-metrics-part-3-container-resource-metrics-361c5ee46e66" target="_blank" rel="noopener noreffer">https://blog.freshtracks.io/a-deep-dive-into-kubernetes-metrics-part-3-container-resource-metrics-361c5ee46e66</a></li>
+<li><a href="https://github.com/google/cadvisor/blob/08f0c2397cbca790a4db0f1212cb592cc88f6e26/info/v1/container.go#L338:6" target="_blank" rel="noopener noreffer">https://github.com/google/cadvisor/blob/08f0c2397cbca790a4db0f1212cb592cc88f6e26/info/v1/container.go#L338:6</a></li>
+</ul>
+</div>
+
+        
+        <div class="post-footer" id="post-footer">
+    <div class="post-meta-line"><span class="single-tag">
+                <a href='/tags/k8s/'>#k8s</a>
+                    <span class="separator"> </span>
+                <a href='/tags/docker/'>#docker</a>
+                    <span class="separator"> </span>
+                <a href='/tags/cadvisor/'>#cadvisor</a></span></div>
+
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-link">
+                <a href='/about'>About Me</a>
+            </div>
+        </div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+        </div>
+    </div><div class="post-nav"><a href="/pod-terminating-long-time/" class="prev" rel="prev" title="Pod一直显示Terminating"><i class="fas fa-angle-left fa-fw"></i>Pod一直显示Terminating</a>
+            <a href="/golang-pprof/" class="next" rel="next" title="记一次golang性能分析">记一次golang性能分析<i class="fas fa-angle-right fa-fw"></i></a></div></div>
+<div id="comments"><div id="giscus"></div><noscript>
+                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
+            </noscript></div></article></div>
+        </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
+            <div class="footer-line"></div>
+            <div class="footer-line">
+            </div>
+        </div></footer></div>
+
+    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
+            <i class="fas fa-arrow-up fa-fw"></i>
+        </a>
+    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
+            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
+            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
+        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
+
+<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
+</body>
+
+</html>

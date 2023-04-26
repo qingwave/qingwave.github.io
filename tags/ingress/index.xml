@@ -1,0 +1,720 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>ingress - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/ingress/</link>
+        <description>ingress - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Fri, 19 Jun 2020 18:28:50 &#43;0000</lastBuildDate><atom:link href="https://qingwave.github.io/tags/ingress/" rel="self" type="application/rss+xml" /><item>
+    <title>k8s如何优雅升级应用</title>
+    <link>https://qingwave.github.io/k8s-graceful-update-app/</link>
+    <pubDate>Fri, 19 Jun 2020 18:28:50 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/k8s-graceful-update-app/</guid>
+    <description><![CDATA[<p>在k8s中通常用户通过<code>ingress</code>接入流量，转发到后端实例(<code>ingress → pod</code>)，在后端应用更新过程中，<code>ingress</code>是否能做到优雅升级，本文将通过分析升级流程与实验验证，说明在k8s中如何实现优化升级。</p>
+<h2 id="ingress原理" class="headerLink">
+    <a href="#ingress%e5%8e%9f%e7%90%86" class="header-mark"></a>Ingress原理</h2><p>用户创建ingress资源后，<code>ingress-nginx</code>通过<code>service</code>获取到对应的<code>endpoint</code>，监听到<code>endpoint</code>变化后将动态更新<code>upstream</code>。</p>
+<p><code>endpoint</code>每次变化后会通过<code>selector</code>匹配的<code>pod</code>列表中<code>ready pod</code>（不包括待删除的<code>pod</code>, 及<code>DeletionTimestamp</code>不为空）</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">pod <span class="nv">ready</span> <span class="o">=</span> 所有container ready<span class="o">(</span>启动成功, 健康检查通过<span class="o">)</span> + 所有rediness gateway执行成功
+</span></span></code></pre></div><p>那么<code>endpoint</code>在什么状况下会发生变化：</p>
+<ul>
+<li>service变化（一般不会）</li>
+<li>扩缩容</li>
+<li>升级</li>
+<li>删除pod</li>
+</ul>
+<p>不管是什么操作，可归结于启动、删除、退出</p>
+<ul>
+<li><strong>启动</strong>，只要确保<code>pod ready</code>时能服务能正常接受流量，不会影响影响服务</li>
+<li><strong>退出</strong>, 如果是应用异常退出，不能处理已接受的流量，此种状况是应用本身行为，不在讨论范围</li>
+<li><strong>删除</strong>, 由于k8s所有组件都采用监听机制，无法保证<code>pod</code>删除时<code>ingress-nginx</code>的后端已经更新</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># 大约在2s内</span>
+</span></span><span class="line"><span class="cl">ingress-nginx 生效时间 <span class="o">=</span> endpoint 生效时间 + upstream更新时间
+</span></span></code></pre></div><p>如果要保证pod删除时不丢流量，需要做到</p>
+<ul>
+<li>已接受的请求需要处理完，可监听TERM信号，处理完再退出， 可参考https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods</li>
+<li>删除时不接受新的请求，这部分无法保证，只能保证#1</li>
+</ul>
+<h2 id="ingress-nginx-重试机制" class="headerLink">
+    <a href="#ingress-nginx-%e9%87%8d%e8%af%95%e6%9c%ba%e5%88%b6" class="header-mark"></a>ingress-nginx 重试机制</h2><p>ingress-nginx默认开启了proxy_next_upstream，配置如下</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># In case of errors try the next upstream server before returning an error</span>
+</span></span><span class="line"><span class="cl">proxy_next_upstream error timeout<span class="p">;</span>
+</span></span><span class="line"><span class="cl">proxy_next_upstream_timeout 0<span class="p">;</span>
+</span></span><span class="line"><span class="cl">proxy_next_upstream_tries 3<span class="p">;</span>
+</span></span></code></pre></div><p>如果一次请求中，<code>upstream server</code> 出错或超时将通过rr算法重试下一个server，最多尝试三次。如果后端大于三个实例，一个实例异常不会影响服务。</p>
+<h2 id="升级策略" class="headerLink">
+    <a href="#%e5%8d%87%e7%ba%a7%e7%ad%96%e7%95%a5" class="header-mark"></a>升级策略</h2><p>对于<code>Deployment</code>有两种升级策略， <code>Recreate</code>与<code>RollingUpdate</code></p>
+<ul>
+<li><strong>Recreate</strong>, 先将旧版缩到0再将新版扩到期望值，不建议使用</li>
+<li><strong>RollingUpdate</strong>，默认策略，滚动更新</li>
+</ul>
+<p>在滚动升级时主要依据<code>maxSurge</code>与<code>maxUnavailable</code>对新旧版本进行扩缩</p>
+<ul>
+<li><strong>maxSurge</strong>， 升级中最多有多少pod超过期望值</li>
+<li><strong>maxUnavailable</strong>， 此值用来计算升级中最小可用的实例数，最大不可用的实例数表示不准确</li>
+</ul>
+<p>举个例子，比如10个副本的Deployment， 采用默认值<code>maxSurge</code>与<code>maxUnavaiable</code>都为25%</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">// 向上取整为 <span class="m">3</span> 
+</span></span><span class="line"><span class="cl"><span class="nv">maxSurge</span> <span class="o">=</span> replicas * deployment.spec.strategy.rollingUpdate.maxSurge<span class="o">(</span>25%<span class="o">)=</span> 2.5
+</span></span><span class="line"><span class="cl"> 
+</span></span><span class="line"><span class="cl">// 向下取整为 <span class="m">2</span> 
+</span></span><span class="line"><span class="cl"><span class="nv">maxUnavailable</span> <span class="o">=</span> replicas * deployment.spec.strategy.rollingUpdate.maxUnavailable<span class="o">(</span>25%<span class="o">)=</span> 2.5
+</span></span><span class="line"><span class="cl"> 
+</span></span><span class="line"><span class="cl"><span class="nv">maxAvailable</span> <span class="o">=</span> replicas<span class="o">(</span>10<span class="o">)</span> + MaxSurge（3） <span class="o">=</span> <span class="m">13</span>
+</span></span><span class="line"><span class="cl"> 
+</span></span><span class="line"><span class="cl">minAvailable :<span class="o">=</span> *<span class="o">(</span>deployment.Spec.Replicas<span class="o">)</span>（10） - maxUnavailable（2）<span class="o">=</span> <span class="m">8</span>
+</span></span></code></pre></div><p>在升级过程中，首先创建 newRS，然后为其设定 replicas，此时计算出 replicas 结果为 3。等到下一个 syncLoop 时，所有 rs 的 replicas 已经达到最大值 10 + 3 = 13，此时需要 scale down oldRSs 了，scale down 的数量是通过以下公式得到的：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">// <span class="nv">13</span> <span class="o">=</span> <span class="m">10</span> + <span class="m">3</span> 
+</span></span><span class="line"><span class="cl">allPodsCount :<span class="o">=</span> newRS<span class="o">(</span>10<span class="o">)</span> + oldRS<span class="o">(</span>3<span class="o">)</span>
+</span></span><span class="line"><span class="cl"> 
+</span></span><span class="line"><span class="cl">// ??? 
+</span></span><span class="line"><span class="cl">newRSUnavailablePodCount :<span class="o">=</span> *<span class="o">(</span>newRS.Spec.Replicas<span class="o">)</span> - newRS.Status.AvailableReplicas
+</span></span><span class="line"><span class="cl"> 
+</span></span><span class="line"><span class="cl">// <span class="m">13</span> - <span class="m">8</span> - ??? 
+</span></span><span class="line"><span class="cl">maxScaledDown :<span class="o">=</span> allPodsCount - minAvailable - newRSUnavailablePodCount
+</span></span><span class="line"><span class="cl">newRSUnavailablePodCount 此时不确定，但是值在 <span class="o">[</span>0,3<span class="o">]</span> 中，此时假设 newRS 的三个 pod 还处于 containerCreating 状态，则newRSUnavailablePodCount 为 3，根据以上公式计算所知 maxScaledDown 为 2。如果有个新版本pod已经ready，则maxScaledDown 为 4。
+</span></span></code></pre></div><p> 
+特殊情况，当只有一个副本，<code>maxSurge</code>与<code>maxUnavaiable</code>都为1时，按照以上公式，先扩容1个新版pod，再缩一个旧版的，如果旧版已经删除了而新版还没有起来可能会丟流量，可以将<code>maxUnavaiable</code>设置为0可避免以上情况。</p>
+<h2 id="实验验证" class="headerLink">
+    <a href="#%e5%ae%9e%e9%aa%8c%e9%aa%8c%e8%af%81" class="header-mark"></a>实验验证</h2><p>滚动升级终于也是通过扩缩新旧版本来实现的，我们只需要分析扩缩容过程中会不会丢流量即可。</p>
+<h3 id="实验环境" class="headerLink">
+    <a href="#%e5%ae%9e%e9%aa%8c%e7%8e%af%e5%a2%83" class="header-mark"></a>实验环境</h3><p>image: nginx
+tool:  <code>wrk -c 2 -d 120 -H &quot;Connection:Close&quot; http://my.nginx.svc</code></p>
+<h3 id="扩容" class="headerLink">
+    <a href="#%e6%89%a9%e5%ae%b9" class="header-mark"></a>扩容</h3><ol>
+<li>从1扩到10个</li>
+</ol>
+<p>不丢流量，nginx启动很快不需要额外的初始化工作，正常情况需要配置健康检查</p>
+<h3 id="缩容" class="headerLink">
+    <a href="#%e7%bc%a9%e5%ae%b9" class="header-mark"></a>缩容</h3><p><strong>1) 10 → 1</strong></p>
+<p>缩容时会有502错误</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">Running 2m <span class="nb">test</span> @ http://my.nginx.svc
+</span></span><span class="line"><span class="cl">  <span class="m">2</span> threads and <span class="m">2</span> connections
+</span></span><span class="line"><span class="cl">  Thread Stats   Avg      Stdev     Max   +/- Stdev
+</span></span><span class="line"><span class="cl">    Latency    11.73ms   27.02ms 229.17ms   95.14%
+</span></span><span class="line"><span class="cl">    Req/Sec   162.91     45.77   232.00     74.13%
+</span></span><span class="line"><span class="cl">  <span class="m">8969</span> requests in 28.24s, 2.40MB <span class="nb">read</span>
+</span></span><span class="line"><span class="cl">  Non-2xx or 3xx responses: <span class="m">366</span>
+</span></span><span class="line"><span class="cl">Requests/sec:    317.62
+</span></span><span class="line"><span class="cl">Transfer/sec:     86.93KB
+</span></span></code></pre></div><p>查看ingress日志</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">2020/06/19 08:12:28 <span class="o">[</span>error<span class="o">]</span> 9533#9533: *197916788 connect<span class="o">()</span> failed <span class="o">(</span>111: Connection refused<span class="o">)</span> <span class="k">while</span> connecting to upstream, client: 10.232.41.102, server: my.nginx.svc, request: <span class="s2">&#34;GET / HTTP/1.1&#34;</span>, upstream: <span class="s2">&#34;http://10.126.110.3:80/&#34;</span>, host: <span class="s2">&#34;my.nginx.svc&#34;</span>
+</span></span><span class="line"><span class="cl">2020/06/19 08:12:33 <span class="o">[</span>error<span class="o">]</span> 8935#8935: *197916707 upstream timed out <span class="o">(</span>110: Operation timed out<span class="o">)</span> <span class="k">while</span> connecting to upstream, client: 10.232.41.102, server: my.nginx.svc, request: <span class="s2">&#34;GET / HTTP/1.1&#34;</span>, upstream: <span class="s2">&#34;http://10.126.69.136:80/&#34;</span>, host: <span class="s2">&#34;my.nginx.svc&#34;</span>
+</span></span><span class="line"><span class="cl">2020/06/19 08:12:33 <span class="o">[</span>error<span class="o">]</span> 9533#9533: *197916788 upstream timed out <span class="o">(</span>110: Operation timed out<span class="o">)</span> <span class="k">while</span> connecting to upstream, client: 10.232.41.102, server: my.nginx.svc, request: <span class="s2">&#34;GET / HTTP/1.1&#34;</span>, upstream: <span class="s2">&#34;http://10.126.69.136:80/&#34;</span>, host: <span class="s2">&#34;my.nginx.svc
+</span></span></span><span class="line"><span class="cl"><span class="s2">10.232.41.102 - - [18/Jun/2020:09:14:35 +0000] &#34;</span>GET / HTTP/1.1<span class="s2">&#34; 502 157 &#34;</span>-<span class="s2">&#34; &#34;</span>-<span class="s2">&#34; 38 0.001 [default-my-nginx-80] [] 10.46.12.80:80, 10.46.12.79:80, 10.46.12.80:80 0, 0, 0 0.000, 0.000, 0.000 502, 502, 502 5cfc063dbe7daf1db953a0e16891f100
+</span></span></span></code></pre></div><p><strong>2) 4→1</strong></p>
+<p>会丟流量</p>
+<p><strong>3）3→1</strong></p>
+<p>测试多次，偶现过丢流量的情况，这与ingress重试算法有关系</p>
+<p><strong>4） 10→1</strong>, 忽略term信号, 不丢流量</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">Running 2m <span class="nb">test</span> @ http://my.nginx.svc
+</span></span><span class="line"><span class="cl">  <span class="m">2</span> threads and <span class="m">2</span> connections
+</span></span><span class="line"><span class="cl">Thread Stats   Avg      Stdev     Max   +/- Stdev
+</span></span><span class="line"><span class="cl">    Latency    12.12ms   16.66ms 214.89ms   88.39%
+</span></span><span class="line"><span class="cl">    Req/Sec   129.75     74.05   250.00     62.35%
+</span></span><span class="line"><span class="cl">  <span class="m">8811</span> requests in 34.24s, 2.35MB <span class="nb">read</span>
+</span></span><span class="line"><span class="cl">Requests/sec:    257.35
+</span></span><span class="line"><span class="cl">Transfer/sec:     70.41KB
+</span></span></code></pre></div><h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>通过分析及实验，在pod启动时可配置健康检查避免请求异常；同一时刻大于2个pod终止可能会丢失流量，通过监听退出信号可避免此种情况。综上，应用的优化升级需要做到以下几点：</p>
+<ul>
+<li>健康检测，<code>pod ready</code>时能够正常接受流量</li>
+<li>优雅停止，保证处理完请求再退出，在这段时间内实例ip可从ingress后端摘除</li>
+<li>滚动升级配置，若只有1个实例需设置maxsurge=0，更建议副本数设置多个</li>
+</ul>]]></description>
+</item><item>
+    <title>Ingress获取真实IP</title>
+    <link>https://qingwave.github.io/ingress-real-ip/</link>
+    <pubDate>Fri, 05 Jun 2020 14:40:08 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/ingress-real-ip/</guid>
+    <description><![CDATA[<p>一般情况下，经过ingress的请求会携带header<code>X-Real-IP</code>，用户可根据header解析出真实访问IP。</p>
+<p>特殊情况，用户请求可能经过多个nginx才达到ingress, 通过上述方法得到的并不是用户的真实IP。</p>
+<blockquote>
+<p>request -&gt; nginx -&gt; &hellip; -&gt; ingress-nginx -&gt; backend</p>
+</blockquote>
+<h2 id="方案1-use-forwarded-headers" class="headerLink">
+    <a href="#%e6%96%b9%e6%a1%881-use-forwarded-headers" class="header-mark"></a>方案1 use-forwarded-headers</h2><p>nginx-ingress官方的建议是开启<a href="https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#forwarded-for-header" target="_blank" rel="noopener noreffer">use-forwarded-headers</a>, 配置如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">ConfigMap</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">nginx-configuration</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">data</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">compute-full-forwarded-for</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;true&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">use-forwarded-headers</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;true&#39;</span><span class="w">
+</span></span></span></code></pre></div><h2 id="方案2-real_ip_header" class="headerLink">
+    <a href="#%e6%96%b9%e6%a1%882-real_ip_header" class="header-mark"></a>方案2 real_ip_header</h2><p>这种方式确实可以起作用，但是有用户反馈开启后访问ingres后端服务一直报<code>308</code>，检查了ingress的代码开启<code>use-forwarded-headers</code>后会同时开启<code>ssl-redirect</code>导致308。</p>
+<p>那么我们只需要开启nginx配置中的相关real-ip的配置，如下在<code>http-snippet</code>添加<code>real_ip_header X-Forwarded-For;</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">ConfigMap</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">v1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">nginx-configuration</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">data</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">http-snippet</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="cl"><span class="sd">    real_ip_header X-Forwarded-For;</span><span class="w">    
+</span></span></span></code></pre></div><h2 id="golang中获取真实ip" class="headerLink">
+    <a href="#golang%e4%b8%ad%e8%8e%b7%e5%8f%96%e7%9c%9f%e5%ae%9eip" class="header-mark"></a>golang中获取真实ip</h2><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">RemoteIP</span><span class="p">(</span><span class="nx">r</span> <span class="o">*</span><span class="nx">http</span><span class="p">.</span><span class="nx">Request</span><span class="p">)</span> <span class="kt">string</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// ingress 行为，将真实ip放到header `X-Original-Forwarded-For`, 普通nginx可去掉此条
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">ip</span> <span class="o">:=</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">TrimSpace</span><span class="p">(</span><span class="nx">strings</span><span class="p">.</span><span class="nf">Split</span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nx">Header</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="s">&#34;X-Original-Forwarded-For&#34;</span><span class="p">),</span> <span class="s">&#34;,&#34;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">ip</span> <span class="o">!=</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">ip</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">ip</span> <span class="p">=</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">TrimSpace</span><span class="p">(</span><span class="nx">strings</span><span class="p">.</span><span class="nf">Split</span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nx">Header</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="s">&#34;X-Forwarded-For&#34;</span><span class="p">),</span> <span class="s">&#34;,&#34;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">ip</span> <span class="o">!=</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">ip</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">ip</span> <span class="p">=</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">TrimSpace</span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nx">Header</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="s">&#34;X-Real-Ip&#34;</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">ip</span> <span class="o">!=</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">ip</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">ip</span><span class="p">,</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">net</span><span class="p">.</span><span class="nf">SplitHostPort</span><span class="p">(</span><span class="nx">strings</span><span class="p">.</span><span class="nf">TrimSpace</span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nx">RemoteAddr</span><span class="p">));</span> <span class="nx">err</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">ip</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="s">&#34;&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="注意" class="headerLink">
+    <a href="#%e6%b3%a8%e6%84%8f" class="header-mark"></a>注意</h2><p>nginx-ingress configmap中的配置会是全局生效的，上线前需要严格测试。</p>
+]]></description>
+</item><item>
+    <title>Ingress Header Too Large</title>
+    <link>https://qingwave.github.io/ingress-header-too-large/</link>
+    <pubDate>Fri, 05 Jun 2020 14:17:08 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/ingress-header-too-large/</guid>
+    <description><![CDATA[<p>线上遇到多次由ingress header过大引起的请求失败, 可能返回502/400，解决方案如下。</p>
+<h2 id="502--too-big-header" class="headerLink">
+    <a href="#502--too-big-header" class="header-mark"></a>502 – too big header</h2><p>502错误一般是后端服务不可用，但这里是nginx-ingress返回的，在nginx-ingress可看到如下日志：
+<code>upstream sent too big header while reading response header from upstream, client...</code></p>
+<p>需要在ingress配置如下参数</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">extensions/v1beta1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Ingress</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/proxy-buffer-size</span><span class="p">:</span><span class="w"> </span><span class="l">128k</span><span class="w"> </span><span class="c">#根据实际情况配置</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/proxy-buffering</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;on&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/server-snippet</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="cl"><span class="sd">      large_client_header_buffers 16 128K;
+</span></span></span><span class="line"><span class="cl"><span class="sd">      client_header_buffer_size 128k;</span><span class="w">      
+</span></span></span></code></pre></div><h2 id="431400--too-big-header" class="headerLink">
+    <a href="#431400--too-big-header" class="header-mark"></a>431/400 – too big header</h2><p>http header过大也有可能返回400/431, 可按照上述调整，如果还是有问题需要检查后端服务的header设置，比如golang http header默认是<code>1M</code>;
+springboot应用需要在<code>application.properties</code>加上<code>server.max-http-header-size=32KB</code>等</p>
+<h2 id="413--too-large-body" class="headerLink">
+    <a href="#413--too-large-body" class="header-mark"></a>413 – too large body</h2><p>如果返回413，则超过了body size的限制（默认<code>1M</code>）, 可在ingress annotation添加
+<code>nginx.ingress.kubernetes.io/proxy-body-size: 8m</code></p>
+]]></description>
+</item><item>
+    <title>ingress nginx benchmark</title>
+    <link>https://qingwave.github.io/ingress-benchmark/</link>
+    <pubDate>Thu, 21 May 2020 19:16:04 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/ingress-benchmark/</guid>
+    <description><![CDATA[<p>Ingress是目前Kubernetes集群流量接入的重要入口，了解其性能指标有助于用户选用合适的网络方案。</p>
+<h2 id="测试方案" class="headerLink">
+    <a href="#%e6%b5%8b%e8%af%95%e6%96%b9%e6%a1%88" class="header-mark"></a>测试方案</h2><p>通过wrk压测后端nginx服务，对比ingress-nginx, 原生nginx，以及直连后端性能的差异，如下图:
+
+
+</p>
+<ul>
+<li>方案1，经过ingress</li>
+<li>方案2，经过nginx</li>
+<li>方案3，直连ip</li>
+</ul>
+<h3 id="硬件环境" class="headerLink">
+    <a href="#%e7%a1%ac%e4%bb%b6%e7%8e%af%e5%a2%83" class="header-mark"></a>硬件环境</h3><ul>
+<li>CPU： 2x  Intel(R) Xeon(R) CPU E5-2620 v4 @ 2.10GHz, 32 cores</li>
+<li>Network： 10-Gigabit</li>
+<li>Memory： 128 GB</li>
+</ul>
+<h3 id="测试工具" class="headerLink">
+    <a href="#%e6%b5%8b%e8%af%95%e5%b7%a5%e5%85%b7" class="header-mark"></a>测试工具</h3><ul>
+<li>wrk, 4.1.0, 在k8s master测试，减少网络影响</li>
+<li>ingress-nginx, 0.30.0, <a href="https://github.com/kubernetes/ingress-nginx" target="_blank" rel="noopener noreffer">https://github.com/kubernetes/ingress-nginx</a></li>
+<li>nginx, 1.13.5</li>
+<li>k8s, v1.14.9</li>
+<li>centos, 7.3.1611(Linux 4.9.2)</li>
+</ul>
+<h3 id="测试方法" class="headerLink">
+    <a href="#%e6%b5%8b%e8%af%95%e6%96%b9%e6%b3%95" class="header-mark"></a>测试方法</h3><p>ingress-nginx主要工作是转发请求到后端pod, 我们着重对其RPS（每秒请求量）进行测试</p>
+<p>通过以下命令</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="l">wrk -t4 -c1000 -d120s --latency http://my.nginx.svc/1kb.bin</span><span class="w">
+</span></span></span></code></pre></div><h2 id="测试结果" class="headerLink">
+    <a href="#%e6%b5%8b%e8%af%95%e7%bb%93%e6%9e%9c" class="header-mark"></a>测试结果</h2><h3 id="不同cpu下的性能" class="headerLink">
+    <a href="#%e4%b8%8d%e5%90%8ccpu%e4%b8%8b%e7%9a%84%e6%80%a7%e8%83%bd" class="header-mark"></a>不同cpu下的性能</h3><p>对比不同ingress-nginx启动不同worker数量的性能差异，以下测试ingress-nginx开启了keepalive等特性</p>
+<table>
+<thead>
+<tr>
+<th>CPU</th>
+<th>RPS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>5534</td>
+</tr>
+<tr>
+<td>2</td>
+<td>11203</td>
+</tr>
+<tr>
+<td>4</td>
+<td>22890</td>
+</tr>
+<tr>
+<td>8</td>
+<td>47025</td>
+</tr>
+<tr>
+<td>16</td>
+<td>93644</td>
+</tr>
+<tr>
+<td>24</td>
+<td>125990</td>
+</tr>
+<tr>
+<td>32</td>
+<td>153473</td>
+</tr>
+</tbody>
+</table>
+<p>
+
+</p>
+<p>如图所示，不同cpu下，ingress的rps与cpu成正比，cpu在16核之后增长趋势放缓。</p>
+<h3 id="不同方案的性能对比" class="headerLink">
+    <a href="#%e4%b8%8d%e5%90%8c%e6%96%b9%e6%a1%88%e7%9a%84%e6%80%a7%e8%83%bd%e5%af%b9%e6%af%94" class="header-mark"></a>不同方案的性能对比</h3><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>RPS</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ingress-nginx(原始)</td>
+<td>69171</td>
+<td></td>
+</tr>
+<tr>
+<td>ingress-nginx(配置优化)</td>
+<td>153473</td>
+<td>调整worker，access-log, keepalive等</td>
+</tr>
+<tr>
+<td>nginx</td>
+<td>336769</td>
+<td>开启keepalive, 关闭log</td>
+</tr>
+<tr>
+<td>直连ip</td>
+<td>340748</td>
+<td>测试中的pod ip为真实ip</td>
+</tr>
+</tbody>
+</table>
+<p>通过实验可以看到，使用nginx代理和直连ip，rps相差不大；原始ingress-nginx rps很低，优化后rps提升一倍，但对比nginx还是有较大的性能差异。</p>
+<h2 id="结论" class="headerLink">
+    <a href="#%e7%bb%93%e8%ae%ba" class="header-mark"></a>结论</h2><p>默认ingress-nginx性能较差，配置优化后也只有15w RPS，对比原生nginx（33W) 差距较大。经过分析主要瓶颈在于ingress-nginx的lua过滤脚本，具体原因需要进一步分析。</p>
+<h2 id="参考" class="headerLink">
+    <a href="#%e5%8f%82%e8%80%83" class="header-mark"></a>参考</h2><ol>
+<li><a href="https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#upstream-keepalive-connections" target="_blank" rel="noopener noreffer">https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#upstream-keepalive-connections</a></li>
+<li><a href="https://www.nginx.com/blog/testing-performance-nginx-ingress-controller-kubernetes/" target="_blank" rel="noopener noreffer">https://www.nginx.com/blog/testing-performance-nginx-ingress-controller-kubernetes/</a></li>
+</ol>
+<h2 id="配置文件" class="headerLink">
+    <a href="#%e9%85%8d%e7%bd%ae%e6%96%87%e4%bb%b6" class="header-mark"></a>配置文件</h2><p>本测试所有配置见<a href="https://github.com/qingwave/ingress-nginx-benchmark" target="_blank" rel="noopener noreffer">qingwave/ingress-nginx-benchmark</a></p>]]></description>
+</item><item>
+    <title>多端口服务的Ingress IP-hash问题</title>
+    <link>https://qingwave.github.io/ingress-ip-hash/</link>
+    <pubDate>Wed, 15 Apr 2020 15:47:09 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/ingress-ip-hash/</guid>
+    <description><![CDATA[<h2 id="背景" class="headerLink">
+    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>业务反馈使用Ingress的ip-hash, 同一个服务开启了http和websocket分别是两个端口, 但是配置ip-hash后, 同一个client的请求http和websocket不在同一个后端.</p>
+<h2 id="探究" class="headerLink">
+    <a href="#%e6%8e%a2%e7%a9%b6" class="header-mark"></a>探究</h2><p>根据业务Ingress配置,配置如下实例:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">extensions/v1beta1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Ingress</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/cors-allow-origin</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;*&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/enable-cors</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;true&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/proxy-body-size</span><span class="p">:</span><span class="w"> </span><span class="l">200m</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/proxy-read-timeout</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;300&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/upstream-hash-by</span><span class="p">:</span><span class="w"> </span><span class="l">$binary_remote_addr</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">rules</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo.d.xiaomi.net</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">http</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">paths</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">backend</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo</span><span class="w"> </span><span class="c">#http1, 8080</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="m">8080</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/8080</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">backend</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo</span><span class="w"> </span><span class="c">#http2, 9090</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="m">9090</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/9090</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">backend</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo</span><span class="w"> </span><span class="c">#websocket, 8081</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="m">8081</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/ws</span><span class="w">
+</span></span></span></code></pre></div><p>创建多个副本</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ kubectl get po -l <span class="nv">app</span><span class="o">=</span>hellogo
+</span></span><span class="line"><span class="cl">NAME                       READY   STATUS    RESTARTS   AGE
+</span></span><span class="line"><span class="cl">hellogo-699f997454-b5vs4   1/1     Running   <span class="m">0</span>          66m
+</span></span><span class="line"><span class="cl">hellogo-699f997454-hm924   1/1     Running   <span class="m">0</span>          66m
+</span></span><span class="line"><span class="cl">hellogo-699f997454-mfbqv   1/1     Running   <span class="m">0</span>          66m
+</span></span><span class="line"><span class="cl">hellogo-699f997454-qdrwn   1/1     Running   <span class="m">0</span>          66m
+</span></span><span class="line"><span class="cl">hellogo-699f997454-srh9b   1/1     Running   <span class="m">0</span>          66m
+</span></span><span class="line"><span class="cl">hellogo-699f997454-wlwfh   1/1     Running   <span class="m">0</span>          66m
+</span></span></code></pre></div><p>测试http 8080端口, 请求到pod hellogo-699f997454-qdrwn</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ curl http://hellogo.d.xiaomi.net/8080
+</span></span><span class="line"><span class="cl">hello 8080!
+</span></span><span class="line"><span class="cl">host hellogo.d.xiaomi.net
+</span></span><span class="line"><span class="cl">remoteaddr 10.46.23.1:15340
+</span></span><span class="line"><span class="cl">realip 10.232.41.102
+</span></span><span class="line"><span class="cl">hostname hellogo-699f997454-qdrwn 
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">$ curl http://hellogo.d.xiaomi.net/8080
+</span></span><span class="line"><span class="cl">hello 8080!
+</span></span><span class="line"><span class="cl">host hellogo.d.xiaomi.net
+</span></span><span class="line"><span class="cl">remoteaddr 10.46.23.1:15866
+</span></span><span class="line"><span class="cl">realip 10.232.41.102
+</span></span><span class="line"><span class="cl">hostname hellogo-699f997454-qdrwn
+</span></span></code></pre></div><p>测试http 8080端口, 请求到pod hellogo-699f997454-b5vs4</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ curl http://hellogo.d.xiaomi.net/9090
+</span></span><span class="line"><span class="cl">hello 9090!
+</span></span><span class="line"><span class="cl">host hellogo.d.xiaomi.net
+</span></span><span class="line"><span class="cl">remoteaddr 10.38.200.195:23706
+</span></span><span class="line"><span class="cl">realip 10.232.41.102
+</span></span><span class="line"><span class="cl">hostname hellogo-699f997454-b5vs4
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">$ curl http://hellogo.d.xiaomi.net/9090
+</span></span><span class="line"><span class="cl">hello 9090!
+</span></span><span class="line"><span class="cl">host hellogo.d.xiaomi.net
+</span></span><span class="line"><span class="cl">remoteaddr 10.38.200.195:23706
+</span></span><span class="line"><span class="cl">realip 10.232.41.102
+</span></span><span class="line"><span class="cl">hostname hellogo-699f997454-b5vs4
+</span></span></code></pre></div><p>猜想是由于获取的nginx server列表顺序不一致导致的, 但是看源码ip list是直接从endpoint获取的, 进入nginx-ingress查看</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ kubectl <span class="nb">exec</span> -it -n kube-system nginx-ingress-controller-m496n sh
+</span></span><span class="line"><span class="cl"><span class="c1"># dbg工具查看nginx后端列表</span>
+</span></span><span class="line"><span class="cl">/etc/nginx $ /dbg backends list <span class="p">|</span> grep hellogo
+</span></span><span class="line"><span class="cl">default-hellogo-8080
+</span></span><span class="line"><span class="cl">default-hellogo-8081
+</span></span><span class="line"><span class="cl">default-hellogo-9090
+</span></span><span class="line"><span class="cl"><span class="c1"># 8080端口的列表</span>
+</span></span><span class="line"><span class="cl">/etc/nginx $ /dbg backends get default-hellogo-8080
+</span></span><span class="line"><span class="cl"><span class="o">{</span>
+</span></span><span class="line"><span class="cl">  <span class="s2">&#34;endpoints&#34;</span>: <span class="o">[</span>
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.107&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.108&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.109&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.23&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.25&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.29&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">  <span class="o">]</span>,
+</span></span><span class="line"><span class="cl">  <span class="s2">&#34;name&#34;</span>: <span class="s2">&#34;default-hellogo-8080&#34;</span>,
+</span></span><span class="line"><span class="cl">  <span class="s2">&#34;noServer&#34;</span>: false,
+</span></span><span class="line"><span class="cl">  <span class="s2">&#34;port&#34;</span>: 8080,
+</span></span><span class="line"><span class="cl">  ...
+</span></span><span class="line"><span class="cl"><span class="o">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># 9090端口的列表</span>
+</span></span><span class="line"><span class="cl">/etc/nginx $ /dbg backends get default-hellogo-9090
+</span></span><span class="line"><span class="cl"><span class="o">{</span>
+</span></span><span class="line"><span class="cl">  <span class="s2">&#34;endpoints&#34;</span>: <span class="o">[</span>
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.107&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.108&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.109&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.23&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.25&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
+</span></span><span class="line"><span class="cl">    <span class="o">{</span>
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.29&#34;</span>,
+</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">  <span class="o">]</span>,
+</span></span><span class="line"><span class="cl">  <span class="s2">&#34;name&#34;</span>: <span class="s2">&#34;default-hellogo-9090&#34;</span>,
+</span></span><span class="line"><span class="cl">  <span class="s2">&#34;noServer&#34;</span>: false,
+</span></span><span class="line"><span class="cl">  <span class="s2">&#34;port&#34;</span>: 9090,
+</span></span><span class="line"><span class="cl">  ...
+</span></span><span class="line"><span class="cl"><span class="o">}</span>
+</span></span></code></pre></div><p>对比发现两个端口的列表是一样的,只能看看代码.</p>
+<p>ip-hash代码在https://github.com/kubernetes/ingress-nginx/blob/master/rootfs/etc/nginx/lua/balancer/chash.lua</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-lua" data-lang="lua"><span class="line"><span class="cl"><span class="kr">function</span> <span class="nc">_M</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">self</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">nodes</span> <span class="o">=</span> <span class="n">util.get_nodes</span><span class="p">(</span><span class="n">backend.endpoints</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">o</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">instance</span> <span class="o">=</span> <span class="n">self.factory</span><span class="p">:</span><span class="n">new</span><span class="p">(</span><span class="n">nodes</span><span class="p">),</span>  <span class="c1">--获取后端pod ip列表</span>
+</span></span><span class="line"><span class="cl">    <span class="n">hash_by</span> <span class="o">=</span> <span class="n">backend</span><span class="p">[</span><span class="s2">&#34;upstreamHashByConfig&#34;</span><span class="p">][</span><span class="s2">&#34;upstream-hash-by&#34;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">    <span class="n">traffic_shaping_policy</span> <span class="o">=</span> <span class="n">backend.trafficShapingPolicy</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">alternative_backends</span> <span class="o">=</span> <span class="n">backend.alternativeBackends</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">setmetatable</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">self</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="n">self.__index</span> <span class="o">=</span> <span class="n">self</span>
+</span></span><span class="line"><span class="cl">  <span class="kr">return</span> <span class="n">o</span>
+</span></span><span class="line"><span class="cl"><span class="kr">end</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kr">function</span> <span class="nc">_M</span><span class="p">.</span><span class="nf">balance</span><span class="p">(</span><span class="n">self</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">key</span> <span class="o">=</span> <span class="n">util.lua_ngx_var</span><span class="p">(</span><span class="n">self.hash_by</span><span class="p">)</span> <span class="c1">--获取需要hash的变量</span>
+</span></span><span class="line"><span class="cl">  <span class="kr">return</span> <span class="n">self.instance</span><span class="p">:</span><span class="n">find</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>  <span class="c1">--计算hash值</span>
+</span></span><span class="line"><span class="cl"><span class="kr">end</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kr">return</span> <span class="n">_M</span>
+</span></span></code></pre></div><p>关键是在<code>get_nodes</code>函数,位于https://github.com/kubernetes/ingress-nginx/blob/master/rootfs/etc/nginx/lua/util.lua</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-lua" data-lang="lua"><span class="line"><span class="cl"><span class="kr">function</span> <span class="nc">_M</span><span class="p">.</span><span class="nf">get_nodes</span><span class="p">(</span><span class="n">endpoints</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">nodes</span> <span class="o">=</span> <span class="p">{}</span>
+</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">weight</span> <span class="o">=</span> <span class="mi">1</span> <span class="c1">--所有后端weight相同都为1</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="kr">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">endpoint</span> <span class="kr">in</span> <span class="n">pairs</span><span class="p">(</span><span class="n">endpoints</span><span class="p">)</span> <span class="kr">do</span>
+</span></span><span class="line"><span class="cl">    <span class="kd">local</span> <span class="n">endpoint_string</span> <span class="o">=</span> <span class="n">endpoint.address</span> <span class="o">..</span> <span class="s2">&#34;:&#34;</span> <span class="o">..</span> <span class="n">endpoint.port</span> <span class="c1">--endpoint为ip+port</span>
+</span></span><span class="line"><span class="cl">    <span class="n">nodes</span><span class="p">[</span><span class="n">endpoint_string</span><span class="p">]</span> <span class="o">=</span> <span class="n">weight</span>
+</span></span><span class="line"><span class="cl">  <span class="kr">end</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="kr">return</span> <span class="n">nodes</span>
+</span></span><span class="line"><span class="cl"><span class="kr">end</span>
+</span></span></code></pre></div><p>通过代码可以看到在<code>ingress-nginx</code>中,实际的后端(upstream)是包含端口的,通过hash计算得到的值也不一样。</p>
+<h2 id="解决建议" class="headerLink">
+    <a href="#%e8%a7%a3%e5%86%b3%e5%bb%ba%e8%ae%ae" class="header-mark"></a>解决建议</h2><p>首先确认系统的架构是不是合理，不同的端口提供不同的服务，一般是相互独立的。
+如果确实有类似需求：</p>
+<ul>
+<li>通过同一个端口提供服务，使用path来区分不同功能</li>
+<li>修改代码，也比较简单</li>
+</ul>
+]]></description>
+</item><item>
+    <title>nginx ingress controller 最后的倔强: admission webhook</title>
+    <link>https://qingwave.github.io/ingress-nginx-controller-admission-webhook/</link>
+    <pubDate>Fri, 03 Apr 2020 18:48:04 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/ingress-nginx-controller-admission-webhook/</guid>
+    <description><![CDATA[<h2 id="背景" class="headerLink">
+    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>k8s中大多使用nginx-ingress-controller来实现ingress, 但是脆弱的nginx-controller通过ingress解析出nginx配置, 对于某些annotation会reload nignx配置失败, 然后controller就卡死了, 不断重启, 除非删除对应的ingress.</p>
+<h3 id="问题复现" class="headerLink">
+    <a href="#%e9%97%ae%e9%a2%98%e5%a4%8d%e7%8e%b0" class="header-mark"></a>问题复现</h3><p>创建有问题的<code>ingress</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">extensions/v1beta1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Ingress</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;false&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/auth-tls-verify-client</span><span class="p">:</span><span class="w"> </span><span class="l">optional</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/auth-tls-verify-depth</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;1&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/configuration-snippet</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header Host $targethost;
+</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_buffering     off;
+</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_pass          http://$targetbackend;
+</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_redirect      off;
+</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header    X-SSL-Client-Verify $ssl_client_verify;
+</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header    X-SSL-Client-DN $ssl_client_s_dn;
+</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header    X-Real-IP       $remote_addr;
+</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;</span><span class="w">      
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">creationTimestamp</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;2020-03-23T04:57:22Z&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">generation</span><span class="p">:</span><span class="w"> </span><span class="m">1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">example-ingress</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">kube-system</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">resourceVersion</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;57681168&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">selfLink</span><span class="p">:</span><span class="w"> </span><span class="l">/apis/extensions/v1beta1/namespaces/kube-system/ingresses/example-ingress</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">uid</span><span class="p">:</span><span class="w"> </span><span class="l">c7f66385-6cc2-11ea-b6a8-246e96d4b538</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">rules</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l">example.com</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">http</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">paths</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">backend</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l">example-svc</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="m">8008</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">tls</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">hosts</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">example.com</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l">example-tls</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">status</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">loadBalancer</span><span class="p">:</span><span class="w"> </span>{}<span class="w">
+</span></span></span></code></pre></div><p>查看<code>nginx-ingress-controller</code>状态全部为<code>CrashLoopBackOff</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># kubectl get po -n kube-system -owide |grep ingress</span>
+</span></span><span class="line"><span class="cl">nginx-ingress-controller-ftfbg                        1/2     CrashLoopBackOff   <span class="m">6</span>          8m27s
+</span></span><span class="line"><span class="cl">nginx-ingress-controller-hp4pf                        1/2     CrashLoopBackOff   <span class="m">11</span>         24m  
+</span></span><span class="line"><span class="cl">nginx-ingress-controller-qlb4l                        1/2     CrashLoopBackOff   <span class="m">11</span>         24m   
+</span></span></code></pre></div><p>查看<code>nginx-ingress-controller</code>日志, 显示reload失败<code>&quot;proxy_pass&quot; directive is duplicate in /tmp/nginx-cfg911768424:822</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">-------------------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">W0403 10:26:14.716246       <span class="m">1</span> queue.go:130<span class="o">]</span> requeuing kube-system/nginx-ingress-controller-4txfk, err 
+</span></span><span class="line"><span class="cl">-------------------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">Error: <span class="nb">exit</span> status <span class="m">1</span>
+</span></span><span class="line"><span class="cl">2020/04/03 10:26:14 <span class="o">[</span>notice<span class="o">]</span> 137#137: ModSecurity-nginx v1.0.0
+</span></span><span class="line"><span class="cl">2020/04/03 10:26:14 <span class="o">[</span>warn<span class="o">]</span> 137#137: duplicate value <span class="s2">&#34;error&#34;</span> in /tmp/nginx-cfg911768424:815
+</span></span><span class="line"><span class="cl">nginx: <span class="o">[</span>warn<span class="o">]</span> duplicate value <span class="s2">&#34;error&#34;</span> in /tmp/nginx-cfg911768424:815
+</span></span><span class="line"><span class="cl">2020/04/03 10:26:14 <span class="o">[</span>warn<span class="o">]</span> 137#137: duplicate value <span class="s2">&#34;timeout&#34;</span> in /tmp/nginx-cfg911768424:815
+</span></span><span class="line"><span class="cl">nginx: <span class="o">[</span>warn<span class="o">]</span> duplicate value <span class="s2">&#34;timeout&#34;</span> in /tmp/nginx-cfg911768424:815
+</span></span><span class="line"><span class="cl">2020/04/03 10:26:14 <span class="o">[</span>emerg<span class="o">]</span> 137#137: <span class="s2">&#34;proxy_pass&#34;</span> directive is duplicate in /tmp/nginx-cfg911768424:822
+</span></span><span class="line"><span class="cl">nginx: <span class="o">[</span>emerg<span class="o">]</span> <span class="s2">&#34;proxy_pass&#34;</span> directive is duplicate in /tmp/nginx-cfg911768424:822
+</span></span><span class="line"><span class="cl">nginx: configuration file /tmp/nginx-cfg911768424 <span class="nb">test</span> failed
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">-------------------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">W0403 10:26:16.998897       <span class="m">1</span> nginx_status.go:207<span class="o">]</span> unexpected error obtaining nginx status info: unexpected error scraping nginx status page: unexpected error scraping nginx : Get http://0.0.0.0:18080/nginx_status: dial tcp 0.0.0.0:18080: connect: connection refused
+</span></span><span class="line"><span class="cl">I0403 10:26:17.526801       <span class="m">1</span> main.go:167<span class="o">]</span> Received SIGTERM, shutting down
+</span></span><span class="line"><span class="cl">I0403 10:26:17.526827       <span class="m">1</span> nginx.go:364<span class="o">]</span> Shutting down controller queues
+</span></span><span class="line"><span class="cl">I0403 10:26:17.526845       <span class="m">1</span> status.go:200<span class="o">]</span> updating status of Ingress rules <span class="o">(</span>remove<span class="o">)</span>
+</span></span><span class="line"><span class="cl">I0403 10:26:17.537511       <span class="m">1</span> status.go:219<span class="o">]</span> removing address from ingress status <span class="o">([])</span>
+</span></span><span class="line"><span class="cl">I0403 10:26:17.537593       <span class="m">1</span> nginx.go:372<span class="o">]</span> Stopping NGINX process
+</span></span><span class="line"><span class="cl">2020/04/03 10:26:17 <span class="o">[</span>notice<span class="o">]</span> 141#141: signal process started
+</span></span><span class="line"><span class="cl">I0403 10:26:20.547669       <span class="m">1</span> nginx.go:385<span class="o">]</span> NGINX process has stopped
+</span></span><span class="line"><span class="cl">I0403 10:26:20.547692       <span class="m">1</span> main.go:175<span class="o">]</span> Handled quit, awaiting Pod deletion
+</span></span><span class="line"><span class="cl">I0403 10:26:30.547824       <span class="m">1</span> main.go:178<span class="o">]</span> Exiting with <span class="m">0</span>
+</span></span></code></pre></div><h2 id="解决方案" class="headerLink">
+    <a href="#%e8%a7%a3%e5%86%b3%e6%96%b9%e6%a1%88" class="header-mark"></a>解决方案</h2><p>创建一个有问题的ingress, 会影响所有新创建的ingress规则, 又一个集群级别的Bug诞生了.那么有没有办法, 提前检验ingress配置, 有问题就不去reload. 那验证步骤肯定要在请求到达nginx-controller之前来做, 是不是想到了<a href="https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/" target="_blank" rel="noopener noreffer">k8s-admission-webhook</a>, 可以在apiserver持久化对象前拦截请求, 去实现自定义的验证规则. 好在新版本的nginx-ingress-controller(v0.25.0+)已经实现了相关的功能, 只需开启对应配置就行.</p>
+<h3 id="apiserver配置" class="headerLink">
+    <a href="#apiserver%e9%85%8d%e7%bd%ae" class="header-mark"></a>ApiServer配置</h3><p>Apiserver开启webhook相关配置, 必须包含<code>MutatingAdmissionWebhook</code>与<code>ValidatingAdmissionWebhook</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">--admission-control=MutatingAdmissionWebhook,ValidatingAdmissionWebhook
+</span></span></code></pre></div><h3 id="创建webhook相关配置" class="headerLink">
+    <a href="#%e5%88%9b%e5%bb%bawebhook%e7%9b%b8%e5%85%b3%e9%85%8d%e7%bd%ae" class="header-mark"></a>创建webhook相关配置</h3><p>启用ValidatingAdmissionWebhook必须使用https, 需要配置对应证书</p>
+<ul>
+<li>手动生成:
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">openssl req -x509 -newkey rsa:2048 -keyout certificate.pem -out key.pem -days <span class="m">365</span> -nodes -subj <span class="s2">&#34;/CN=ingress-validation-webhook.ingress-nginx.svc&#34;</span>
+</span></span></code></pre></div></li>
+<li>CertificateSigningRequest
+通过k8s <code>CertificateSigningRequest</code>来创建(controller-manager需要开启<code>--cluster-signing-cert-file</code>与<code>--cluster-signing-key-file</code>)
+可通过如下脚本创建, namespace与service替换成自己的
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nv">SERVICE_NAME</span><span class="o">=</span>ingress-nginx
+</span></span><span class="line"><span class="cl"><span class="nv">NAMESPACE</span><span class="o">=</span>ingress-nginx
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nv">TEMP_DIRECTORY</span><span class="o">=</span><span class="k">$(</span>mktemp -d<span class="k">)</span>
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;creating certs in directory </span><span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">cat <span class="s">&lt;&lt;EOF &gt;&gt; ${TEMP_DIRECTORY}/csr.conf
+</span></span></span><span class="line"><span class="cl"><span class="s">[req]
+</span></span></span><span class="line"><span class="cl"><span class="s">req_extensions = v3_req
+</span></span></span><span class="line"><span class="cl"><span class="s">distinguished_name = req_distinguished_name
+</span></span></span><span class="line"><span class="cl"><span class="s">[req_distinguished_name]
+</span></span></span><span class="line"><span class="cl"><span class="s">[ v3_req ]
+</span></span></span><span class="line"><span class="cl"><span class="s">basicConstraints = CA:FALSE
+</span></span></span><span class="line"><span class="cl"><span class="s">keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+</span></span></span><span class="line"><span class="cl"><span class="s">extendedKeyUsage = serverAuth
+</span></span></span><span class="line"><span class="cl"><span class="s">subjectAltName = @alt_names
+</span></span></span><span class="line"><span class="cl"><span class="s">[alt_names]
+</span></span></span><span class="line"><span class="cl"><span class="s">DNS.1 = ${SERVICE_NAME}
+</span></span></span><span class="line"><span class="cl"><span class="s">DNS.2 = ${SERVICE_NAME}.${NAMESPACE}
+</span></span></span><span class="line"><span class="cl"><span class="s">DNS.3 = ${SERVICE_NAME}.${NAMESPACE}.svc
+</span></span></span><span class="line"><span class="cl"><span class="s">EOF</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">openssl genrsa -out <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-key.pem <span class="m">2048</span>
+</span></span><span class="line"><span class="cl">openssl req -new -key <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-key.pem <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    -subj <span class="s2">&#34;/CN=</span><span class="si">${</span><span class="nv">SERVICE_NAME</span><span class="si">}</span><span class="s2">.</span><span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span><span class="s2">.svc&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    -out <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server.csr <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    -config <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/csr.conf
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">cat <span class="s">&lt;&lt;EOF | kubectl create -f -
+</span></span></span><span class="line"><span class="cl"><span class="s">apiVersion: certificates.k8s.io/v1beta1
+</span></span></span><span class="line"><span class="cl"><span class="s">kind: CertificateSigningRequest
+</span></span></span><span class="line"><span class="cl"><span class="s">metadata:
+</span></span></span><span class="line"><span class="cl"><span class="s">  name: ${SERVICE_NAME}.${NAMESPACE}.svc
+</span></span></span><span class="line"><span class="cl"><span class="s">spec:
+</span></span></span><span class="line"><span class="cl"><span class="s">  request: $(cat ${TEMP_DIRECTORY}/server.csr | base64 | tr -d &#39;\n&#39;)
+</span></span></span><span class="line"><span class="cl"><span class="s">  usages:
+</span></span></span><span class="line"><span class="cl"><span class="s">  - digital signature
+</span></span></span><span class="line"><span class="cl"><span class="s">  - key encipherment
+</span></span></span><span class="line"><span class="cl"><span class="s">  - server auth
+</span></span></span><span class="line"><span class="cl"><span class="s">EOF</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">kubectl certificate approve <span class="si">${</span><span class="nv">SERVICE_NAME</span><span class="si">}</span>.<span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span>.svc
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> x in <span class="k">$(</span>seq 10<span class="k">)</span><span class="p">;</span> <span class="k">do</span>
+</span></span><span class="line"><span class="cl">    <span class="nv">SERVER_CERT</span><span class="o">=</span><span class="k">$(</span>kubectl get csr <span class="si">${</span><span class="nv">SERVICE_NAME</span><span class="si">}</span>.<span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span>.svc -o <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.certificate}&#39;</span><span class="k">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="o">[[</span> <span class="si">${</span><span class="nv">SERVER_CERT</span><span class="si">}</span> !<span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="o">]]</span><span class="p">;</span> <span class="k">then</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">break</span>
+</span></span><span class="line"><span class="cl">    <span class="k">fi</span>
+</span></span><span class="line"><span class="cl">    sleep <span class="m">1</span>
+</span></span><span class="line"><span class="cl"><span class="k">done</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="o">[[</span> <span class="si">${</span><span class="nv">SERVER_CERT</span><span class="si">}</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span> <span class="o">]]</span><span class="p">;</span> <span class="k">then</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">echo</span> <span class="s2">&#34;ERROR: After approving csr </span><span class="si">${</span><span class="nv">SERVICE_NAME</span><span class="si">}</span><span class="s2">.</span><span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span><span class="s2">.svc, the signed certificate did not appear on the resource. Giving up after 10 attempts.&#34;</span> &gt;<span class="p">&amp;</span><span class="m">2</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">exit</span> <span class="m">1</span>
+</span></span><span class="line"><span class="cl"><span class="k">fi</span>
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="si">${</span><span class="nv">SERVER_CERT</span><span class="si">}</span> <span class="p">|</span> openssl base64 -d -A -out <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-cert.pem
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">kubectl create secret generic ingress-nginx.svc <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --from-file<span class="o">=</span>key.pem<span class="o">=</span><span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-key.pem <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --from-file<span class="o">=</span>cert.pem<span class="o">=</span><span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-cert.pem <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>    -n <span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span>
+</span></span></code></pre></div></li>
+</ul>
+<h3 id="配置ingress-controller" class="headerLink">
+    <a href="#%e9%85%8d%e7%bd%aeingress-controller" class="header-mark"></a>配置ingress controller</h3><p>ingress controller需要启用如下参数, 挂载需要的tls证书</p>
+<table>
+<thead>
+<tr>
+<th>flag</th>
+<th>description</th>
+<th>example usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--validating-webhook</code></td>
+<td>admission webhook的地址</td>
+<td><code>:8080</code></td>
+</tr>
+<tr>
+<td><code>--validating-webhook-certificate</code></td>
+<td>webhook证书</td>
+<td><code>/usr/local/certificates/validating-webhook.pem</code></td>
+</tr>
+<tr>
+<td><code>--validating-webhook-key</code></td>
+<td>webhook私钥</td>
+<td><code>/usr/local/certificates/validating-webhook-key.pem</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="验证" class="headerLink">
+    <a href="#%e9%aa%8c%e8%af%81" class="header-mark"></a>验证</h2><p>更新后, 创建有问题的ingress则会拦截, 符合预期</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># kubectl apply -f ing.yaml</span>
+</span></span><span class="line"><span class="cl">Error from server: error when creating <span class="s2">&#34;ing.yaml&#34;</span>: admission webhook <span class="s2">&#34;validate.nginx.ingress.kubernetes.io&#34;</span> denied the request: 
+</span></span><span class="line"><span class="cl">-------------------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">Error: <span class="nb">exit</span> status <span class="m">1</span>
+</span></span><span class="line"><span class="cl">2020/04/02 10:26:04 <span class="o">[</span>emerg<span class="o">]</span> 331#331: directive <span class="s2">&#34;proxy_pass&#34;</span> is not terminated by <span class="s2">&#34;;&#34;</span> in /tmp/nginx-cfg461116913:2165
+</span></span><span class="line"><span class="cl">nginx: <span class="o">[</span>emerg<span class="o">]</span> directive <span class="s2">&#34;proxy_pass&#34;</span> is not terminated by <span class="s2">&#34;;&#34;</span> in /tmp/nginx-cfg461116913:2165
+</span></span><span class="line"><span class="cl">nginx: configuration file /tmp/nginx-cfg461116913 <span class="nb">test</span> failed
+</span></span></code></pre></div><h2 id="引用" class="headerLink">
+    <a href="#%e5%bc%95%e7%94%a8" class="header-mark"></a>引用</h2><ul>
+<li><a href="https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/" target="_blank" rel="noopener noreffer">https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/</a></li>
+<li><a href="https://kubernetes.github.io/ingress-nginx/deploy/validating-webhook/" target="_blank" rel="noopener noreffer">https://kubernetes.github.io/ingress-nginx/deploy/validating-webhook/</a></li>
+</ul>]]></description>
+</item></channel>
+</rss>

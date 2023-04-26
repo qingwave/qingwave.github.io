@@ -1,0 +1,302 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>linux - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/linux/</link>
+        <description>linux - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Fri, 30 Sep 2022 10:37:17 &#43;0800</lastBuildDate><atom:link href="https://qingwave.github.io/tags/linux/" rel="self" type="application/rss+xml" /><item>
+    <title>如何实现零宕机的配置热加载</title>
+    <link>https://qingwave.github.io/config-reload/</link>
+    <pubDate>Fri, 30 Sep 2022 10:37:17 &#43;0800</pubDate><author>
+        <name>Qingwave</name>
+    </author><guid>https://qingwave.github.io/config-reload/</guid>
+    <description><![CDATA[<p>对于高可用的服务，为了保证服务可用性，更新配置时必然不能直接停止服务，可以使用配置热加载来避免服务暂停，不需要重启服务。</p>
+<p>配置的热加载可以分为两个场景，手动更新与自动更新。</p>
+<h2 id="手动更新" class="headerLink">
+    <a href="#%e6%89%8b%e5%8a%a8%e6%9b%b4%e6%96%b0" class="header-mark"></a>手动更新</h2><p>对于一些临时调试，服务数量不多的情况下，可以进行手动更新配置。需要实现两点，如何触发更新，以及接受到更新后如何操作。</p>
+<p>触发更新的手段很多，常见的有</p>
+<ul>
+<li>通过命令行，例如<code>nginx -s reload</code></li>
+<li>通过信号，通常是SIGHUP，比如sshd、Prometheus等，其实Nginx的热加载内部也是调用SIGHUP信号</li>
+<li>HTTP接口，例如Prometheus也支持HTTP的方式通过<code>curl -X POST :9090/-/reload</code>可以重新加载配置</li>
+<li>RPC接口，类似HTTP</li>
+</ul>
+<p>接受到配置更新通知后，需要程序内部来重新加载配置，类似初始化过程，但要注意运行时可以要加锁来保证线程安全。</p>
+<h2 id="自动更新" class="headerLink">
+    <a href="#%e8%87%aa%e5%8a%a8%e6%9b%b4%e6%96%b0" class="header-mark"></a>自动更新</h2><p>自动更新是建立手动更新的基础上，首先服务要提供手动更新的方法，其次可以通过服务本身或者外部进程来自动调用配置更新接口，外部程序可以使用SideCar的形式与服务绑定。</p>
+<p>自动加载配置的关键是如何感知配置变化，要考虑到单机环境与分布式环境。</p>
+<h3 id="单机环境" class="headerLink">
+    <a href="#%e5%8d%95%e6%9c%ba%e7%8e%af%e5%a2%83" class="header-mark"></a>单机环境</h3><p>Linux提供了<a href="https://man7.org/linux/man-pages/man7/inotify.7.html" target="_blank" rel="noopener noreffer">inotify</a>接口，可以用来监听文件或者目录的增上改查事件。我们可以使用inotify来监听配置变化，如果有更新则调用更新接口来实现热加载。其他平台也提供了类似的接口。</p>
+<p>在Golang中<a href="https://github.com/fsnotify/fsnotify" target="_blank" rel="noopener noreffer">fsnotify</a>提供了跨平台的文件监听接口，可以方便的监听文件，使用方式如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl">    <span class="nx">watcher</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">fsnotify</span><span class="p">.</span><span class="nf">NewWatcher</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nx">watcher</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 监听目录或者文件
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">watcher</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="s">&#34;/tmp&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">go</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">// 获取监听事件
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="k">select</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">case</span> <span class="nx">event</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">watcher</span><span class="p">.</span><span class="nx">Events</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">return</span>
+</span></span><span class="line"><span class="cl">                <span class="p">}</span>
+</span></span><span class="line"><span class="cl">                <span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;event:&#34;</span><span class="p">,</span> <span class="nx">event</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="nx">event</span><span class="p">.</span><span class="nf">Has</span><span class="p">(</span><span class="nx">fsnotify</span><span class="p">.</span><span class="nx">Write</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                    <span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;modified file:&#34;</span><span class="p">,</span> <span class="nx">event</span><span class="p">.</span><span class="nx">Name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                    <span class="c1">// 进行更新操作
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="k">case</span> <span class="nx">err</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">watcher</span><span class="p">.</span><span class="nx">Errors</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">return</span>
+</span></span><span class="line"><span class="cl">                <span class="p">}</span>
+</span></span><span class="line"><span class="cl">                <span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;error:&#34;</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}()</span>
+</span></span></code></pre></div><h3 id="分布式环境" class="headerLink">
+    <a href="#%e5%88%86%e5%b8%83%e5%bc%8f%e7%8e%af%e5%a2%83" class="header-mark"></a>分布式环境</h3><p>在分布式环境中实现配置热更新，需要能够感知配置（本地或者远端），对于本地配置需要平台配合将远端配置同步到本地（比如kubernetes会同步ConfigMap到Pod中），然后按照单机环境的方式来监听文件变化。</p>
+<p>对于远端配置，需要依赖额外的分布式配置中心，比如Apollo、etcd、ZooKeeper等。以etcd为例，etcd提供了watch接口，可以监听对应配置的变化</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="c1">// 获取watch Channel
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">ch</span> <span class="o">:=</span> <span class="nx">client</span><span class="p">.</span><span class="nf">Watch</span><span class="p">(</span><span class="nx">d</span><span class="p">.</span><span class="nx">watchContext</span><span class="p">,</span> <span class="nx">d</span><span class="p">.</span><span class="nx">Prefix</span><span class="p">,</span> <span class="nx">clientv3</span><span class="p">.</span><span class="nf">WithPrefix</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 处理事件
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">select</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">case</span> <span class="nx">wr</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;watch closed&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">wr</span><span class="p">.</span><span class="nf">Err</span><span class="p">()</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">wr</span><span class="p">.</span><span class="nf">Err</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">ev</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">wr</span><span class="p">.</span><span class="nx">Events</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">key</span><span class="p">,</span> <span class="nx">val</span> <span class="o">:=</span> <span class="nb">string</span><span class="p">(</span><span class="nx">ev</span><span class="p">.</span><span class="nx">Kv</span><span class="p">.</span><span class="nx">Key</span><span class="p">),</span> <span class="nb">string</span><span class="p">(</span><span class="nx">ev</span><span class="p">.</span><span class="nx">Kv</span><span class="p">.</span><span class="nx">Value</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">				<span class="k">switch</span> <span class="nx">ev</span><span class="p">.</span><span class="nx">Type</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">case</span> <span class="nx">mvccpb</span><span class="p">.</span><span class="nx">PUT</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">					<span class="c1">// 更新处理逻辑
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                    <span class="c1">// 1. 对比配置是否变化
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                    <span class="c1">// 2. 变化了更新内存中的配置
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>				<span class="k">case</span> <span class="nx">mvccpb</span><span class="p">.</span><span class="nx">DELETE</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">					<span class="c1">// 删除处理逻辑
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>				<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span></code></pre></div><p>为了实现配置更新通知，通常有两种方式，Pull与Push。</p>
+<ul>
+<li>Pull就是客户端轮询，定期查询配置是否更新，这种方式实现简单，对服务器压力小，但时效性低</li>
+<li>Push由服务端实现，通过维护一个长连接，实时推送数据，这种方式时效性高，但逻辑更复杂，连接过多会影响服务端性能。目前etcd v3版本是通过HTTP2来实现实时数据推送</li>
+</ul>
+<h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>本文主要总结实现配置热更新的多种方式，手动更新可以通过Socket、信号等进程间通信手段来通知服务，自动更新可以通过inotify来感知配置变化，在分布式环境中就需要配合分布式配置中心来进行热更新。</p>
+<blockquote>
+<p>Explore more in <a href="https://qingwave.github.io" target="_blank" rel="noopener noreffer">https://qingwave.github.io</a></p>
+</blockquote>
+]]></description>
+</item><item>
+    <title>WSL2&#43;VSCode&#43;Zsh打造Windows下Linux开发环境</title>
+    <link>https://qingwave.github.io/wsl2-vscode/</link>
+    <pubDate>Tue, 11 Feb 2020 23:51:51 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/wsl2-vscode/</guid>
+    <description><![CDATA[<p>一直以来使用Ubuntu开发，前两天Ubuntu桌面环境崩了，一些工作软件在Ubuntu下很不好用，恰好WSL2(Windows Linux子系统)发布已经有一段日子，而且支持了Docker，上手看看可用性如何。</p>
+<h2 id="配置wsl2" class="headerLink">
+    <a href="#%e9%85%8d%e7%bd%aewsl2" class="header-mark"></a>配置WSL2</h2><h3 id="必要条件" class="headerLink">
+    <a href="#%e5%bf%85%e8%a6%81%e6%9d%a1%e4%bb%b6" class="header-mark"></a>必要条件</h3><ul>
+<li>Windows 10 Build 18917或更新版本</li>
+<li>启用虚拟化</li>
+</ul>
+<h3 id="安装步骤" class="headerLink">
+    <a href="#%e5%ae%89%e8%a3%85%e6%ad%a5%e9%aa%a4" class="header-mark"></a>安装步骤</h3><ul>
+<li>启用“虚拟机平台”可选组件，以管理员身份打开 PowerShell 并运行：
+<code>Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform</code></li>
+<li>启用安装子系统
+<code>Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux</code>
+启用这些更改后，你需要重新启动计算机。</li>
+<li>应用商店安装ubuntu，如<code>Ubuntu-18.04</code></li>
+<li>使用命令行设置要由 WSL 2 支持的发行版，在 PowerShell 中运行：
+<code>wsl --set-version &lt;Distro&gt; 2</code></li>
+</ul>
+<h3 id="配置ubuntu" class="headerLink">
+    <a href="#%e9%85%8d%e7%bd%aeubuntu" class="header-mark"></a>配置Ubuntu</h3><p>配置源，配置Sudo免密码，安装必要软件Python、Git、Docker等，终端美化可通过安装Zsh&hellip;</p>
+<h2 id="安装vscode-wsl插件" class="headerLink">
+    <a href="#%e5%ae%89%e8%a3%85vscode-wsl%e6%8f%92%e4%bb%b6" class="header-mark"></a>安装VSCode WSL插件</h2><p>VSCode已经支持了<a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-wsl" target="_blank" rel="noopener noreffer">WSL插件</a></p>
+<p>最终界面如下：
+
+
+</p>
+<h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>可以愉快的使用VSCode开发，目前也发现了几点小问题：</p>
+<ul>
+<li>Vscode Terminal改为WSL后，启动会有1-2秒延时</li>
+<li>WSL2中的软件配置开机自启比较麻烦，网上有方案，我是通过快捷命令如启动 Docker <code>alias sds=&quot;sudo service docker start&quot;</code></li>
+<li>WSL2本质是个虚拟机，网络方式和本地有一定差异，对我来说影响不大</li>
+</ul>
+<p>目前在家办公已两周，此方案感觉良好。</p>]]></description>
+</item><item>
+    <title>/var/log/message归档探究</title>
+    <link>https://qingwave.github.io/var-log-message-logrotate/</link>
+    <pubDate>Thu, 27 Sep 2018 13:51:52 &#43;0000</pubDate><author>
+        <name>Qingwave</name>
+    </author><guid>https://qingwave.github.io/var-log-message-logrotate/</guid>
+    <description><![CDATA[<h2 id="背景" class="headerLink">
+    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>由于项目要收集/var/log/messages的日志到es中，发现messages日志按天切割，但归档的时间却不一致，于是查了点资料探究下。</p>
+<h2 id="介绍" class="headerLink">
+    <a href="#%e4%bb%8b%e7%bb%8d" class="header-mark"></a>介绍</h2><p><code>/var/log/messages</code>是由<code>journald</code>生成的，流程如下
+<code>systemd --&gt; systemd-journald --&gt; ram DB --&gt; rsyslog -&gt; /var/log</code>
+当<code>systemd</code>启动后，<code>systemd-journald</code>也会立即启动。将日志存入RAM中，当<code>rsyslog</code>启动后会读取该RAM并完成筛选分类写入目录<code>/var/log</code>。</p>
+<h3 id="相关服务" class="headerLink">
+    <a href="#%e7%9b%b8%e5%85%b3%e6%9c%8d%e5%8a%a1" class="header-mark"></a>相关服务</h3><p>涉及的相关服务有：</p>
+<ul>
+<li>systemd-journald.service：最主要的信息收受者，由systemd提供；</li>
+<li>logrotate：主要进行日志的轮替功能</li>
+</ul>
+<p><code>Centos7</code>使用<code>systemd</code>提供的<code>journalctl</code>管理日志，那所有经由<code>systemd</code>启动服务的日志，会将该日志信息由<code>systemd-journald.service</code>以二进制的方式记录下来，之后再将信息发送到<code>rsyslog.service</code>作进一步的处理。
+<code>systemd-journald.service</code>的记录主要都放置与内存中，因此性能较好，可以通过<code>journalctl</code>及<code>systemctl status unit.service</code>来查看各个服务的日志。</p>
+<h3 id="相关配置" class="headerLink">
+    <a href="#%e7%9b%b8%e5%85%b3%e9%85%8d%e7%bd%ae" class="header-mark"></a>相关配置</h3><p>journald配置文件
+<code>cat /etc/systemd/journald.conf</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl"># This file is part of systemd.
+</span></span><span class="line"><span class="cl">#
+</span></span><span class="line"><span class="cl"># systemd is free software; you can redistribute it and/or modify it
+</span></span><span class="line"><span class="cl"># under the terms of the GNU Lesser General Public License as published by
+</span></span><span class="line"><span class="cl"># the Free Software Foundation; either version 2.1 of the License, or
+</span></span><span class="line"><span class="cl"># (at your option) any later version.
+</span></span><span class="line"><span class="cl">#
+</span></span><span class="line"><span class="cl"># Entries in this file show the compile time defaults.
+</span></span><span class="line"><span class="cl"># You can change settings by editing this file.
+</span></span><span class="line"><span class="cl"># Defaults can be restored by simply deleting this file.
+</span></span><span class="line"><span class="cl">#
+</span></span><span class="line"><span class="cl"># See journald.conf(5) for details.
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">[Journal]
+</span></span><span class="line"><span class="cl">#Storage=auto
+</span></span><span class="line"><span class="cl">#Compress=yes
+</span></span><span class="line"><span class="cl">#Seal=yes
+</span></span><span class="line"><span class="cl">#SplitMode=uid
+</span></span><span class="line"><span class="cl">#SyncIntervalSec=5m
+</span></span><span class="line"><span class="cl">#RateLimitInterval=30s
+</span></span><span class="line"><span class="cl">#RateLimitBurst=1000
+</span></span><span class="line"><span class="cl">#SystemMaxUse=
+</span></span><span class="line"><span class="cl">#SystemKeepFree=
+</span></span><span class="line"><span class="cl">#SystemMaxFileSize=
+</span></span><span class="line"><span class="cl">#RuntimeMaxUse=
+</span></span><span class="line"><span class="cl">#RuntimeKeepFree=
+</span></span><span class="line"><span class="cl">#RuntimeMaxFileSize=
+</span></span><span class="line"><span class="cl">#MaxRetentionSec=
+</span></span><span class="line"><span class="cl">#MaxFileSec=1month
+</span></span><span class="line"><span class="cl">#ForwardToSyslog=yes #默认转向syslog
+</span></span><span class="line"><span class="cl">#ForwardToKMsg=no
+</span></span><span class="line"><span class="cl">#ForwardToConsole=no
+</span></span><span class="line"><span class="cl">#ForwardToWall=yes
+</span></span><span class="line"><span class="cl">#TTYPath=/dev/console
+</span></span><span class="line"><span class="cl">#MaxLevelStore=debug
+</span></span><span class="line"><span class="cl">#MaxLevelSyslog=debug
+</span></span><span class="line"><span class="cl">#MaxLevelKMsg=notice
+</span></span><span class="line"><span class="cl">#MaxLevelConsole=info
+</span></span><span class="line"><span class="cl">#MaxLevelWall=emerg
+</span></span></code></pre></div><ol>
+<li>目前，<code>centos log</code>由<code>rsyslog</code>管理，设置文件<code>/var/lib/rsyslog</code>并兼容<code>syslog</code>的配置文件</li>
+<li>其中<code>messages</code>文件记录系统日志，包括mail、定时任务、系统异常等（*.info;mail.none;authpriv.none;cron.none /var/log/messages）</li>
+<li><code>Logrotate</code>实现日志切割，具体由<code>CRON</code>实现</li>
+</ol>
+<p>logrotate配置文件
+<code>cat /etc/cron.daily/logrotate</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="cp">#!/bin/sh
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">/usr/sbin/logrotate -s /var/lib/logrotate/logrotate.status /etc/logrotate.conf
+</span></span><span class="line"><span class="cl"><span class="nv">EXITVALUE</span><span class="o">=</span><span class="nv">$?</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="o">[</span> <span class="nv">$EXITVALUE</span> !<span class="o">=</span> <span class="m">0</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+</span></span><span class="line"><span class="cl">/usr/bin/logger -t logrotate <span class="s2">&#34;ALERT exited abnormally with [</span><span class="nv">$EXITVALUE</span><span class="s2">]&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="k">fi</span>
+</span></span><span class="line"><span class="cl"><span class="nb">exit</span> <span class="m">0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># 实际运行时，Logrotate会调用配置文件「/etc/logrotate.conf」</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># see &#34;man logrotate&#34; for details</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># rotate log files weekly</span>
+</span></span><span class="line"><span class="cl">weekly <span class="c1"># 每月归档一次</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># keep 4 weeks worth of backlogs</span>
+</span></span><span class="line"><span class="cl">rotate <span class="m">4</span> <span class="c1"># 归档4个周期</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># create new (empty) log files after rotating old ones</span>
+</span></span><span class="line"><span class="cl">create
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># use date as a suffix of the rotated file</span>
+</span></span><span class="line"><span class="cl">dateext 
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># uncomment this if you want your log files compressed</span>
+</span></span><span class="line"><span class="cl"><span class="c1">#compress # 默认不压缩</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># RPM packages drop log rotation information into this directory</span>
+</span></span><span class="line"><span class="cl">include /etc/logrotate.d <span class="c1">#包含其下配置文件</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># no packages own wtmp and btmp -- we&#39;ll rotate them here</span>
+</span></span><span class="line"><span class="cl">/var/log/wtmp <span class="o">{</span>
+</span></span><span class="line"><span class="cl">monthly
+</span></span><span class="line"><span class="cl">create <span class="m">0664</span> root utmp
+</span></span><span class="line"><span class="cl">minsize 1M
+</span></span><span class="line"><span class="cl">rotate <span class="m">1</span>
+</span></span><span class="line"><span class="cl"><span class="o">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">/var/log/btmp <span class="o">{</span>
+</span></span><span class="line"><span class="cl">missingok
+</span></span><span class="line"><span class="cl">monthly
+</span></span><span class="line"><span class="cl">create <span class="m">0600</span> root utmp
+</span></span><span class="line"><span class="cl">rotate <span class="m">1</span>
+</span></span><span class="line"><span class="cl"><span class="o">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># system-specific logs may be also be configured here.</span>
+</span></span></code></pre></div><p>设置特殊文件的归档方式
+<code>cat /etc/logrotate.d/syslog</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/var/log/cron
+</span></span><span class="line"><span class="cl">/var/log/maillog
+</span></span><span class="line"><span class="cl">/var/log/messages
+</span></span><span class="line"><span class="cl">/var/log/secure
+</span></span><span class="line"><span class="cl">/var/log/spooler
+</span></span><span class="line"><span class="cl"><span class="o">{</span>
+</span></span><span class="line"><span class="cl">daily
+</span></span><span class="line"><span class="cl">rotate <span class="m">4</span>
+</span></span><span class="line"><span class="cl">compress
+</span></span><span class="line"><span class="cl">delaycompress <span class="c1"># 延迟一个周期压缩</span>
+</span></span><span class="line"><span class="cl">missingok <span class="c1"># 日志丢失不报错</span>
+</span></span><span class="line"><span class="cl">sharedscripts <span class="c1"># 运行postrotate脚本，作用是在所有日志都轮转后统一执行一次脚本。如果没有配置这个，那么每个日志轮转后都会执行一次脚本</span>
+</span></span><span class="line"><span class="cl">postrotate <span class="c1"># 在logrotate转储之后需要执行的指令，例如重新启动 (kill -HUP) 某个服务！必须独立成行</span>
+</span></span><span class="line"><span class="cl">/bin/kill -HUP <span class="sb">`</span>cat /var/run/syslogd.pid 2&gt; /dev/null<span class="sb">`</span> 2&gt; /dev/null <span class="o">||</span> <span class="nb">true</span>
+</span></span><span class="line"><span class="cl">endscript
+</span></span><span class="line"><span class="cl"><span class="o">}</span>
+</span></span></code></pre></div><p>messages中日志生成时间大多是晚上3点多，这是由cron控制的
+<code>cat /etc/anacrontab</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># /etc/anacrontab: configuration file for anacron</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># See anacron(8) and anacrontab(5) for details.</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nv">SHELL</span><span class="o">=</span>/bin/sh
+</span></span><span class="line"><span class="cl"><span class="nv">PATH</span><span class="o">=</span>/sbin:/bin:/usr/sbin:/usr/bin
+</span></span><span class="line"><span class="cl"><span class="nv">MAILTO</span><span class="o">=</span>root
+</span></span><span class="line"><span class="cl"><span class="c1"># the maximal random delay added to the base delay of the jobs</span>
+</span></span><span class="line"><span class="cl"><span class="nv">RANDOM_DELAY</span><span class="o">=</span><span class="m">45</span> <span class="c1"># 随机延迟最大时间</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># the jobs will be started during the following hours only</span>
+</span></span><span class="line"><span class="cl"><span class="nv">START_HOURS_RANGE</span><span class="o">=</span>3-22 <span class="c1"># 3点到22点执行</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">#period in days delay in minutes job-identifier command</span>
+</span></span><span class="line"><span class="cl"><span class="m">1</span> <span class="m">5</span> cron.daily nice run-parts /etc/cron.daily <span class="c1"># 第一天执行，延迟5分钟</span>
+</span></span><span class="line"><span class="cl"><span class="m">7</span> <span class="m">25</span> cron.weekly nice run-parts /etc/cron.weekly
+</span></span><span class="line"><span class="cl">@monthly <span class="m">45</span> cron.monthly nice run-parts /etc/cron.monthly <span class="c1"># 日志生成时间在03:05~03:50 随机延迟时间 5~5+45</span>
+</span></span></code></pre></div>]]></description>
+</item></channel>
+</rss>

@@ -1,0 +1,51 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>pprof - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/pprof/</link>
+        <description>pprof - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Sat, 11 May 2019 23:11:45 &#43;0000</lastBuildDate><atom:link href="https://qingwave.github.io/tags/pprof/" rel="self" type="application/rss+xml" /><item>
+    <title>k8s与docker组件堆栈及Debug</title>
+    <link>https://qingwave.github.io/k8s-docker-stack/</link>
+    <pubDate>Sat, 11 May 2019 23:11:45 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/k8s-docker-stack/</guid>
+    <description><![CDATA[<p>k8s组件日志级别热更新</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># 调整日志级别到3</span>
+</span></span><span class="line"><span class="cl">curl -X PUT http://127.0.0.1:8081/debug/flags/v -d <span class="s2">&#34;3&#34;</span>
+</span></span></code></pre></div><p>controller manager</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">wget http://localhost:10252/debug/pprof/profile
+</span></span><span class="line"><span class="cl">wget http://localhost:10252/debug/pprof/heap
+</span></span><span class="line"><span class="cl">curl http://127.0.0.1:10252/debug/pprof/goroutine?debug<span class="o">=</span><span class="m">1</span> &gt;&gt; debug1
+</span></span><span class="line"><span class="cl">curl http://127.0.0.1:10252/debug/pprof/goroutine?debug<span class="o">=</span><span class="m">2</span> &gt;&gt; debug2
+</span></span></code></pre></div><p>scheduler</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nb">kill</span> -12 <span class="si">${</span><span class="nv">SCHED_PID</span><span class="si">}</span>
+</span></span><span class="line"><span class="cl">获取scheduler cache信息，输出到日志
+</span></span></code></pre></div><p>kubelet 堆栈信息</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">wget http://localhost:10250/debug/pprof/profile
+</span></span><span class="line"><span class="cl">wget http://localhost:10250/debug/pprof/heap
+</span></span><span class="line"><span class="cl">curl http://127.0.0.1:10250/debug/pprof/goroutine?debug<span class="o">=</span><span class="m">1</span> &gt;&gt; debug1
+</span></span><span class="line"><span class="cl">curl http://127.0.0.1:10250/debug/pprof/goroutine?debug<span class="o">=</span><span class="m">2</span> &gt;&gt; debug2
+</span></span></code></pre></div><p>docker 堆栈信息</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">curl --unix-socket /var/run/docker.sock -X GET http://v1.2/debug/pprof/profile
+</span></span><span class="line"><span class="cl">curl --unix-socket /var/run/docker.sock -X GET http://v1.2/debug/pprof/
+</span></span><span class="line"><span class="cl">curl --unix-socket /var/run/docker.sock -X GET http://v1.2/debug/pprof/
+</span></span><span class="line"><span class="cl"> 
+</span></span><span class="line"><span class="cl">sudo <span class="nb">kill</span> -SIGUSR1 <span class="k">$(</span>pidof dockerd<span class="k">)</span>
+</span></span><span class="line"><span class="cl">/var/run/docker/
+</span></span><span class="line"><span class="cl"> 
+</span></span><span class="line"><span class="cl">curl --unix-socket /var/run/docker.sock -X GET http://v1.2/debug/pprof/profile &gt;&gt;docker.profile
+</span></span><span class="line"><span class="cl">curl --unix-socket /var/run/docker.sock -X GET http://v1.2/debug/pprof/goroutine &gt;&gt; docker.goroutine
+</span></span><span class="line"><span class="cl">curl --unix-socket /var/run/docker.sock -X GET http://v1.2/debug/pprof/goroutine?debug<span class="o">=</span><span class="m">2</span> &gt;&gt;docker.gorouting_debug_2
+</span></span><span class="line"><span class="cl">curl --unix-socket /var/run/docker.sock -X GET http://v1.2/debug/pprof/heap?debug<span class="o">=</span><span class="m">2</span> &gt;&gt;docker.heap
+</span></span></code></pre></div><p>docker-registry 堆栈信息</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1">#先登入机器,然后执行</span>
+</span></span><span class="line"><span class="cl">wget localhost:5002/debug/pprof/profile <span class="c1">#这个是cpu占用时间的采样结果，要先等30s</span>
+</span></span><span class="line"><span class="cl">wget localhost:5002/debug/pprof/heap <span class="c1">#内存的使用情况</span>
+</span></span><span class="line"><span class="cl">wget localhost:5002/debug/pprof/goroutine?debug<span class="o">=</span><span class="m">2</span> <span class="c1">#调用栈的全部信息</span>
+</span></span><span class="line"><span class="cl">wget localhost:5002/debug/pprof/goroutine
+</span></span><span class="line"><span class="cl">其他可用的profile:
+</span></span><span class="line"><span class="cl">allocs block goroutine cmdline mutex threadcreate trace，替换上面命令pprof/后面的词即可
+</span></span></code></pre></div>]]></description>
+</item></channel>
+</rss>

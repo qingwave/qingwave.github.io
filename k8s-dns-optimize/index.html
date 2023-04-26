@@ -1,162 +1,495 @@
-<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh-cn"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>优化Kubernetes集群内DNS</title><meta content="index,follow" name="robots"/><meta content="优化Kubernetes集群内DNS" property="og:title"/><meta content="https://qingwave.github.io/k8s-dns-optimize" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/k8s-dns-optimize" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
+<!DOCTYPE html>
+<html lang="zh-CN">
 
-  window.dataLayer = window.dataLayer || [];
-  function gtag() {
-    window.dataLayer.push(arguments);
-  }
-  gtag("js", new Date());
-  gtag("config", id);
-})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.95a5b0bf.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img src="/favicon.svg" class="h-6 w-6 dark:invert invert-0"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Mon Feb 01 2021 10:17:40 GMT+0000 (Coordinated Universal Time)">Feb 1, 2021</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">优化Kubernetes集群内DNS</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><p>kubernetes 集群内置的 dns 插件<code>kubedns/coredns</code>在高并发情况下可能遇到性能瓶颈，以下从配置与本地缓存方面说明如何减少 dns 查询失败率，提高性能。</p><h2 id="配置优化">配置优化</h2><h3 id="dnspolicy">dnsPolicy</h3><p>k8s 默认的 <code>dnsPolicy</code> 是<code>ClusterFirst</code>，因为 <code>ndots</code> 和 <code>serach domain</code> 在访问外部 dns 会有额外的查询次数。</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4"># cat /etc/resolv.conf</span></span>
-<span class="line"><span style="color:#f8f8f2">nameserver 10.254.0.2</span></span>
-<span class="line"><span style="color:#f8f8f2">search default.svc.cluster.local svc.cluster.local cluster.local</span></span>
-<span class="line"><span style="color:#f8f8f2">options ndots:5</span></span>
-<span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4">#</span></span>
-<span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4">#</span></span>
-<span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4">#  host -v mi.com</span></span>
-<span class="line"><span style="color:#f8f8f2">Trying </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">mi.com.default.svc.cluster.local</span><span style="color:#e9f284">"</span></span>
-<span class="line"><span style="color:#f8f8f2">Trying </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">mi.com.svc.cluster.local</span><span style="color:#e9f284">"</span></span>
-<span class="line"><span style="color:#f8f8f2">Trying </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">mi.com.cluster.local</span><span style="color:#e9f284">"</span></span>
-<span class="line"><span style="color:#f8f8f2">Trying </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">mi.com</span><span style="color:#e9f284">"</span></span>
-<span class="line"><span style="color:#ff79c6">;;</span><span style="color:#f8f8f2"> -</span><span style="color:#ff79c6">>></span><span style="color:#f8f8f2">HEADER</span><span style="color:#ff79c6">&#x3C;&#x3C;</span><span style="color:#f1fa8c">- </span><span style="color:#ff79c6">opcode:</span><span style="color:#f1fa8c"> QUERY, status: NOERROR, id: 38967</span></span>
-<span class="line"><span style="color:#f1fa8c">;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f1fa8c">;; QUESTION SECTION:</span></span>
-<span class="line"><span style="color:#f1fa8c">;mi.com.                                IN        A</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f1fa8c">;; ANSWER SECTION:</span></span>
-<span class="line"><span style="color:#f1fa8c">mi.com.                        30        IN        A        58.83.160.156</span></span></code></pre><p>如果不访问 service，调整<code>dnsPolicy</code>为<code>Default</code>，直接走宿主机的 dns</p><h3 id="ndots">ndots</h3><p>如需访问 service，尽量减少<code>ndots</code>（默认 5）即域名中点的个数小于<code>ndots</code>会按照 search 域（mi.com.default.svc.cluster.local）依次查询，若查询不到再查询原始域名，总共进行 8 次 dns 查询（4 次 ipv4, 4 次 ipv6）</p><p>设置<code>ndots</code>为 1 后，只有两次查询（1 次 ipv4, ipv6）</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4">#  host -v mi.com</span></span>
-<span class="line"><span style="color:#f8f8f2">Trying </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">mi.com</span><span style="color:#e9f284">"</span></span>
-<span class="line"><span style="color:#ff79c6">;;</span><span style="color:#f8f8f2"> -</span><span style="color:#ff79c6">>></span><span style="color:#f8f8f2">HEADER</span><span style="color:#ff79c6">&#x3C;&#x3C;</span><span style="color:#f1fa8c">- </span><span style="color:#ff79c6">opcode:</span><span style="color:#f1fa8c"> QUERY, status: NOERROR, id: 23894</span></span>
-<span class="line"><span style="color:#f1fa8c">;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f1fa8c">;; QUESTION SECTION:</span></span>
-<span class="line"><span style="color:#f1fa8c">;mi.com.                                IN        A</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f1fa8c">;; ANSWER SECTION:</span></span>
-<span class="line"><span style="color:#f1fa8c">mi.com.                        30        IN        A        58.83.160.156</span></span></code></pre><p>但此种方式 service 域名分割大于等于<code>ndots</code>，则解析不到，需要业务自行判断合适的<code>ndots</code>值</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4">#  host -v prometheus.kube-system</span></span>
-<span class="line"><span style="color:#f8f8f2">Trying </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">prometheus.kube-system</span><span style="color:#e9f284">"</span></span>
-<span class="line"><span style="color:#f8f8f2">Host prometheus.kube-system not found: 3(NXDOMAIN)</span></span>
-<span class="line"><span style="color:#f8f8f2">Received 115 bytes from 10.254.0.2#53 </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> 8 ms</span></span>
-<span class="line"><span style="color:#f8f8f2">Received 115 bytes from 10.254.0.2#53 </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> 8 ms</span></span></code></pre><h3 id="coredns-优化">coredns 优化</h3><p>调整合理的副本数，阿里建议<code>coredns:node=1:8</code>，启动<code>AutoPath</code>插件减少查询次数，见<a href="2">DNS 性能优化</a></p><h2 id="dns-缓存">DNS 缓存</h2><h3 id="nodelocaldns">NodeLocalDNS</h3><p>NodeLocal DNSCache 通过在集群节点上作为 DaemonSet 运行 dns 缓存代理来提高集群 DNS 性能， 借助这种新架构，Pods 将可以访问在同一节点上运行的 dns 缓存代理，从而避免了 iptables DNAT 规则和连接跟踪。</p><p>架构如下: <img src="https://d33wubrfki0l68.cloudfront.net/bf8e5eaac697bac89c5b36a0edb8855c860bfb45/6944f/images/docs/nodelocaldns.svg" alt="local-dns"></p><p>NodeLocalDNS 的设计提案见（<a href="3">nodelocal-dns-cache</a>）</p><h4 id="验证">验证</h4><p>官方安装方式见<a href="https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/dns/nodelocaldns">nodelocaldns</a>，需要自行替换变量</p><p>可通过如下脚本，一键安装（注意设置 kubedns svc ClusterIP）</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">#!/bin/bash</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">wget https://raw.githubusercontent.com/kubernetes/kubernetes/master/cluster/addons/dns/nodelocaldns/nodelocaldns.yaml</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#6272a4"># registery</span></span>
-<span class="line"><span style="color:#f8f8f2">docker_registery=k8s.gcr.io/dns/k8s-dns-node-cache</span></span>
-<span class="line"><span style="color:#6272a4"># kube-dns svc clusterip</span></span>
-<span class="line"><span style="color:#f8f8f2">kubedns_svc=10.254.0.2</span></span>
-<span class="line"><span style="color:#6272a4"># nodelocaldns ip</span></span>
-<span class="line"><span style="color:#f8f8f2">nodelocaldns_ip=169.254.20.10</span></span>
-<span class="line"><span style="color:#6272a4"># kube-proxy mode, iptables or ipvs</span></span>
-<span class="line"><span style="color:#f8f8f2">kubeproxy_mode=iptables</span></span>
-<span class="line"><span style="color:#f8f8f2">result=result.yaml</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> [ </span><span style="color:#bd93f9">${kubeproxy_mode}</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">==</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">ipvs</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> ]</span><span style="color:#ff79c6">;</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">then</span></span>
-<span class="line"><span style="color:#f8f8f2">    sed -e </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">s|k8s.gcr.io/dns/k8s-dns-node-cache|</span><span style="color:#bd93f9">$docker_registery</span><span style="color:#f1fa8c">|g</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> \</span></span>
-<span class="line"><span style="color:#f8f8f2">        -e </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">s/__PILLAR__CLUSTER__DNS__/</span><span style="color:#bd93f9">$kubedns_svc</span><span style="color:#f1fa8c">/g</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> \</span></span>
-<span class="line"><span style="color:#f8f8f2">        -e </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">s/__PILLAR__LOCAL__DNS__/</span><span style="color:#bd93f9">$nodelocaldns_ip</span><span style="color:#f1fa8c">/g</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> \</span></span>
-<span class="line"><span style="color:#f8f8f2">        -e </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">s/[ |,]__PILLAR__DNS__SERVER__//g</span><span style="color:#e9f284">'</span><span style="color:#f8f8f2"> \</span></span>
-<span class="line"><span style="color:#f8f8f2">        -e </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">s/__PILLAR__DNS__DOMAIN__/cluster.local/g</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> nodelocaldns.yaml </span><span style="color:#ff79c6">></span><span style="color:#bd93f9">$result</span></span>
-<span class="line"><span style="color:#ff79c6">else</span></span>
-<span class="line"><span style="color:#f8f8f2">    sed -e </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">s|k8s.gcr.io/dns/k8s-dns-node-cache|</span><span style="color:#bd93f9">$docker_registery</span><span style="color:#f1fa8c">|g</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> \</span></span>
-<span class="line"><span style="color:#f8f8f2">        -e </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">s/__PILLAR__DNS__SERVER__/</span><span style="color:#bd93f9">$kubedns_svc</span><span style="color:#f1fa8c">/g</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> \</span></span>
-<span class="line"><span style="color:#f8f8f2">        -e </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">s/__PILLAR__LOCAL__DNS__/</span><span style="color:#bd93f9">$nodelocaldns_ip</span><span style="color:#f1fa8c">/g</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> \</span></span>
-<span class="line"><span style="color:#f8f8f2">        -e </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">s/__PILLAR__DNS__DOMAIN__/cluster.local/g</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> nodelocaldns.yaml </span><span style="color:#ff79c6">></span><span style="color:#bd93f9">$result</span></span>
-<span class="line"><span style="color:#ff79c6">fi</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">kubectl apply -f </span><span style="color:#bd93f9">$result</span></span></code></pre><p>创建完成后，每个节点运行一个 pod，查看 pod(个别节点 ingress-nginx 占用 8080 端口，导致 nodelocaldns 启动失败)</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4"># kubectl  get po -n kube-system -l k8s-app=node-local-dns -o wide</span></span>
-<span class="line"><span style="color:#f8f8f2">NAME                   READY   STATUS             RESTARTS   AGE    IP              NODE                            NOMINATED NODE   READINESS GATES</span></span>
-<span class="line"><span style="color:#f8f8f2">node-local-dns-2fvxb   0/1     CrashLoopBackOff   4          103s   10.38.200.195   node04          </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2">           </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span></span>
-<span class="line"><span style="color:#f8f8f2">node-local-dns-4zmcd   1/1     Running            0          54d    10.38.201.55    node06   </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2">           </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span></span>
-<span class="line"><span style="color:#f8f8f2">node-local-dns-55tzg   1/1     Running            0          60d    10.38.200.186   node02          </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2">           </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span></span>
-<span class="line"><span style="color:#f8f8f2">node-local-dns-cctg7   1/1     Running            0          54d    10.38.200.242   node07   </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2">           </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span></span>
-<span class="line"><span style="color:#f8f8f2">node-local-dns-khgmm   1/1     Running            0          54d    10.38.201.36    node08   </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2">           </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span></span>
-<span class="line"><span style="color:#f8f8f2">node-local-dns-mbr64   1/1     Running            0          60d    10.38.200.187   node05          </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2">           </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span></span>
-<span class="line"><span style="color:#f8f8f2">node-local-dns-t67vw   1/1     Running            0          60d    10.38.200.188   node03          </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2">           </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span></span>
-<span class="line"><span style="color:#f8f8f2">node-local-dns-tmm92   1/1     Running            14         54d    10.38.200.57    node09   </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2">           </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span></span></code></pre><p>默认配置如下：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">cluster.local:53 {</span></span>
-<span class="line"><span style="color:#f8f8f2">    errors</span></span>
-<span class="line"><span style="color:#f8f8f2">    cache {</span></span>
-<span class="line"><span style="color:#f8f8f2">            success 9984 30 </span><span style="color:#6272a4"># 默认成功缓存30s</span></span>
-<span class="line"><span style="color:#f8f8f2">            denial 9984 5 </span><span style="color:#6272a4">#失败缓存5s</span></span>
-<span class="line"><span style="color:#f8f8f2">    }</span></span>
-<span class="line"><span style="color:#f8f8f2">    reload</span></span>
-<span class="line"><span style="color:#f8f8f2">    loop</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">bind</span><span style="color:#f8f8f2"> 169.254.20.10 10.254.0.2 </span><span style="color:#6272a4">#本地监听ip</span></span>
-<span class="line"><span style="color:#f8f8f2">    forward </span><span style="color:#8be9fd">.</span><span style="color:#f8f8f2"> 10.254.132.95 { </span><span style="color:#6272a4">#转发到kubedns-upstream</span></span>
-<span class="line"><span style="color:#f8f8f2">            force_tcp</span></span>
-<span class="line"><span style="color:#f8f8f2">    }</span></span>
-<span class="line"><span style="color:#f8f8f2">    prometheus :9253 </span><span style="color:#6272a4">#监控接口</span></span>
-<span class="line"><span style="color:#f8f8f2">    health 169.254.20.10:8080 </span><span style="color:#6272a4">#健康检测端口</span></span>
-<span class="line"><span style="color:#f8f8f2">    }</span></span>
-<span class="line"><span style="color:#f8f8f2">in-addr.arpa:53 {</span></span>
-<span class="line"><span style="color:#f8f8f2">    errors</span></span>
-<span class="line"><span style="color:#f8f8f2">    cache 30</span></span>
-<span class="line"><span style="color:#f8f8f2">    reload</span></span>
-<span class="line"><span style="color:#f8f8f2">    loop</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">bind</span><span style="color:#f8f8f2"> 169.254.20.10 10.254.0.2</span></span>
-<span class="line"><span style="color:#f8f8f2">    forward </span><span style="color:#8be9fd">.</span><span style="color:#f8f8f2"> 10.254.132.95 {</span></span>
-<span class="line"><span style="color:#f8f8f2">            force_tcp</span></span>
-<span class="line"><span style="color:#f8f8f2">    }</span></span>
-<span class="line"><span style="color:#f8f8f2">    prometheus :9253</span></span>
-<span class="line"><span style="color:#f8f8f2">    }</span></span>
-<span class="line"><span style="color:#f8f8f2">ip6.arpa:53 {</span></span>
-<span class="line"><span style="color:#f8f8f2">    errors</span></span>
-<span class="line"><span style="color:#f8f8f2">    cache 30</span></span>
-<span class="line"><span style="color:#f8f8f2">    reload</span></span>
-<span class="line"><span style="color:#f8f8f2">    loop</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">bind</span><span style="color:#f8f8f2"> 169.254.20.10 10.254.0.2</span></span>
-<span class="line"><span style="color:#f8f8f2">    forward </span><span style="color:#8be9fd">.</span><span style="color:#f8f8f2"> 10.254.132.95 {</span></span>
-<span class="line"><span style="color:#f8f8f2">            force_tcp</span></span>
-<span class="line"><span style="color:#f8f8f2">    }</span></span>
-<span class="line"><span style="color:#f8f8f2">    prometheus :9253</span></span>
-<span class="line"><span style="color:#f8f8f2">    }</span></span>
-<span class="line"><span style="color:#f8f8f2">.:53 {</span></span>
-<span class="line"><span style="color:#f8f8f2">    errors</span></span>
-<span class="line"><span style="color:#f8f8f2">    cache 30</span></span>
-<span class="line"><span style="color:#f8f8f2">    reload</span></span>
-<span class="line"><span style="color:#f8f8f2">    loop</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">bind</span><span style="color:#f8f8f2"> 169.254.20.10 10.254.0.2</span></span>
-<span class="line"><span style="color:#f8f8f2">    forward </span><span style="color:#8be9fd">.</span><span style="color:#f8f8f2"> /etc/resolv.conf</span></span>
-<span class="line"><span style="color:#f8f8f2">    prometheus :9253</span></span>
-<span class="line"><span style="color:#f8f8f2">    }</span></span></code></pre><p>节点上查看 localdns 的网卡，本地将监听<code>169.254.20.10</code>与<code>10.254.0.2</code>两个地址，拦截 kubedns((默认<code>10.254.0.2</code>)的请求，命中后直接返回，若未命中转发到 kubedns(对应 service <code>kube-dns-upstream</code>，kube-dns-upstream 由 localdns 创建绑定 kubedns pod)</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4"># ip addr show nodelocaldns</span></span>
-<span class="line"><span style="color:#f8f8f2">182232: nodelocaldns: </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">BROADCAST,NOARP</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2"> mtu 1500 qdisc noop state DOWN</span></span>
-<span class="line"><span style="color:#f8f8f2">    link/ether 4e:62:1c:fd:56:12 brd ff:ff:ff:ff:ff:ff</span></span>
-<span class="line"><span style="color:#f8f8f2">    inet 169.254.20.10/32 brd 169.254.20.10 scope global nodelocaldns</span></span>
-<span class="line"><span style="color:#f8f8f2">       valid_lft forever preferred_lft forever</span></span>
-<span class="line"><span style="color:#f8f8f2">    inet 10.254.0.2/32 brd 10.254.0.2 scope global nodelocaldns</span></span>
-<span class="line"><span style="color:#f8f8f2">       valid_lft forever preferred_lft forever</span></span></code></pre><p>iptables 规则，使用<code>NOTRACK</code>跳过其它表处理</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">iptables-save </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2"> egrep </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.254.0.2|169.254.20.10</span><span style="color:#e9f284">"</span></span>
-<span class="line"><span style="color:#f8f8f2">-A PREROUTING -d 10.254.0.2/32 -p udp -m udp --dport 53 -j NOTRACK</span></span>
-<span class="line"><span style="color:#f8f8f2">-A PREROUTING -d 10.254.0.2/32 -p tcp -m tcp --dport 53 -j NOTRACK</span></span>
-<span class="line"><span style="color:#f8f8f2">-A PREROUTING -d 169.254.20.10/32 -p udp -m udp --dport 53 -j NOTRACK</span></span>
-<span class="line"><span style="color:#f8f8f2">-A PREROUTING -d 169.254.20.10/32 -p tcp -m tcp --dport 53 -j NOTRACK</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">-A OUTPUT -d 10.254.0.2/32 -p udp -m udp --dport 53 -j NOTRACK</span></span>
-<span class="line"><span style="color:#f8f8f2">-A OUTPUT -d 10.254.0.2/32 -p tcp -m tcp --dport 53 -j NOTRACK</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">-A INPUT -d 10.254.0.2/32 -p udp -m udp --dport 53 -j ACCEPT</span></span>
-<span class="line"><span style="color:#f8f8f2">-A INPUT -d 10.254.0.2/32 -p tcp -m tcp --dport 53 -j ACCEPT</span></span>
-<span class="line"><span style="color:#f8f8f2">-A OUTPUT -s 10.254.0.2/32 -p udp -m udp --sport 53 -j ACCEPT</span></span>
-<span class="line"><span style="color:#f8f8f2">-A OUTPUT -s 10.254.0.2/32 -p tcp -m tcp --sport 53 -j ACCEPT</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">...</span></span>
-<span class="line"><span style="color:#f8f8f2">-A KUBE-SERVICES -d 10.254.0.2/32 -p tcp -m comment --comment </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">kube-system/kube-dns:dns-tcp cluster IP</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> -m tcp --dport 53 -j KUBE-SVC-ERIFXISQEP7F7OF4</span></span>
-<span class="line"><span style="color:#f8f8f2">-A KUBE-SERVICES -d 10.254.0.2/32 -p tcp -m comment --comment </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">kube-system/kube-dns:metrics cluster IP</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> -m tcp --dport 9153 -j KUBE-SVC-JD5MR3NA4I4DYORP</span></span>
-<span class="line"><span style="color:#f8f8f2">-A KUBE-SERVICES -d 10.254.0.2/32 -p udp -m comment --comment </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">kube-system/kube-dns:dns cluster IP</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> -m udp --dport 53 -j KUBE-SVC-TCOU7JCQXEZGVUNU</span></span></code></pre><p>在 pod 通过 localdns 解析域名</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4"># kubectl  exec -it dns-perf-client-64cfb49f9-9c5hg sh</span></span>
-<span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4"># nslookup kubernetes 169.254.20.10</span></span>
-<span class="line"><span style="color:#f8f8f2">Server:                169.254.20.10</span></span>
-<span class="line"><span style="color:#f8f8f2">Address:        169.254.20.10#53</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">Name:        kubernetes.default.svc.cluster.local</span></span>
-<span class="line"><span style="color:#f8f8f2">Address: 10.254.0.1</span></span></code></pre><h4 id="压测">压测</h4><p>通过<code>dnsperf</code>进行压测</p><p>测试域名列表如下</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4"># cat records.txt</span></span>
-<span class="line"><span style="color:#f8f8f2">mi.com A</span></span>
-<span class="line"><span style="color:#f8f8f2">github.com A</span></span>
-<span class="line"><span style="color:#f8f8f2">www.microsoft.com A</span></span>
-<span class="line"><span style="color:#f8f8f2">www.aliyun.com A</span></span>
-<span class="line"><span style="color:#f8f8f2">kubernetes.io A</span></span>
-<span class="line"><span style="color:#f8f8f2">nginx A</span></span>
-<span class="line"><span style="color:#f8f8f2">nginx.default A</span></span>
-<span class="line"><span style="color:#f8f8f2">kubernetes A</span></span>
-<span class="line"><span style="color:#f8f8f2">kubernetes.default.svc.cluster.local A</span></span>
-<span class="line"><span style="color:#f8f8f2">kube-dns.kube-system.svc.cluster.local A</span></span></code></pre><p>测试命令</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">dnsperf -l 120 -s 10.254.0.2 -d records.txt</span></span></code></pre><p>结果如下</p><table><thead><tr><th align="left"></th><th align="left">client number</th><th align="left">qps</th><th align="left">avg-lantency(ms)</th><th align="left">stddev(ms)</th><th align="left">lost</th></tr></thead><tbody><tr><td align="left">kubedns(1 pod)</td><td align="left">1</td><td align="left">53910</td><td align="left">1.83</td><td align="left">6.07</td><td align="left">0%</td></tr><tr><td align="left">kubedns(2 pod)</td><td align="left">2</td><td align="left">110000</td><td align="left">1.83</td><td align="left">1.94</td><td align="left">9%</td></tr><tr><td align="left">kubedns(4 pod)</td><td align="left">4</td><td align="left">120000</td><td align="left">3.2</td><td align="left">0.8</td><td align="left">24%</td></tr><tr><td align="left">nodelocaldns</td><td align="left">1</td><td align="left">71494</td><td align="left">1.39</td><td align="left">1.66</td><td align="left">0%</td></tr><tr><td align="left">nodelocaldns</td><td align="left">2</td><td align="left">142000</td><td align="left">1.37</td><td align="left">1.55</td><td align="left">0%</td></tr></tbody></table><p>相比<code>nodelocaldns</code>，<code>localdns</code>查询性能提高了 33%，而且延时相对更小，由于<code>localdns</code>是分布式的整体 qps 相对 kubedns 有较大优势。当前测试相对简单，大部分请求会命中缓存，完整的测试结果待进一步验证。</p><h4 id="优缺点">优缺点</h4><p>优点：</p><ul><li>大幅减少 dns 查询延时</li><li>提高 dns qps</li><li>不经过<code>iptables</code>与<code>conntrack</code></li><li>默认使用 tcp 查询 dns，避免 dns 5 秒延时</li></ul><p>缺点：</p><ul><li>单点故障（OOM/Evicted/Config Error/Upgrade），社区通过起一个探测 daemonset 监听 localdns 状态，如果 localdns 异常将去掉 iptables 规则</li><li><code>hostnetwork</code>, 占用多个端口（8080, 9253 等）</li><li>ipvs 模式下，需要改动 kubelet 默认 dns 配置（<code>NOTRACK</code>将对<code>ipvs</code>无效，除非 service 后端实例为 0）</li></ul><p>注意事项</p><ul><li>低版本 dns 存在 tcp 请求内存泄露</li><li>安装时<code>iptables</code>与<code>ipvs</code>配置不同</li></ul><h4 id="ha">HA</h4><ul><li>社区提案将<code>iptables</code>写入规则从<code>nodelocaldns</code>拆分为单独的 daemonset，通过监听<code>localdns</code>地址来判断是否写入或删除<code>iptables</code>规则（ipvs 默认下无效）</li><li>在<code>/etc/resolv.conf</code>配置多个<code>nameservers</code>(不推荐，不同基础库表现不同，如<code>glibc 2.16+</code>查询 dns 时会向多个<code>nameservers</code>发送请求，反而造成了请求激增)</li></ul><h4 id="灰度方式">灰度方式</h4><ul><li>通过<code>dnsConfi</code>g 配置 Pod 级别 dns（需要配置启动参数 localip）</li><li>通过设置<code>nodeselector</code>灰度 Node 级别 dns 策略</li></ul><h3 id="本地-dns-缓存">本地 DNS 缓存</h3><p>除了 nodelocaldns，用户还可以在容器内或者添加 sidecar 来启用 dns 缓存</p><ol><li><p>通过在镜像中加入 nscd 进程，缓存 dns，如下：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">FROM ubuntu</span></span>
-<span class="line"><span style="color:#f8f8f2">RUN apt-get update </span><span style="color:#ff79c6">&#x26;&#x26;</span><span style="color:#f8f8f2"> apt-get install -y nscd </span><span style="color:#ff79c6">&#x26;&#x26;</span><span style="color:#f8f8f2"> rm -rf /var/lib/apt/lists/</span><span style="color:#ff79c6">*</span></span>
-<span class="line"><span style="color:#f8f8f2">CMD service nscd start</span><span style="color:#ff79c6">;</span><span style="color:#f8f8f2"> bash -c </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">sleep 3600</span><span style="color:#e9f284">"</span></span></code></pre><p>此种方式需要用户改动镜像，或者加入额外脚本配置<code>nscd</code></p></li><li><p>另外可以配置可配置 dns 缓存 sidecar（如<code>coredns</code>, <code>dnsmasq</code>）来提高性能，此种方式灵活性高，但需要改动 pod 配置，而且较<code>nodelocaldns</code>浪费资源</p></li></ol><h2 id="参考">参考</h2><ul><li><a href="https://kubernetes.io/zh/docs/tasks/administer-cluster/nodelocaldns/">https://kubernetes.io/zh/docs/tasks/administer-cluster/nodelocaldns/</a></li><li><a href="https://help.aliyun.com/document_detail/172339.html">https://help.aliyun.com/document_detail/172339.html</a></li><li><a href="https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/0030-nodelocal-dns-cache.md">https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/0030-nodelocal-dns-cache.md</a></li><li><a href="https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/1024-nodelocal-cache-dns/README.md">https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/1024-nodelocal-cache-dns/README.md</a></li><li><a href="https://lework.github.io/2020/11/09/node-local-dns/">https://lework.github.io/2020/11/09/node-local-dns/</a></li></ul></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/dns" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#dns</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="/" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noodp" />
+    <title class="pjax-title">
+        优化Kubernetes集群内DNS
+        
+    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="优化Kubernetes集群内DNS" />
+<meta property="og:description" content="kubernetes集群内置的dns插件kubedns/coredns在高并发情况下可能遇到性能瓶颈，以下从配置与本地缓存方面说明如何减少dns查询失败率，提高性能。" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://qingwave.github.io/k8s-dns-optimize/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2021-02-01T10:17:40+00:00" />
+<meta property="article:modified_time" content="2021-12-17T14:02:05+00:00" /><meta property="og:site_name" content="Qingwave" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
+
+<meta name="twitter:title" content="优化Kubernetes集群内DNS"/>
+<meta name="twitter:description" content="kubernetes集群内置的dns插件kubedns/coredns在高并发情况下可能遇到性能瓶颈，以下从配置与本地缓存方面说明如何减少dns查询失败率，提高性能。"/>
+<meta name="application-name" content="Qingwave">
+<meta name="apple-mobile-web-app-title" content="Qingwave">
+
+<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/k8s-dns-optimize/" /><link rel="prev" href="https://qingwave.github.io/k8s-rate-limit/" /><link rel="next" href="https://qingwave.github.io/docker-shell-signal/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "优化Kubernetes集群内DNS",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/qingwave.github.io\/k8s-dns-optimize\/"
+        },"genre": "posts","keywords": "k8s, dns","wordcount":  2562 ,
+        "url": "https:\/\/qingwave.github.io\/k8s-dns-optimize\/","datePublished": "2021-02-01T10:17:40+00:00","dateModified": "2021-12-17T14:02:05+00:00","publisher": {
+            "@type": "Organization",
+            "name": ""},"author": {
+                "@type": "Person",
+                "name": "qinng"
+            },"description": ""
+    }
+    </script></head>
+
+<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
+        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
+        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
+        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
+        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
+        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
+        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
+    </script>
+    <div id="back-to-top"></div>
+    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div>
+<main class="main">
+            <div class="container"><div class="toc" id="toc-auto">
+        <h2 class="toc-title">目录</h2>
+        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#配置优化">配置优化</a>
+      <ul>
+        <li><a href="#dnspolicy">dnsPolicy</a></li>
+        <li><a href="#ndots">ndots</a></li>
+        <li><a href="#coredns优化">coredns优化</a></li>
+      </ul>
+    </li>
+    <li><a href="#dns缓存">DNS缓存</a>
+      <ul>
+        <li><a href="#nodelocaldns">NodeLocalDNS</a>
+          <ul>
+            <li><a href="#验证">验证</a></li>
+            <li><a href="#压测">压测</a></li>
+            <li><a href="#优缺点">优缺点</a></li>
+            <li><a href="#ha">HA</a></li>
+            <li><a href="#灰度方式">灰度方式</a></li>
+          </ul>
+        </li>
+        <li><a href="#本地dns缓存">本地DNS缓存</a></li>
+      </ul>
+    </li>
+    <li><a href="#参考">参考</a></li>
+  </ul>
+</nav></div>
+    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">优化Kubernetes集群内DNS</h1><div class="post-meta">
+            <div class="post-meta-line"><time datetime="Feb 01, 2021">Feb 01, 2021</time>
+            </div>
+        </div><div class="details toc" id="toc-static"  kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#配置优化">配置优化</a>
+      <ul>
+        <li><a href="#dnspolicy">dnsPolicy</a></li>
+        <li><a href="#ndots">ndots</a></li>
+        <li><a href="#coredns优化">coredns优化</a></li>
+      </ul>
+    </li>
+    <li><a href="#dns缓存">DNS缓存</a>
+      <ul>
+        <li><a href="#nodelocaldns">NodeLocalDNS</a>
+          <ul>
+            <li><a href="#验证">验证</a></li>
+            <li><a href="#压测">压测</a></li>
+            <li><a href="#优缺点">优缺点</a></li>
+            <li><a href="#ha">HA</a></li>
+            <li><a href="#灰度方式">灰度方式</a></li>
+          </ul>
+        </li>
+        <li><a href="#本地dns缓存">本地DNS缓存</a></li>
+      </ul>
+    </li>
+    <li><a href="#参考">参考</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><p>kubernetes集群内置的dns插件<code>kubedns/coredns</code>在高并发情况下可能遇到性能瓶颈，以下从配置与本地缓存方面说明如何减少dns查询失败率，提高性能。</p>
+<h2 id="配置优化" class="headerLink">
+    <a href="#%e9%85%8d%e7%bd%ae%e4%bc%98%e5%8c%96" class="header-mark"></a>配置优化</h2><h3 id="dnspolicy" class="headerLink">
+    <a href="#dnspolicy" class="header-mark"></a>dnsPolicy</h3><p>k8s 默认的 <code>dnsPolicy</code> 是<code>ClusterFirst</code>，因为 <code>ndots</code> 和 <code>serach domain</code> 在访问外部 dns 会有额外的查询次数。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/ <span class="c1"># cat /etc/resolv.conf </span>
+</span></span><span class="line"><span class="cl">nameserver 10.254.0.2
+</span></span><span class="line"><span class="cl">search default.svc.cluster.local svc.cluster.local cluster.local
+</span></span><span class="line"><span class="cl">options ndots:5
+</span></span><span class="line"><span class="cl">/ <span class="c1"># </span>
+</span></span><span class="line"><span class="cl">/ <span class="c1"># </span>
+</span></span><span class="line"><span class="cl">/ <span class="c1">#  host -v mi.com</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com.default.svc.cluster.local&#34;</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com.svc.cluster.local&#34;</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com.cluster.local&#34;</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> -&gt;&gt;HEADER<span class="s">&lt;&lt;- opco</span>de: QUERY, status: NOERROR, id: <span class="m">38967</span>
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> flags: qr rd ra<span class="p">;</span> QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: <span class="m">0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> QUESTION SECTION:
+</span></span><span class="line"><span class="cl"><span class="p">;</span>mi.com.                                IN        A
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> ANSWER SECTION:
+</span></span><span class="line"><span class="cl">mi.com.                        <span class="m">30</span>        IN        A        58.83.160.156
+</span></span></code></pre></div><p>如果不访问service，调整<code>dnsPolicy</code>为<code>Default</code>，直接走宿主机的dns</p>
+<h3 id="ndots" class="headerLink">
+    <a href="#ndots" class="header-mark"></a>ndots</h3><p>如需访问service，尽量减少<code>ndots</code>（默认5）即域名中点的个数小于<code>ndots</code>会按照search域（mi.com.default.svc.cluster.local）依次查询，若查询不到再查询原始域名，总共进行8次dns查询（4次ipv4, 4次ipv6）</p>
+<p>设置<code>ndots</code>为1后，只有两次查询（1次ipv4, ipv6）</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/ <span class="c1">#  host -v mi.com</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> -&gt;&gt;HEADER<span class="s">&lt;&lt;- opco</span>de: QUERY, status: NOERROR, id: <span class="m">23894</span>
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> flags: qr rd ra<span class="p">;</span> QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: <span class="m">0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> QUESTION SECTION:
+</span></span><span class="line"><span class="cl"><span class="p">;</span>mi.com.                                IN        A
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> ANSWER SECTION:
+</span></span><span class="line"><span class="cl">mi.com.                        <span class="m">30</span>        IN        A        58.83.160.156
+</span></span></code></pre></div><p>但此种方式service域名分割大于等于<code>ndots</code>，则解析不到，需要业务自行判断合适的<code>ndots</code>值</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/ <span class="c1">#  host -v prometheus.kube-system</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;prometheus.kube-system&#34;</span>
+</span></span><span class="line"><span class="cl">Host prometheus.kube-system not found: 3<span class="o">(</span>NXDOMAIN<span class="o">)</span>
+</span></span><span class="line"><span class="cl">Received <span class="m">115</span> bytes from 10.254.0.2#53 in <span class="m">8</span> ms
+</span></span><span class="line"><span class="cl">Received <span class="m">115</span> bytes from 10.254.0.2#53 in <span class="m">8</span> ms
+</span></span></code></pre></div><h3 id="coredns优化" class="headerLink">
+    <a href="#coredns%e4%bc%98%e5%8c%96" class="header-mark"></a>coredns优化</h3><p>调整合理的副本数，阿里建议<code>coredns:node=1:8</code>，启动<code>AutoPath</code>插件减少查询次数，见<a href="2" rel="">DNS性能优化</a></p>
+<h2 id="dns缓存" class="headerLink">
+    <a href="#dns%e7%bc%93%e5%ad%98" class="header-mark"></a>DNS缓存</h2><h3 id="nodelocaldns" class="headerLink">
+    <a href="#nodelocaldns" class="header-mark"></a>NodeLocalDNS</h3><p>NodeLocal DNSCache 通过在集群节点上作为 DaemonSet 运行 dns 缓存代理来提高集群 DNS 性能，
+借助这种新架构，Pods 将可以访问在同一节点上运行的 dns 缓存代理，从而避免了 iptables DNAT 规则和连接跟踪。</p>
+<p>架构如下:
+<img
+        class="lazyload"
+        data-src="https://d33wubrfki0l68.cloudfront.net/bf8e5eaac697bac89c5b36a0edb8855c860bfb45/6944f/images/docs/nodelocaldns.svg"
+        data-srcset="https://d33wubrfki0l68.cloudfront.net/bf8e5eaac697bac89c5b36a0edb8855c860bfb45/6944f/images/docs/nodelocaldns.svg, https://d33wubrfki0l68.cloudfront.net/bf8e5eaac697bac89c5b36a0edb8855c860bfb45/6944f/images/docs/nodelocaldns.svg 1.5x, https://d33wubrfki0l68.cloudfront.net/bf8e5eaac697bac89c5b36a0edb8855c860bfb45/6944f/images/docs/nodelocaldns.svg 2x"
+        data-sizes="auto"
+        alt="https://d33wubrfki0l68.cloudfront.net/bf8e5eaac697bac89c5b36a0edb8855c860bfb45/6944f/images/docs/nodelocaldns.svg"
+        title="local-dns">
+
+</p>
+<p>NodeLocalDNS的设计提案见（<a href="3" rel="">nodelocal-dns-cache</a>）</p>
+<h4 id="验证" class="headerLink">
+    <a href="#%e9%aa%8c%e8%af%81" class="header-mark"></a>验证</h4><p>官方安装方式见<a href="https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/dns/nodelocaldns" target="_blank" rel="noopener noreffer">nodelocaldns</a>，需要自行替换变量</p>
+<p>可通过如下脚本，一键安装（注意设置kubedns svc ClusterIP）</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="cp">#!/bin/bash
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl">wget https://raw.githubusercontent.com/kubernetes/kubernetes/master/cluster/addons/dns/nodelocaldns/nodelocaldns.yaml
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># registery</span>
+</span></span><span class="line"><span class="cl"><span class="nv">docker_registery</span><span class="o">=</span>k8s.gcr.io/dns/k8s-dns-node-cache
+</span></span><span class="line"><span class="cl"><span class="c1"># kube-dns svc clusterip</span>
+</span></span><span class="line"><span class="cl"><span class="nv">kubedns_svc</span><span class="o">=</span>10.254.0.2
+</span></span><span class="line"><span class="cl"><span class="c1"># nodelocaldns ip</span>
+</span></span><span class="line"><span class="cl"><span class="nv">nodelocaldns_ip</span><span class="o">=</span>169.254.20.10
+</span></span><span class="line"><span class="cl"><span class="c1"># kube-proxy mode, iptables or ipvs</span>
+</span></span><span class="line"><span class="cl"><span class="nv">kubeproxy_mode</span><span class="o">=</span>iptables
+</span></span><span class="line"><span class="cl"><span class="nv">result</span><span class="o">=</span>result.yaml
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="o">[</span> <span class="si">${</span><span class="nv">kubeproxy_mode</span><span class="si">}</span> <span class="o">==</span> <span class="s2">&#34;ipvs&#34;</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+</span></span><span class="line"><span class="cl">    sed -e <span class="s2">&#34;s|k8s.gcr.io/dns/k8s-dns-node-cache|</span><span class="nv">$docker_registery</span><span class="s2">|g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__CLUSTER__DNS__/</span><span class="nv">$kubedns_svc</span><span class="s2">/g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__LOCAL__DNS__/</span><span class="nv">$nodelocaldns_ip</span><span class="s2">/g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s1">&#39;s/[ |,]__PILLAR__DNS__SERVER__//g&#39;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__DNS__DOMAIN__/cluster.local/g&#34;</span> nodelocaldns.yaml &gt;<span class="nv">$result</span>
+</span></span><span class="line"><span class="cl"><span class="k">else</span>
+</span></span><span class="line"><span class="cl">    sed -e <span class="s2">&#34;s|k8s.gcr.io/dns/k8s-dns-node-cache|</span><span class="nv">$docker_registery</span><span class="s2">|g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__DNS__SERVER__/</span><span class="nv">$kubedns_svc</span><span class="s2">/g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__LOCAL__DNS__/</span><span class="nv">$nodelocaldns_ip</span><span class="s2">/g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__DNS__DOMAIN__/cluster.local/g&#34;</span> nodelocaldns.yaml &gt;<span class="nv">$result</span>
+</span></span><span class="line"><span class="cl"><span class="k">fi</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">kubectl apply -f <span class="nv">$result</span>
+</span></span></code></pre></div><p>创建完成后，每个节点运行一个pod，查看pod(个别节点ingress-nginx占用8080端口，导致nodelocaldns启动失败)</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># kubectl  get po -n kube-system -l k8s-app=node-local-dns -o wide</span>
+</span></span><span class="line"><span class="cl">NAME                   READY   STATUS             RESTARTS   AGE    IP              NODE                            NOMINATED NODE   READINESS GATES
+</span></span><span class="line"><span class="cl">node-local-dns-2fvxb   0/1     CrashLoopBackOff   <span class="m">4</span>          103s   10.38.200.195   node04          &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-4zmcd   1/1     Running            <span class="m">0</span>          54d    10.38.201.55    node06   &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-55tzg   1/1     Running            <span class="m">0</span>          60d    10.38.200.186   node02          &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-cctg7   1/1     Running            <span class="m">0</span>          54d    10.38.200.242   node07   &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-khgmm   1/1     Running            <span class="m">0</span>          54d    10.38.201.36    node08   &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-mbr64   1/1     Running            <span class="m">0</span>          60d    10.38.200.187   node05          &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-t67vw   1/1     Running            <span class="m">0</span>          60d    10.38.200.188   node03          &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-tmm92   1/1     Running            <span class="m">14</span>         54d    10.38.200.57    node09   &lt;none&gt;           &lt;none&gt;
+</span></span></code></pre></div><p>默认配置如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">cluster.local:53 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">    errors
+</span></span><span class="line"><span class="cl">    cache <span class="o">{</span>
+</span></span><span class="line"><span class="cl">            success <span class="m">9984</span> <span class="m">30</span> <span class="c1"># 默认成功缓存30s</span>
+</span></span><span class="line"><span class="cl">            denial <span class="m">9984</span> <span class="m">5</span> <span class="c1">#失败缓存5s</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">    reload
+</span></span><span class="line"><span class="cl">    loop
+</span></span><span class="line"><span class="cl">    <span class="nb">bind</span> 169.254.20.10 10.254.0.2 <span class="c1">#本地监听ip</span>
+</span></span><span class="line"><span class="cl">    forward . 10.254.132.95 <span class="o">{</span> <span class="c1">#转发到kubedns-upstream</span>
+</span></span><span class="line"><span class="cl">            force_tcp
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">    prometheus :9253 <span class="c1">#监控接口</span>
+</span></span><span class="line"><span class="cl">    health 169.254.20.10:8080 <span class="c1">#健康检测端口</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">in-addr.arpa:53 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">    errors
+</span></span><span class="line"><span class="cl">    cache <span class="m">30</span>
+</span></span><span class="line"><span class="cl">    reload
+</span></span><span class="line"><span class="cl">    loop
+</span></span><span class="line"><span class="cl">    <span class="nb">bind</span> 169.254.20.10 10.254.0.2
+</span></span><span class="line"><span class="cl">    forward . 10.254.132.95 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">            force_tcp
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">    prometheus :9253
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">ip6.arpa:53 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">    errors
+</span></span><span class="line"><span class="cl">    cache <span class="m">30</span>
+</span></span><span class="line"><span class="cl">    reload
+</span></span><span class="line"><span class="cl">    loop
+</span></span><span class="line"><span class="cl">    <span class="nb">bind</span> 169.254.20.10 10.254.0.2
+</span></span><span class="line"><span class="cl">    forward . 10.254.132.95 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">            force_tcp
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">    prometheus :9253
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">.:53 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">    errors
+</span></span><span class="line"><span class="cl">    cache <span class="m">30</span>
+</span></span><span class="line"><span class="cl">    reload
+</span></span><span class="line"><span class="cl">    loop
+</span></span><span class="line"><span class="cl">    <span class="nb">bind</span> 169.254.20.10 10.254.0.2
+</span></span><span class="line"><span class="cl">    forward . /etc/resolv.conf
+</span></span><span class="line"><span class="cl">    prometheus :9253
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span></code></pre></div><p>节点上查看localdns的网卡，本地将监听<code>169.254.20.10</code>与<code>10.254.0.2</code>两个地址，拦截kubedns((默认<code>10.254.0.2</code>)的请求，命中后直接返回，若未命中转发到kubedns(对应service <code>kube-dns-upstream</code>，kube-dns-upstream由localdns创建绑定kubedns pod)</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># ip addr show nodelocaldns</span>
+</span></span><span class="line"><span class="cl">182232: nodelocaldns: &lt;BROADCAST,NOARP&gt; mtu <span class="m">1500</span> qdisc noop state DOWN 
+</span></span><span class="line"><span class="cl">    link/ether 4e:62:1c:fd:56:12 brd ff:ff:ff:ff:ff:ff
+</span></span><span class="line"><span class="cl">    inet 169.254.20.10/32 brd 169.254.20.10 scope global nodelocaldns
+</span></span><span class="line"><span class="cl">       valid_lft forever preferred_lft forever
+</span></span><span class="line"><span class="cl">    inet 10.254.0.2/32 brd 10.254.0.2 scope global nodelocaldns
+</span></span><span class="line"><span class="cl">       valid_lft forever preferred_lft forever
+</span></span></code></pre></div><p>iptables规则，使用<code>NOTRACK</code>跳过其它表处理</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">iptables-save <span class="p">|</span> egrep <span class="s2">&#34;10.254.0.2|169.254.20.10&#34;</span>
+</span></span><span class="line"><span class="cl">-A PREROUTING -d 10.254.0.2/32 -p udp -m udp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">-A PREROUTING -d 10.254.0.2/32 -p tcp -m tcp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">-A PREROUTING -d 169.254.20.10/32 -p udp -m udp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">-A PREROUTING -d 169.254.20.10/32 -p tcp -m tcp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">-A OUTPUT -d 10.254.0.2/32 -p udp -m udp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">-A OUTPUT -d 10.254.0.2/32 -p tcp -m tcp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">-A INPUT -d 10.254.0.2/32 -p udp -m udp --dport <span class="m">53</span> -j ACCEPT
+</span></span><span class="line"><span class="cl">-A INPUT -d 10.254.0.2/32 -p tcp -m tcp --dport <span class="m">53</span> -j ACCEPT
+</span></span><span class="line"><span class="cl">-A OUTPUT -s 10.254.0.2/32 -p udp -m udp --sport <span class="m">53</span> -j ACCEPT
+</span></span><span class="line"><span class="cl">-A OUTPUT -s 10.254.0.2/32 -p tcp -m tcp --sport <span class="m">53</span> -j ACCEPT
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">...
+</span></span><span class="line"><span class="cl">-A KUBE-SERVICES -d 10.254.0.2/32 -p tcp -m comment --comment <span class="s2">&#34;kube-system/kube-dns:dns-tcp cluster IP&#34;</span> -m tcp --dport <span class="m">53</span> -j KUBE-SVC-ERIFXISQEP7F7OF4
+</span></span><span class="line"><span class="cl">-A KUBE-SERVICES -d 10.254.0.2/32 -p tcp -m comment --comment <span class="s2">&#34;kube-system/kube-dns:metrics cluster IP&#34;</span> -m tcp --dport <span class="m">9153</span> -j KUBE-SVC-JD5MR3NA4I4DYORP
+</span></span><span class="line"><span class="cl">-A KUBE-SERVICES -d 10.254.0.2/32 -p udp -m comment --comment <span class="s2">&#34;kube-system/kube-dns:dns cluster IP&#34;</span> -m udp --dport <span class="m">53</span> -j KUBE-SVC-TCOU7JCQXEZGVUNU
+</span></span></code></pre></div><p>在pod通过localdns解析域名</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># kubectl  exec -it dns-perf-client-64cfb49f9-9c5hg sh</span>
+</span></span><span class="line"><span class="cl">/ <span class="c1"># nslookup kubernetes 169.254.20.10</span>
+</span></span><span class="line"><span class="cl">Server:                169.254.20.10
+</span></span><span class="line"><span class="cl">Address:        169.254.20.10#53
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Name:        kubernetes.default.svc.cluster.local
+</span></span><span class="line"><span class="cl">Address: 10.254.0.1
+</span></span></code></pre></div><h4 id="压测" class="headerLink">
+    <a href="#%e5%8e%8b%e6%b5%8b" class="header-mark"></a>压测</h4><p>通过<code>dnsperf</code>进行压测</p>
+<p>测试域名列表如下</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># cat records.txt </span>
+</span></span><span class="line"><span class="cl">mi.com A
+</span></span><span class="line"><span class="cl">github.com A
+</span></span><span class="line"><span class="cl">www.microsoft.com A
+</span></span><span class="line"><span class="cl">www.aliyun.com A
+</span></span><span class="line"><span class="cl">kubernetes.io A
+</span></span><span class="line"><span class="cl">nginx A
+</span></span><span class="line"><span class="cl">nginx.default A
+</span></span><span class="line"><span class="cl">kubernetes A
+</span></span><span class="line"><span class="cl">kubernetes.default.svc.cluster.local A
+</span></span><span class="line"><span class="cl">kube-dns.kube-system.svc.cluster.local A
+</span></span></code></pre></div><p>测试命令</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">dnsperf -l <span class="m">120</span> -s 10.254.0.2 -d records.txt
+</span></span></code></pre></div><p>结果如下</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"></th>
+<th style="text-align:left">client number</th>
+<th style="text-align:left">qps</th>
+<th style="text-align:left">avg-lantency(ms)</th>
+<th style="text-align:left">stddev(ms)</th>
+<th style="text-align:left">lost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">kubedns(1 pod)</td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">53910</td>
+<td style="text-align:left">1.83</td>
+<td style="text-align:left">6.07</td>
+<td style="text-align:left">0%</td>
+</tr>
+<tr>
+<td style="text-align:left">kubedns(2 pod)</td>
+<td style="text-align:left">2</td>
+<td style="text-align:left">110000</td>
+<td style="text-align:left">1.83</td>
+<td style="text-align:left">1.94</td>
+<td style="text-align:left">9%</td>
+</tr>
+<tr>
+<td style="text-align:left">kubedns(4 pod)</td>
+<td style="text-align:left">4</td>
+<td style="text-align:left">120000</td>
+<td style="text-align:left">3.2</td>
+<td style="text-align:left">0.8</td>
+<td style="text-align:left">24%</td>
+</tr>
+<tr>
+<td style="text-align:left">nodelocaldns</td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">71494</td>
+<td style="text-align:left">1.39</td>
+<td style="text-align:left">1.66</td>
+<td style="text-align:left">0%</td>
+</tr>
+<tr>
+<td style="text-align:left">nodelocaldns</td>
+<td style="text-align:left">2</td>
+<td style="text-align:left">142000</td>
+<td style="text-align:left">1.37</td>
+<td style="text-align:left">1.55</td>
+<td style="text-align:left">0%</td>
+</tr>
+</tbody>
+</table>
+<p>相比<code>nodelocaldns</code>，<code>localdns</code>查询性能提高了33%，而且延时相对更小，由于<code>localdns</code>是分布式的整体qps相对kubedns有较大优势。当前测试相对简单，大部分请求会命中缓存，完整的测试结果待进一步验证。</p>
+<h4 id="优缺点" class="headerLink">
+    <a href="#%e4%bc%98%e7%bc%ba%e7%82%b9" class="header-mark"></a>优缺点</h4><p>优点：</p>
+<ul>
+<li>大幅减少dns查询延时</li>
+<li>提高dns qps</li>
+<li>不经过<code>iptables</code>与<code>conntrack</code></li>
+<li>默认使用tcp查询dns，避免 dns 5秒延时</li>
+</ul>
+<p>缺点：</p>
+<ul>
+<li>单点故障（OOM/Evicted/Config Error/Upgrade），社区通过起一个探测daemonset监听localdns状态，如果localdns异常将去掉iptables规则</li>
+<li><code>hostnetwork</code>, 占用多个端口（8080, 9253等）</li>
+<li>ipvs模式下，需要改动kubelet默认dns配置（<code>NOTRACK</code>将对<code>ipvs</code>无效，除非service后端实例为0）</li>
+</ul>
+<p>注意事项</p>
+<ul>
+<li>低版本dns存在tcp请求内存泄露</li>
+<li>安装时<code>iptables</code>与<code>ipvs</code>配置不同</li>
+</ul>
+<h4 id="ha" class="headerLink">
+    <a href="#ha" class="header-mark"></a>HA</h4><ul>
+<li>社区提案将<code>iptables</code>写入规则从<code>nodelocaldns</code>拆分为单独的daemonset，通过监听<code>localdns</code>地址来判断是否写入或删除<code>iptables</code>规则（ipvs默认下无效）</li>
+<li>在<code>/etc/resolv.conf</code>配置多个<code>nameservers</code>(不推荐，不同基础库表现不同，如<code>glibc 2.16+</code>查询dns时会向多个<code>nameservers</code>发送请求，反而造成了请求激增)</li>
+</ul>
+<h4 id="灰度方式" class="headerLink">
+    <a href="#%e7%81%b0%e5%ba%a6%e6%96%b9%e5%bc%8f" class="header-mark"></a>灰度方式</h4><ul>
+<li>通过<code>dnsConfi</code>g配置Pod级别dns（需要配置启动参数localip）</li>
+<li>通过设置<code>nodeselector</code>灰度Node级别dns策略</li>
+</ul>
+<h3 id="本地dns缓存" class="headerLink">
+    <a href="#%e6%9c%ac%e5%9c%b0dns%e7%bc%93%e5%ad%98" class="header-mark"></a>本地DNS缓存</h3><p>除了nodelocaldns，用户还可以在容器内或者添加sidecar来启用dns缓存</p>
+<ol>
+<li>
+<p>通过在镜像中加入nscd进程，缓存dns，如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">FROM ubuntu
+</span></span><span class="line"><span class="cl">RUN apt-get update <span class="o">&amp;&amp;</span> apt-get install -y nscd <span class="o">&amp;&amp;</span> rm -rf /var/lib/apt/lists/*
+</span></span><span class="line"><span class="cl">CMD service nscd start<span class="p">;</span> bash -c <span class="s2">&#34;sleep 3600&#34;</span>
+</span></span></code></pre></div><p>此种方式需要用户改动镜像，或者加入额外脚本配置<code>nscd</code></p>
+</li>
+<li>
+<p>另外可以配置可配置dns缓存 sidecar（如<code>coredns</code>, <code>dnsmasq</code>）来提高性能，此种方式灵活性高，但需要改动pod配置，而且较<code>nodelocaldns</code>浪费资源</p>
+</li>
+</ol>
+<h2 id="参考" class="headerLink">
+    <a href="#%e5%8f%82%e8%80%83" class="header-mark"></a>参考</h2><ul>
+<li><a href="https://kubernetes.io/zh/docs/tasks/administer-cluster/nodelocaldns/" target="_blank" rel="noopener noreffer">https://kubernetes.io/zh/docs/tasks/administer-cluster/nodelocaldns/</a></li>
+<li><a href="https://help.aliyun.com/document_detail/172339.html" target="_blank" rel="noopener noreffer">https://help.aliyun.com/document_detail/172339.html</a></li>
+<li><a href="https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/0030-nodelocal-dns-cache.md" target="_blank" rel="noopener noreffer">https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/0030-nodelocal-dns-cache.md</a></li>
+<li><a href="https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/1024-nodelocal-cache-dns/README.md" target="_blank" rel="noopener noreffer">https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/1024-nodelocal-cache-dns/README.md</a></li>
+<li><a href="https://lework.github.io/2020/11/09/node-local-dns/" target="_blank" rel="noopener noreffer">https://lework.github.io/2020/11/09/node-local-dns/</a></li>
+</ul></div>
+
+        
+        <div class="post-footer" id="post-footer">
+    <div class="post-meta-line"><span class="single-tag">
+                <a href='/tags/k8s/'>#k8s</a>
+                    <span class="separator"> </span>
+                <a href='/tags/dns/'>#dns</a></span></div>
+
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-link">
+                <a href='/about'>About Me</a>
+            </div>
+        </div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+        </div>
+    </div><div class="post-nav"><a href="/k8s-rate-limit/" class="prev" rel="prev" title="kubernetes apiserver限流方案"><i class="fas fa-angle-left fa-fw"></i>kubernetes apiserver限流方案</a>
+            <a href="/docker-shell-signal/" class="next" rel="next" title="k8s中shell脚本启动如何传递信号">k8s中shell脚本启动如何传递信号<i class="fas fa-angle-right fa-fw"></i></a></div></div>
+<div id="comments"><div id="giscus"></div><noscript>
+                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
+            </noscript></div></article></div>
+        </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
+            <div class="footer-line"></div>
+            <div class="footer-line">
+            </div>
+        </div></footer></div>
+
+    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
+            <i class="fas fa-arrow-up fa-fw"></i>
+        </a>
+    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
+            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
+            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
+        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
+
+<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
+</body>
+
+</html>

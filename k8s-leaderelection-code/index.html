@@ -1,260 +1,445 @@
-<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh-cn"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>k8s基于资源锁的选主分析</title><meta content="index,follow" name="robots"/><meta content="k8s基于资源锁的选主分析" property="og:title"/><meta content="https://qingwave.github.io/k8s-leaderelection-code" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/k8s-leaderelection-code" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
+<!DOCTYPE html>
+<html lang="zh-CN">
 
-  window.dataLayer = window.dataLayer || [];
-  function gtag() {
-    window.dataLayer.push(arguments);
-  }
-  gtag("js", new Date());
-  gtag("config", id);
-})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.95a5b0bf.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a class="items-center flex" href="/"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold" href="/blogs">写作</a></li><li class=""><a class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold" href="/project">项目</a></li><li class=""><a class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold" href="/tags">标签</a></li><li class=""><a class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold" href="/about">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Fri Dec 27 2019 20:13:14 GMT+0000 (Coordinated Universal Time)">Dec 27, 2019</time> · <a class="capitalize hover:underline" href="/categories/cloud">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">k8s基于资源锁的选主分析</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="简介">简介</h2><p>k8s 中为了实现高可用，需要部署多个副本，例如多个 apiserver、scheduler、controller-manager 等，其中 apiserver 是无状态的每个组件都可以工作，而 scheduler 与 controller-manager 是有状态的，同一时刻只能存在一个活跃的，需要进行选主。</p><p>k8s 使用了资源锁（endpoints/configmap/lease）的方式来实现选主，多个副本去创建资源，创建成功则获得锁成为 leader，leader 在租约内去刷新锁，其他副本则通过比对锁的更新时间判断是否成为新的 leader。</p><p>k8s 采用了资源版本号的乐观锁方式来实现选主，对比 etcd 选主，效率更高，并发性更好。</p><h2 id="源码分析">源码分析</h2><p>k8s 选主实现在 client-go 中，包<code>k8s.io/client-go/tools/leaderelection</code></p><h3 id="结构定义">结构定义</h3><p>锁结构定义如下：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">// k8s.io/client-go/tools/leaderelection/resourcelock/interface.go</span></span>
-<span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">LeaderElectionRecord</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#6272a4">// leader 标识，通常为 hostname</span></span>
-<span class="line"><span style="color:#f8f8f2">  HolderIdentity       </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">           </span><span style="color:#e9f284">`</span><span style="color:#f1fa8c">json:"holderIdentity"</span><span style="color:#e9f284">`</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#6272a4">// 同启动参数 --leader-elect-lease-duration</span></span>
-<span class="line"><span style="color:#f8f8f2">  LeaseDurationSeconds </span><span style="color:#8be9fd">int</span><span style="color:#f8f8f2">              </span><span style="color:#e9f284">`</span><span style="color:#f1fa8c">json:"leaseDurationSeconds"</span><span style="color:#e9f284">`</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#6272a4">// Leader 第一次成功获得租约时的时间戳</span></span>
-<span class="line"><span style="color:#f8f8f2">  AcquireTime          unversioned.Time </span><span style="color:#e9f284">`</span><span style="color:#f1fa8c">json:"acquireTime"</span><span style="color:#e9f284">`</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#6272a4">// leader 定时 renew 的时间戳</span></span>
-<span class="line"><span style="color:#f8f8f2">  RenewTime            unversioned.Time </span><span style="color:#e9f284">`</span><span style="color:#f1fa8c">json:"renewTime"</span><span style="color:#e9f284">`</span></span>
-<span class="line"><span style="color:#f8f8f2">  LeaderTransitions    </span><span style="color:#8be9fd">int</span><span style="color:#f8f8f2">              </span><span style="color:#e9f284">`</span><span style="color:#f1fa8c">json:"leaderTransitions"</span><span style="color:#e9f284">`</span></span>
-<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>k8s 中的选举锁需实现<code>resourcelock.Interface</code>接口，基本上实现 CRU，将 leader 信息存在在 annotation 中</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">// k8s.io/client-go/tools/leaderelection/resourcelock/interface.go</span></span>
-<span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">Interface</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">interface</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// Get returns the LeaderElectionRecord</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Get</span><span style="color:#f8f8f2">() (</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">LeaderElectionRecord, []</span><span style="color:#8be9fd">byte</span><span style="color:#f8f8f2">, </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2">)</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// Create attempts to create a LeaderElectionRecord</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Create</span><span style="color:#f8f8f2">(ler LeaderElectionRecord) </span><span style="color:#8be9fd">error</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// Update will update and existing LeaderElectionRecord</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Update</span><span style="color:#f8f8f2">(ler LeaderElectionRecord) </span><span style="color:#8be9fd">error</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// RecordEvent 记录锁切换事件</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">RecordEvent</span><span style="color:#f8f8f2">(</span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">)</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// Identity will return the locks Identity</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Identity</span><span style="color:#f8f8f2">() </span><span style="color:#8be9fd">string</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// Describe is used to convert details on current resource lock</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// into a string</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Describe</span><span style="color:#f8f8f2">() </span><span style="color:#8be9fd">string</span></span>
-<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><h3 id="创建资源锁">创建资源锁</h3><p>锁类型包括：configmaps， endpoints, lease, 以及 multiLock</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">// k8s.io/client-go/tools/leaderelection/resourcelock/interface.go</span></span>
-<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> </span><span style="color:#50fa7b">New</span><span style="color:#f8f8f2">(lockType </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">, ns </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">, name </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">, coreClient corev1.CoreV1Interface, coordinationClient coordinationv1.CoordinationV1Interface, rlc ResourceLockConfig) (Interface, </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2">) {</span></span>
-<span class="line"><span style="color:#f8f8f2">	endpointsLock </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x26;</span><span style="color:#f8f8f2">EndpointsLock{</span></span>
-<span class="line"><span style="color:#f8f8f2">		EndpointsMeta: metav1.ObjectMeta{</span></span>
-<span class="line"><span style="color:#f8f8f2">			Namespace: ns,</span></span>
-<span class="line"><span style="color:#f8f8f2">			Name:      name,</span></span>
-<span class="line"><span style="color:#f8f8f2">		},</span></span>
-<span class="line"><span style="color:#f8f8f2">		Client:     coreClient,</span></span>
-<span class="line"><span style="color:#f8f8f2">		LockConfig: rlc,</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"><span style="color:#f8f8f2">	configmapLock </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x26;</span><span style="color:#f8f8f2">ConfigMapLock{</span></span>
-<span class="line"><span style="color:#f8f8f2">		ConfigMapMeta: metav1.ObjectMeta{</span></span>
-<span class="line"><span style="color:#f8f8f2">			Namespace: ns,</span></span>
-<span class="line"><span style="color:#f8f8f2">			Name:      name,</span></span>
-<span class="line"><span style="color:#f8f8f2">		},</span></span>
-<span class="line"><span style="color:#f8f8f2">		Client:     coreClient,</span></span>
-<span class="line"><span style="color:#f8f8f2">		LockConfig: rlc,</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"><span style="color:#f8f8f2">	leaseLock </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x26;</span><span style="color:#f8f8f2">LeaseLock{</span></span>
-<span class="line"><span style="color:#f8f8f2">		LeaseMeta: metav1.ObjectMeta{</span></span>
-<span class="line"><span style="color:#f8f8f2">			Namespace: ns,</span></span>
-<span class="line"><span style="color:#f8f8f2">			Name:      name,</span></span>
-<span class="line"><span style="color:#f8f8f2">		},</span></span>
-<span class="line"><span style="color:#f8f8f2">		Client:     coordinationClient,</span></span>
-<span class="line"><span style="color:#f8f8f2">		LockConfig: rlc,</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">switch</span><span style="color:#f8f8f2"> lockType {</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">case</span><span style="color:#f8f8f2"> EndpointsResourceLock:</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> endpointsLock, </span><span style="color:#bd93f9">nil</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">case</span><span style="color:#f8f8f2"> ConfigMapsResourceLock:</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> configmapLock, </span><span style="color:#bd93f9">nil</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">case</span><span style="color:#f8f8f2"> LeasesResourceLock:</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> leaseLock, </span><span style="color:#bd93f9">nil</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">case</span><span style="color:#f8f8f2"> EndpointsLeasesResourceLock:</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x26;</span><span style="color:#f8f8f2">MultiLock{</span></span>
-<span class="line"><span style="color:#f8f8f2">			Primary:   endpointsLock,</span></span>
-<span class="line"><span style="color:#f8f8f2">			Secondary: leaseLock,</span></span>
-<span class="line"><span style="color:#f8f8f2">		}, </span><span style="color:#bd93f9">nil</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">case</span><span style="color:#f8f8f2"> ConfigMapsLeasesResourceLock:</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x26;</span><span style="color:#f8f8f2">MultiLock{</span></span>
-<span class="line"><span style="color:#f8f8f2">			Primary:   configmapLock,</span></span>
-<span class="line"><span style="color:#f8f8f2">			Secondary: leaseLock,</span></span>
-<span class="line"><span style="color:#f8f8f2">		}, </span><span style="color:#bd93f9">nil</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">default</span><span style="color:#f8f8f2">:</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2">, fmt.</span><span style="color:#8be9fd">Errorf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">Invalid lock-type </span><span style="color:#bd93f9">%s</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, lockType)</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>使用者首先通过<code>new()</code>函数创建资源锁，需要提供锁类型、namespace、name、唯一标示等。</p><h3 id="进行选举">进行选举</h3><p>创建选举配置，通常如下：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">      </span><span style="color:#6272a4">// start the leader election code loop</span></span>
-<span class="line"><span style="color:#f8f8f2">      leaderelection.</span><span style="color:#8be9fd">RunOrDie</span><span style="color:#f8f8f2">(ctx, leaderelection.LeaderElectionConfig{</span></span>
-<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#6272a4">// 资源锁类型</span></span>
-<span class="line"><span style="color:#f8f8f2">          Lock: lock,</span></span>
-<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#6272a4">// 租约时长，非主候选者用来判断资源锁是否过期</span></span>
-<span class="line"><span style="color:#f8f8f2">          LeaseDuration:   </span><span style="color:#bd93f9">60</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2"> time.Second,</span></span>
-<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#6272a4">// leader刷新资源锁超时时间</span></span>
-<span class="line"><span style="color:#f8f8f2">          RenewDeadline:   </span><span style="color:#bd93f9">15</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2"> time.Second,</span></span>
-<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#6272a4">// 调用资源锁间隔</span></span>
-<span class="line"><span style="color:#f8f8f2">          RetryPeriod:     </span><span style="color:#bd93f9">5</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2"> time.Second,</span></span>
-<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#6272a4">// 回调函数，根据选举不同事件触发</span></span>
-<span class="line"><span style="color:#f8f8f2">          Callbacks: leaderelection.LeaderCallbacks{</span></span>
-<span class="line"><span style="color:#f8f8f2">              OnStartedLeading: </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(ctx context.Context) {</span></span>
-<span class="line"><span style="color:#f8f8f2">                  </span><span style="color:#8be9fd">run</span><span style="color:#f8f8f2">(ctx)</span></span>
-<span class="line"><span style="color:#f8f8f2">              },</span></span>
-<span class="line"><span style="color:#f8f8f2">              OnStoppedLeading: </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() {</span></span>
-<span class="line"><span style="color:#f8f8f2">                  klog.</span><span style="color:#8be9fd">Infof</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">leader lost: </span><span style="color:#bd93f9">%s</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, id)</span></span>
-<span class="line"><span style="color:#f8f8f2">                  os.</span><span style="color:#8be9fd">Exit</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">0</span><span style="color:#f8f8f2">) </span><span style="color:#6272a4">// 必须要退出，重启开始选主，否则将不会参与到选主中</span></span>
-<span class="line"><span style="color:#f8f8f2">              },</span></span>
-<span class="line"><span style="color:#f8f8f2">              OnNewLeader: </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(identity </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">) {</span></span>
-<span class="line"><span style="color:#f8f8f2">                  </span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> identity </span><span style="color:#ff79c6">==</span><span style="color:#f8f8f2"> id {</span></span>
-<span class="line"><span style="color:#f8f8f2">                      </span><span style="color:#ff79c6">return</span></span>
-<span class="line"><span style="color:#f8f8f2">                  }</span></span>
-<span class="line"><span style="color:#f8f8f2">                  klog.</span><span style="color:#8be9fd">Infof</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">new leader elected: </span><span style="color:#bd93f9">%s</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, identity)</span></span>
-<span class="line"><span style="color:#f8f8f2">              },</span></span>
-<span class="line"><span style="color:#f8f8f2">          },</span></span>
-<span class="line"><span style="color:#f8f8f2">      })</span></span></code></pre><p>创建选举对象后，执行<code>Run</code>函数开始选主</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">// k8s.io/client-go/tools/leaderelection/leaderelection.go</span></span>
-<span class="line"><span style="color:#6272a4">// Run starts the leader election loop</span></span>
-<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (le </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">LeaderElector) </span><span style="color:#50fa7b">Run</span><span style="color:#f8f8f2">(ctx context.Context) {</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() {</span></span>
-<span class="line"><span style="color:#f8f8f2">        runtime.</span><span style="color:#8be9fd">HandleCrash</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#6272a4">// 锁丢失时执行OnStoppedLeading回调函数</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.config.Callbacks.</span><span style="color:#8be9fd">OnStoppedLeading</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">    }()</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// 尝试获得锁</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">!</span><span style="color:#f8f8f2">le.</span><span style="color:#8be9fd">acquire</span><span style="color:#f8f8f2">(ctx) {</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">// ctx signalled done</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"><span style="color:#f8f8f2">	ctx, cancel </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> context.</span><span style="color:#8be9fd">WithCancel</span><span style="color:#f8f8f2">(ctx)</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">cancel</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// 获得锁后执行OnStartedLeading回调函数</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">go</span><span style="color:#f8f8f2"> le.config.Callbacks.</span><span style="color:#8be9fd">OnStartedLeading</span><span style="color:#f8f8f2">(ctx)</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// 定期刷新锁</span></span>
-<span class="line"><span style="color:#f8f8f2">    le.</span><span style="color:#8be9fd">renew</span><span style="color:#f8f8f2">(ctx)</span></span>
-<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>acruire 方法：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">// k8s.io/client-go/tools/leaderelection/leaderelection.go</span></span>
-<span class="line"><span style="color:#6272a4">// acquire loops calling tryAcquireOrRenew and returns true immediately when tryAcquireOrRenew succeeds.</span></span>
-<span class="line"><span style="color:#6272a4">// Returns false if ctx signals done.</span></span>
-<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (le </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">LeaderElector) </span><span style="color:#50fa7b">acquire</span><span style="color:#f8f8f2">(ctx context.Context) </span><span style="color:#8be9fd">bool</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">	ctx, cancel </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> context.</span><span style="color:#8be9fd">WithCancel</span><span style="color:#f8f8f2">(ctx)</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">cancel</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">	succeeded </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">false</span></span>
-<span class="line"><span style="color:#f8f8f2">	desc </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> le.config.Lock.</span><span style="color:#8be9fd">Describe</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">    klog.</span><span style="color:#8be9fd">Infof</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">attempting to acquire leader lease  </span><span style="color:#bd93f9">%v</span><span style="color:#f1fa8c">...</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, desc)</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// 调用 JitterUntil 函数，以 RetryPeriod 为间隔去刷新资源锁，直到获取锁</span></span>
-<span class="line"><span style="color:#f8f8f2">	wait.</span><span style="color:#8be9fd">JitterUntil</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() {</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#6272a4">// tryAcquireOrRenew 方法去调度资源更新接口，判断是否刷新成功</span></span>
-<span class="line"><span style="color:#f8f8f2">		succeeded </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> le.</span><span style="color:#8be9fd">tryAcquireOrRenew</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.</span><span style="color:#8be9fd">maybeReportTransition</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">!</span><span style="color:#f8f8f2">succeeded {</span></span>
-<span class="line"><span style="color:#f8f8f2">			klog.</span><span style="color:#8be9fd">V</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">4</span><span style="color:#f8f8f2">).</span><span style="color:#8be9fd">Infof</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">failed to acquire lease </span><span style="color:#bd93f9">%v</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, desc)</span></span>
-<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">return</span></span>
-<span class="line"><span style="color:#f8f8f2">		}</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.config.Lock.</span><span style="color:#8be9fd">RecordEvent</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">became leader</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">)</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.metrics.</span><span style="color:#8be9fd">leaderOn</span><span style="color:#f8f8f2">(le.config.Name)</span></span>
-<span class="line"><span style="color:#f8f8f2">		klog.</span><span style="color:#8be9fd">Infof</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">successfully acquired lease </span><span style="color:#bd93f9">%v</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, desc)</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#8be9fd">cancel</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">	}, le.config.RetryPeriod, JitterFactor, </span><span style="color:#bd93f9">true</span><span style="color:#f8f8f2">, ctx.</span><span style="color:#8be9fd">Done</span><span style="color:#f8f8f2">())</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> succeeded</span></span>
-<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>renew 方法，只有在获取锁之后才会调用，它会通过持续更新资源锁的数据，来确保继续持有已获得的锁，保持自己的 leader 状态。</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">// renew loops calling tryAcquireOrRenew and returns immediately when tryAcquireOrRenew fails or ctx signals done.</span></span>
-<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (le </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">LeaderElector) </span><span style="color:#50fa7b">renew</span><span style="color:#f8f8f2">(ctx context.Context) {</span></span>
-<span class="line"><span style="color:#f8f8f2">	ctx, cancel </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> context.</span><span style="color:#8be9fd">WithCancel</span><span style="color:#f8f8f2">(ctx)</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">cancel</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">	wait.</span><span style="color:#8be9fd">Until</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() {</span></span>
-<span class="line"><span style="color:#f8f8f2">		timeoutCtx, timeoutCancel </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> context.</span><span style="color:#8be9fd">WithTimeout</span><span style="color:#f8f8f2">(ctx, le.config.RenewDeadline)</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">timeoutCancel</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#6272a4">//</span></span>
-<span class="line"><span style="color:#f8f8f2">		err </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> wait.</span><span style="color:#8be9fd">PollImmediateUntil</span><span style="color:#f8f8f2">(le.config.RetryPeriod, </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() (</span><span style="color:#8be9fd">bool</span><span style="color:#f8f8f2">, </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2">) {</span></span>
-<span class="line"><span style="color:#f8f8f2">			done </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">make</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">chan</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">bool</span><span style="color:#f8f8f2">, </span><span style="color:#bd93f9">1</span><span style="color:#f8f8f2">)</span></span>
-<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">go</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() {</span></span>
-<span class="line"><span style="color:#f8f8f2">				</span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">close</span><span style="color:#f8f8f2">(done)</span></span>
-<span class="line"><span style="color:#f8f8f2">				done </span><span style="color:#ff79c6">&#x3C;-</span><span style="color:#f8f8f2"> le.</span><span style="color:#8be9fd">tryAcquireOrRenew</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">			}()</span></span>
-<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#6272a4">// 超时返回error, 否则返回更新结果</span></span>
-<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">select</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">case</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x3C;-</span><span style="color:#f8f8f2">timeoutCtx.</span><span style="color:#8be9fd">Done</span><span style="color:#f8f8f2">():</span></span>
-<span class="line"><span style="color:#f8f8f2">				</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">false</span><span style="color:#f8f8f2">, fmt.</span><span style="color:#8be9fd">Errorf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">failed to tryAcquireOrRenew </span><span style="color:#bd93f9">%s</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, timeoutCtx.</span><span style="color:#8be9fd">Err</span><span style="color:#f8f8f2">())</span></span>
-<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">case</span><span style="color:#f8f8f2"> result </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x3C;-</span><span style="color:#f8f8f2">done:</span></span>
-<span class="line"><span style="color:#f8f8f2">				</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> result, </span><span style="color:#bd93f9">nil</span></span>
-<span class="line"><span style="color:#f8f8f2">			}</span></span>
-<span class="line"><span style="color:#f8f8f2">		}, timeoutCtx.</span><span style="color:#8be9fd">Done</span><span style="color:#f8f8f2">())</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">		le.</span><span style="color:#8be9fd">maybeReportTransition</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">		desc </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> le.config.Lock.</span><span style="color:#8be9fd">Describe</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> err </span><span style="color:#ff79c6">==</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">			klog.</span><span style="color:#8be9fd">V</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">5</span><span style="color:#f8f8f2">).</span><span style="color:#8be9fd">Infof</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">successfully renewed lease </span><span style="color:#bd93f9">%v</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, desc)</span></span>
-<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">return</span></span>
-<span class="line"><span style="color:#f8f8f2">		}</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.config.Lock.</span><span style="color:#8be9fd">RecordEvent</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">stopped leading</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">)</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.metrics.</span><span style="color:#8be9fd">leaderOff</span><span style="color:#f8f8f2">(le.config.Name)</span></span>
-<span class="line"><span style="color:#f8f8f2">		klog.</span><span style="color:#8be9fd">Infof</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">failed to renew lease </span><span style="color:#bd93f9">%v</span><span style="color:#f1fa8c">: </span><span style="color:#bd93f9">%v</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, desc, err)</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#8be9fd">cancel</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">	}, le.config.RetryPeriod, ctx.</span><span style="color:#8be9fd">Done</span><span style="color:#f8f8f2">())</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// if we hold the lease, give it up</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> le.config.ReleaseOnCancel {</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.</span><span style="color:#8be9fd">release</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>这里使用了 wait 包，<code>wait.Until</code>会不断的调用<code>wait.PollImmediateUntil</code>方法，前者是进行无限循环操作，直到 <code>stop chan</code>被关闭，<code>wait.PollImmediateUntil</code>则不断的对某一条件进行检查，以<code>RetryPeriod</code>为间隔，直到该条件返回 true、error 或者超时。这一条件是一个需要满足 func() (bool, error) 签名的方法，比如这个例子只是调用了 <code>le.tryAcquireOrRenew()</code>。</p><p>最后看下<code>tryAcquireOrRenew</code>方法：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">// tryAcquireOrRenew tries to acquire a leader lease if it is not already acquired,</span></span>
-<span class="line"><span style="color:#6272a4">// else it tries to renew the lease if it has already been acquired. Returns true</span></span>
-<span class="line"><span style="color:#6272a4">// on success else returns false.</span></span>
-<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (le </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">LeaderElector) </span><span style="color:#50fa7b">tryAcquireOrRenew</span><span style="color:#f8f8f2">() </span><span style="color:#8be9fd">bool</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">    now </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> metav1.</span><span style="color:#8be9fd">Now</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// 这个 leaderElectionRecord 就是保存在 endpoint/configmap 的 annotation 中的值。</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// 每个节点都将 HolderIdentity 设置为自己，以及关于获取和更新锁的时间。后面会对时间进行修正，才会更新到 API server</span></span>
-<span class="line"><span style="color:#f8f8f2">	leaderElectionRecord </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> rl.LeaderElectionRecord{</span></span>
-<span class="line"><span style="color:#f8f8f2">		HolderIdentity:       le.config.Lock.</span><span style="color:#8be9fd">Identity</span><span style="color:#f8f8f2">(),</span></span>
-<span class="line"><span style="color:#f8f8f2">		LeaseDurationSeconds: </span><span style="color:#8be9fd">int</span><span style="color:#f8f8f2">(le.config.LeaseDuration </span><span style="color:#ff79c6">/</span><span style="color:#f8f8f2"> time.Second),</span></span>
-<span class="line"><span style="color:#f8f8f2">		RenewTime:            now,</span></span>
-<span class="line"><span style="color:#f8f8f2">		AcquireTime:          now,</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// 1. 获取或者创建 ElectionRecord</span></span>
-<span class="line"><span style="color:#f8f8f2">	oldLeaderElectionRecord, oldLeaderElectionRawRecord, err </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> le.config.Lock.</span><span style="color:#8be9fd">Get</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> err </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#6272a4">// 记录不存在的话，则创建一条新的记录</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">!</span><span style="color:#f8f8f2">errors.</span><span style="color:#8be9fd">IsNotFound</span><span style="color:#f8f8f2">(err) {</span></span>
-<span class="line"><span style="color:#f8f8f2">			klog.</span><span style="color:#8be9fd">Errorf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">error retrieving resource lock </span><span style="color:#bd93f9">%v</span><span style="color:#f1fa8c">: </span><span style="color:#bd93f9">%v</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, le.config.Lock.</span><span style="color:#8be9fd">Describe</span><span style="color:#f8f8f2">(), err)</span></span>
-<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">false</span></span>
-<span class="line"><span style="color:#f8f8f2">		}</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> err </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> le.config.Lock.</span><span style="color:#8be9fd">Create</span><span style="color:#f8f8f2">(leaderElectionRecord); err </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">			klog.</span><span style="color:#8be9fd">Errorf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">error initially creating leader election record: </span><span style="color:#bd93f9">%v</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, err)</span></span>
-<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">false</span></span>
-<span class="line"><span style="color:#f8f8f2">        }</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#6272a4">// 创建记录成功，同时表示获得了锁，返回true</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.observedRecord </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> leaderElectionRecord</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.observedTime </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> le.clock.</span><span style="color:#8be9fd">Now</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">true</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// 2. 正常获取了锁资源的记录，检查锁持有者和更新时间。</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">!</span><span style="color:#f8f8f2">bytes.</span><span style="color:#8be9fd">Equal</span><span style="color:#f8f8f2">(le.observedRawRecord, oldLeaderElectionRawRecord) {</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#6272a4">// 记录之前的锁持有者</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.observedRecord </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">oldLeaderElectionRecord</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.observedRawRecord </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> oldLeaderElectionRawRecord</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.observedTime </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> le.clock.</span><span style="color:#8be9fd">Now</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">    }</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// 在满足以下所有的条件下，认为锁由他人持有，并且还没有过期，返回 false</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// a. 当前锁持有者的并非自己</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// b. 上一次观察时间 + 观测检查间隔大于现在时间，即距离上次观测的间隔，小于 `LeaseDuration` 的设置值。</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">len</span><span style="color:#f8f8f2">(oldLeaderElectionRecord.HolderIdentity) </span><span style="color:#ff79c6">></span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">0</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x26;&#x26;</span></span>
-<span class="line"><span style="color:#f8f8f2">		le.observedTime.</span><span style="color:#8be9fd">Add</span><span style="color:#f8f8f2">(le.config.LeaseDuration).</span><span style="color:#8be9fd">After</span><span style="color:#f8f8f2">(now.Time) </span><span style="color:#ff79c6">&#x26;&#x26;</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">!</span><span style="color:#f8f8f2">le.</span><span style="color:#8be9fd">IsLeader</span><span style="color:#f8f8f2">() {</span></span>
-<span class="line"><span style="color:#f8f8f2">		klog.</span><span style="color:#8be9fd">V</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">4</span><span style="color:#f8f8f2">).</span><span style="color:#8be9fd">Infof</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">lock is held by </span><span style="color:#bd93f9">%v</span><span style="color:#f1fa8c"> and has not yet expired</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, oldLeaderElectionRecord.HolderIdentity)</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">false</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// 3. 更新资源的资源锁</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> le.</span><span style="color:#8be9fd">IsLeader</span><span style="color:#f8f8f2">() {</span></span>
-<span class="line"><span style="color:#f8f8f2">		leaderElectionRecord.AcquireTime </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> oldLeaderElectionRecord.AcquireTime</span></span>
-<span class="line"><span style="color:#f8f8f2">		leaderElectionRecord.LeaderTransitions </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> oldLeaderElectionRecord.LeaderTransitions</span></span>
-<span class="line"><span style="color:#f8f8f2">	} </span><span style="color:#ff79c6">else</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">		leaderElectionRecord.LeaderTransitions </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> oldLeaderElectionRecord.LeaderTransitions </span><span style="color:#ff79c6">+</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">1</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// 调用资源锁更新接口</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> err </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> le.config.Lock.</span><span style="color:#8be9fd">Update</span><span style="color:#f8f8f2">(leaderElectionRecord); err </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
-<span class="line"><span style="color:#f8f8f2">		klog.</span><span style="color:#8be9fd">Errorf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">Failed to update lock: </span><span style="color:#bd93f9">%v</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, err)</span></span>
-<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">false</span></span>
-<span class="line"><span style="color:#f8f8f2">	}</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">	le.observedRecord </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> leaderElectionRecord</span></span>
-<span class="line"><span style="color:#f8f8f2">	le.observedTime </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> le.clock.</span><span style="color:#8be9fd">Now</span><span style="color:#f8f8f2">()</span></span>
-<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">true</span></span>
-<span class="line"><span style="color:#f8f8f2">}</span></span>
-<span class="line"></span></code></pre><h2 id="总结">总结</h2><p>当应用在 k8s 上部署时，使用 k8s 的资源锁，可方便的实现高可用，但需要注意以下几点：</p><ul><li>推荐使用<code>configmap</code>作为资源锁，原因是某些组件如<code>kube-proxy</code>会去监听<code>endpoints</code>来更新节点 iptables 规则，当有大量资源锁时，势必会对性能有影响。</li><li>当选举结束时调用<code>OnStoppedLeading</code>需要<strong>退出程序</strong>(例如<code>os.Exit(0)</code>)，若不退出程序，所有副本选举结束不会去竞争资源锁，就没有 leader，造成服务不可用而这时程序并没有异常。需要执行退出逻辑，让 Daemon 程序 k8s/systemd 等重启服务来重新参与选主。</li></ul></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1 rounded-lg"><a class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted" href="/tags/k8s">#k8s</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" href="/rss.xml" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a class="hover:brightness-50" href="/">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noodp" />
+    <title class="pjax-title">
+        k8s基于资源锁的选主分析
+        
+    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="k8s基于资源锁的选主分析" />
+<meta property="og:description" content="
+    简介k8s中为了实现高可用，需要部署多个副本，例如多个apiserver、scheduler、controller-manager等，其中apiserver是无状态的每个组件都可以工作，而scheduler与controller-manager是有状态的，同一时刻只能存在一个活跃的，需要进行选主。" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://qingwave.github.io/k8s-leaderelection-code/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2019-12-27T20:13:14+00:00" />
+<meta property="article:modified_time" content="2021-11-20T10:59:07+00:00" /><meta property="og:site_name" content="Qingwave" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
+
+<meta name="twitter:title" content="k8s基于资源锁的选主分析"/>
+<meta name="twitter:description" content="
+    简介k8s中为了实现高可用，需要部署多个副本，例如多个apiserver、scheduler、controller-manager等，其中apiserver是无状态的每个组件都可以工作，而scheduler与controller-manager是有状态的，同一时刻只能存在一个活跃的，需要进行选主。"/>
+<meta name="application-name" content="Qingwave">
+<meta name="apple-mobile-web-app-title" content="Qingwave">
+
+<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/k8s-leaderelection-code/" /><link rel="prev" href="https://qingwave.github.io/lxcfs-high-system-cpu/" /><link rel="next" href="https://qingwave.github.io/kube-apiserver-authentication-code/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "k8s基于资源锁的选主分析",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/qingwave.github.io\/k8s-leaderelection-code\/"
+        },"genre": "posts","keywords": "k8s","wordcount":  2353 ,
+        "url": "https:\/\/qingwave.github.io\/k8s-leaderelection-code\/","datePublished": "2019-12-27T20:13:14+00:00","dateModified": "2021-11-20T10:59:07+00:00","publisher": {
+            "@type": "Organization",
+            "name": ""},"author": {
+                "@type": "Person",
+                "name": "Qingwave"
+            },"description": ""
+    }
+    </script></head>
+
+<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
+        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
+        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
+        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
+        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
+        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
+        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
+    </script>
+    <div id="back-to-top"></div>
+    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div>
+<main class="main">
+            <div class="container"><div class="toc" id="toc-auto">
+        <h2 class="toc-title">目录</h2>
+        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#简介">简介</a></li>
+    <li><a href="#源码分析">源码分析</a>
+      <ul>
+        <li><a href="#结构定义">结构定义</a></li>
+        <li><a href="#创建资源锁">创建资源锁</a></li>
+        <li><a href="#进行选举">进行选举</a></li>
+      </ul>
+    </li>
+    <li><a href="#总结">总结</a></li>
+  </ul>
+</nav></div>
+    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">k8s基于资源锁的选主分析</h1><div class="post-meta">
+            <div class="post-meta-line"><time datetime="Dec 27, 2019">Dec 27, 2019</time>
+            </div>
+        </div><div class="details toc" id="toc-static"  kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#简介">简介</a></li>
+    <li><a href="#源码分析">源码分析</a>
+      <ul>
+        <li><a href="#结构定义">结构定义</a></li>
+        <li><a href="#创建资源锁">创建资源锁</a></li>
+        <li><a href="#进行选举">进行选举</a></li>
+      </ul>
+    </li>
+    <li><a href="#总结">总结</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><h2 id="简介" class="headerLink">
+    <a href="#%e7%ae%80%e4%bb%8b" class="header-mark"></a>简介</h2><p>k8s中为了实现高可用，需要部署多个副本，例如多个apiserver、scheduler、controller-manager等，其中apiserver是无状态的每个组件都可以工作，而scheduler与controller-manager是有状态的，同一时刻只能存在一个活跃的，需要进行选主。</p>
+<p>k8s使用了资源锁（endpoints/configmap/lease）的方式来实现选主，多个副本去创建资源，创建成功则获得锁成为leader，leader在租约内去刷新锁，其他副本则通过比对锁的更新时间判断是否成为新的leader。</p>
+<p>k8s采用了资源版本号的乐观锁方式来实现选主，对比etcd选主，效率更高，并发性更好。</p>
+<h2 id="源码分析" class="headerLink">
+    <a href="#%e6%ba%90%e7%a0%81%e5%88%86%e6%9e%90" class="header-mark"></a>源码分析</h2><p>k8s选主实现在client-go中，包<code>k8s.io/client-go/tools/leaderelection</code></p>
+<h3 id="结构定义" class="headerLink">
+    <a href="#%e7%bb%93%e6%9e%84%e5%ae%9a%e4%b9%89" class="header-mark"></a>结构定义</h3><p>锁结构定义如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// k8s.io/client-go/tools/leaderelection/resourcelock/interface.go
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">LeaderElectionRecord</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// leader 标识，通常为 hostname
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nx">HolderIdentity</span>       <span class="kt">string</span>           <span class="s">`json:&#34;holderIdentity&#34;`</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// 同启动参数 --leader-elect-lease-duration
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nx">LeaseDurationSeconds</span> <span class="kt">int</span>              <span class="s">`json:&#34;leaseDurationSeconds&#34;`</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// Leader 第一次成功获得租约时的时间戳
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nx">AcquireTime</span>          <span class="nx">unversioned</span><span class="p">.</span><span class="nx">Time</span> <span class="s">`json:&#34;acquireTime&#34;`</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// leader 定时 renew 的时间戳
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nx">RenewTime</span>            <span class="nx">unversioned</span><span class="p">.</span><span class="nx">Time</span> <span class="s">`json:&#34;renewTime&#34;`</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">LeaderTransitions</span>    <span class="kt">int</span>              <span class="s">`json:&#34;leaderTransitions&#34;`</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>k8s中的选举锁需实现<code>resourcelock.Interface</code>接口，基本上实现CRU，将leader信息存在在annotation中</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// k8s.io/client-go/tools/leaderelection/resourcelock/interface.go
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">type</span> <span class="nx">Interface</span> <span class="kd">interface</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="c1">// Get returns the LeaderElectionRecord
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nf">Get</span><span class="p">()</span> <span class="p">(</span><span class="o">*</span><span class="nx">LeaderElectionRecord</span><span class="p">,</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// Create attempts to create a LeaderElectionRecord
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nf">Create</span><span class="p">(</span><span class="nx">ler</span> <span class="nx">LeaderElectionRecord</span><span class="p">)</span> <span class="kt">error</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// Update will update and existing LeaderElectionRecord
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nf">Update</span><span class="p">(</span><span class="nx">ler</span> <span class="nx">LeaderElectionRecord</span><span class="p">)</span> <span class="kt">error</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// RecordEvent 记录锁切换事件
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nf">RecordEvent</span><span class="p">(</span><span class="kt">string</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// Identity will return the locks Identity
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nf">Identity</span><span class="p">()</span> <span class="kt">string</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// Describe is used to convert details on current resource lock
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// into a string
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nf">Describe</span><span class="p">()</span> <span class="kt">string</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> 
+</span></span></code></pre></div><h3 id="创建资源锁" class="headerLink">
+    <a href="#%e5%88%9b%e5%bb%ba%e8%b5%84%e6%ba%90%e9%94%81" class="header-mark"></a>创建资源锁</h3><p>锁类型包括：configmaps， endpoints, lease, 以及 multiLock</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// k8s.io/client-go/tools/leaderelection/resourcelock/interface.go
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">New</span><span class="p">(</span><span class="nx">lockType</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">ns</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">name</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">coreClient</span> <span class="nx">corev1</span><span class="p">.</span><span class="nx">CoreV1Interface</span><span class="p">,</span> <span class="nx">coordinationClient</span> <span class="nx">coordinationv1</span><span class="p">.</span><span class="nx">CoordinationV1Interface</span><span class="p">,</span> <span class="nx">rlc</span> <span class="nx">ResourceLockConfig</span><span class="p">)</span> <span class="p">(</span><span class="nx">Interface</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">endpointsLock</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">EndpointsLock</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">EndpointsMeta</span><span class="p">:</span> <span class="nx">metav1</span><span class="p">.</span><span class="nx">ObjectMeta</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Namespace</span><span class="p">:</span> <span class="nx">ns</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Name</span><span class="p">:</span>      <span class="nx">name</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">Client</span><span class="p">:</span>     <span class="nx">coreClient</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">LockConfig</span><span class="p">:</span> <span class="nx">rlc</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">configmapLock</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">ConfigMapLock</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">ConfigMapMeta</span><span class="p">:</span> <span class="nx">metav1</span><span class="p">.</span><span class="nx">ObjectMeta</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Namespace</span><span class="p">:</span> <span class="nx">ns</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Name</span><span class="p">:</span>      <span class="nx">name</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">Client</span><span class="p">:</span>     <span class="nx">coreClient</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">LockConfig</span><span class="p">:</span> <span class="nx">rlc</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">leaseLock</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">LeaseLock</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">LeaseMeta</span><span class="p">:</span> <span class="nx">metav1</span><span class="p">.</span><span class="nx">ObjectMeta</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Namespace</span><span class="p">:</span> <span class="nx">ns</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Name</span><span class="p">:</span>      <span class="nx">name</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">Client</span><span class="p">:</span>     <span class="nx">coordinationClient</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">LockConfig</span><span class="p">:</span> <span class="nx">rlc</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">switch</span> <span class="nx">lockType</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">case</span> <span class="nx">EndpointsResourceLock</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">endpointsLock</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="k">case</span> <span class="nx">ConfigMapsResourceLock</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">configmapLock</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="k">case</span> <span class="nx">LeasesResourceLock</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">leaseLock</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="k">case</span> <span class="nx">EndpointsLeasesResourceLock</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="o">&amp;</span><span class="nx">MultiLock</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Primary</span><span class="p">:</span>   <span class="nx">endpointsLock</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Secondary</span><span class="p">:</span> <span class="nx">leaseLock</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="k">case</span> <span class="nx">ConfigMapsLeasesResourceLock</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="o">&amp;</span><span class="nx">MultiLock</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Primary</span><span class="p">:</span>   <span class="nx">configmapLock</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Secondary</span><span class="p">:</span> <span class="nx">leaseLock</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="k">default</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Invalid lock-type %s&#34;</span><span class="p">,</span> <span class="nx">lockType</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>使用者首先通过<code>new()</code>函数创建资源锁，需要提供锁类型、namespace、name、唯一标示等。</p>
+<h3 id="进行选举" class="headerLink">
+    <a href="#%e8%bf%9b%e8%a1%8c%e9%80%89%e4%b8%be" class="header-mark"></a>进行选举</h3><p>创建选举配置，通常如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl">      <span class="c1">// start the leader election code loop
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nx">leaderelection</span><span class="p">.</span><span class="nf">RunOrDie</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">leaderelection</span><span class="p">.</span><span class="nx">LeaderElectionConfig</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">          <span class="c1">// 资源锁类型
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>          <span class="nx">Lock</span><span class="p">:</span> <span class="nx">lock</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">          <span class="c1">// 租约时长，非主候选者用来判断资源锁是否过期
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>          <span class="nx">LeaseDuration</span><span class="p">:</span>   <span class="mi">60</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">          <span class="c1">// leader刷新资源锁超时时间   
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>          <span class="nx">RenewDeadline</span><span class="p">:</span>   <span class="mi">15</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">          <span class="c1">// 调用资源锁间隔
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>          <span class="nx">RetryPeriod</span><span class="p">:</span>     <span class="mi">5</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">          <span class="c1">// 回调函数，根据选举不同事件触发
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>          <span class="nx">Callbacks</span><span class="p">:</span> <span class="nx">leaderelection</span><span class="p">.</span><span class="nx">LeaderCallbacks</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">              <span class="nx">OnStartedLeading</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                  <span class="nf">run</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">              <span class="p">},</span>
+</span></span><span class="line"><span class="cl">              <span class="nx">OnStoppedLeading</span><span class="p">:</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                  <span class="nx">klog</span><span class="p">.</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;leader lost: %s&#34;</span><span class="p">,</span> <span class="nx">id</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                  <span class="nx">os</span><span class="p">.</span><span class="nf">Exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="c1">// 必须要退出，重启开始选主，否则将不会参与到选主中
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>              <span class="p">},</span>
+</span></span><span class="line"><span class="cl">              <span class="nx">OnNewLeader</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">identity</span> <span class="kt">string</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                  <span class="k">if</span> <span class="nx">identity</span> <span class="o">==</span> <span class="nx">id</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                      <span class="k">return</span>
+</span></span><span class="line"><span class="cl">                  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">                  <span class="nx">klog</span><span class="p">.</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;new leader elected: %s&#34;</span><span class="p">,</span> <span class="nx">identity</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">              <span class="p">},</span>
+</span></span><span class="line"><span class="cl">          <span class="p">},</span>
+</span></span><span class="line"><span class="cl">      <span class="p">})</span>
+</span></span></code></pre></div><p>创建选举对象后，执行<code>Run</code>函数开始选主</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// k8s.io/client-go/tools/leaderelection/leaderelection.go
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Run starts the leader election loop
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">le</span> <span class="o">*</span><span class="nx">LeaderElector</span><span class="p">)</span> <span class="nf">Run</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">runtime</span><span class="p">.</span><span class="nf">HandleCrash</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 锁丢失时执行OnStoppedLeading回调函数
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Callbacks</span><span class="p">.</span><span class="nf">OnStoppedLeading</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}()</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 尝试获得锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="p">!</span><span class="nx">le</span><span class="p">.</span><span class="nf">acquire</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="c1">// ctx signalled done
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">ctx</span><span class="p">,</span> <span class="nx">cancel</span> <span class="o">:=</span> <span class="nx">context</span><span class="p">.</span><span class="nf">WithCancel</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">defer</span> <span class="nf">cancel</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 获得锁后执行OnStartedLeading回调函数
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">go</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Callbacks</span><span class="p">.</span><span class="nf">OnStartedLeading</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 定期刷新锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">le</span><span class="p">.</span><span class="nf">renew</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>acruire方法：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// k8s.io/client-go/tools/leaderelection/leaderelection.go
+</span></span></span><span class="line"><span class="cl"><span class="c1">// acquire loops calling tryAcquireOrRenew and returns true immediately when tryAcquireOrRenew succeeds.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Returns false if ctx signals done.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">le</span> <span class="o">*</span><span class="nx">LeaderElector</span><span class="p">)</span> <span class="nf">acquire</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span> <span class="kt">bool</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">ctx</span><span class="p">,</span> <span class="nx">cancel</span> <span class="o">:=</span> <span class="nx">context</span><span class="p">.</span><span class="nf">WithCancel</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="nf">cancel</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">succeeded</span> <span class="o">:=</span> <span class="kc">false</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">desc</span> <span class="o">:=</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Lock</span><span class="p">.</span><span class="nf">Describe</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">klog</span><span class="p">.</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;attempting to acquire leader lease  %v...&#34;</span><span class="p">,</span> <span class="nx">desc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 调用 JitterUntil 函数，以 RetryPeriod 为间隔去刷新资源锁，直到获取锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">wait</span><span class="p">.</span><span class="nf">JitterUntil</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// tryAcquireOrRenew 方法去调度资源更新接口，判断是否刷新成功
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">succeeded</span> <span class="p">=</span> <span class="nx">le</span><span class="p">.</span><span class="nf">tryAcquireOrRenew</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nf">maybeReportTransition</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="p">!</span><span class="nx">succeeded</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">klog</span><span class="p">.</span><span class="nf">V</span><span class="p">(</span><span class="mi">4</span><span class="p">).</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;failed to acquire lease %v&#34;</span><span class="p">,</span> <span class="nx">desc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Lock</span><span class="p">.</span><span class="nf">RecordEvent</span><span class="p">(</span><span class="s">&#34;became leader&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nx">metrics</span><span class="p">.</span><span class="nf">leaderOn</span><span class="p">(</span><span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">klog</span><span class="p">.</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;successfully acquired lease %v&#34;</span><span class="p">,</span> <span class="nx">desc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nf">cancel</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="p">},</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">RetryPeriod</span><span class="p">,</span> <span class="nx">JitterFactor</span><span class="p">,</span> <span class="kc">true</span><span class="p">,</span> <span class="nx">ctx</span><span class="p">.</span><span class="nf">Done</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">succeeded</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>renew方法，只有在获取锁之后才会调用，它会通过持续更新资源锁的数据，来确保继续持有已获得的锁，保持自己的leader 状态。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// renew loops calling tryAcquireOrRenew and returns immediately when tryAcquireOrRenew fails or ctx signals done.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">le</span> <span class="o">*</span><span class="nx">LeaderElector</span><span class="p">)</span> <span class="nf">renew</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">ctx</span><span class="p">,</span> <span class="nx">cancel</span> <span class="o">:=</span> <span class="nx">context</span><span class="p">.</span><span class="nf">WithCancel</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="nf">cancel</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">wait</span><span class="p">.</span><span class="nf">Until</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">timeoutCtx</span><span class="p">,</span> <span class="nx">timeoutCancel</span> <span class="o">:=</span> <span class="nx">context</span><span class="p">.</span><span class="nf">WithTimeout</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">RenewDeadline</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">defer</span> <span class="nf">timeoutCancel</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">err</span> <span class="o">:=</span> <span class="nx">wait</span><span class="p">.</span><span class="nf">PollImmediateUntil</span><span class="p">(</span><span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">RetryPeriod</span><span class="p">,</span> <span class="kd">func</span><span class="p">()</span> <span class="p">(</span><span class="kt">bool</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">done</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">chan</span> <span class="kt">bool</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="k">go</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">defer</span> <span class="nb">close</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">done</span> <span class="o">&lt;-</span> <span class="nx">le</span><span class="p">.</span><span class="nf">tryAcquireOrRenew</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}()</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">// 超时返回error, 否则返回更新结果
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="k">select</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">case</span> <span class="o">&lt;-</span><span class="nx">timeoutCtx</span><span class="p">.</span><span class="nf">Done</span><span class="p">():</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="kc">false</span><span class="p">,</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;failed to tryAcquireOrRenew %s&#34;</span><span class="p">,</span> <span class="nx">timeoutCtx</span><span class="p">.</span><span class="nf">Err</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">			<span class="k">case</span> <span class="nx">result</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">done</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">result</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span> <span class="nx">timeoutCtx</span><span class="p">.</span><span class="nf">Done</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nf">maybeReportTransition</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">desc</span> <span class="o">:=</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Lock</span><span class="p">.</span><span class="nf">Describe</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">klog</span><span class="p">.</span><span class="nf">V</span><span class="p">(</span><span class="mi">5</span><span class="p">).</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;successfully renewed lease %v&#34;</span><span class="p">,</span> <span class="nx">desc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Lock</span><span class="p">.</span><span class="nf">RecordEvent</span><span class="p">(</span><span class="s">&#34;stopped leading&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nx">metrics</span><span class="p">.</span><span class="nf">leaderOff</span><span class="p">(</span><span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">klog</span><span class="p">.</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;failed to renew lease %v: %v&#34;</span><span class="p">,</span> <span class="nx">desc</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nf">cancel</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="p">},</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">RetryPeriod</span><span class="p">,</span> <span class="nx">ctx</span><span class="p">.</span><span class="nf">Done</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// if we hold the lease, give it up
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">ReleaseOnCancel</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nf">release</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>这里使用了wait包，<code>wait.Until</code>会不断的调用<code>wait.PollImmediateUntil</code>方法，前者是进行无限循环操作，直到 <code>stop chan</code>被关闭，<code>wait.PollImmediateUntil</code>则不断的对某一条件进行检查，以<code>RetryPeriod</code>为间隔，直到该条件返回true、error或者超时。这一条件是一个需要满足 func() (bool, error) 签名的方法，比如这个例子只是调用了 <code>le.tryAcquireOrRenew()</code>。</p>
+<p>最后看下<code>tryAcquireOrRenew</code>方法：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="c1">// tryAcquireOrRenew tries to acquire a leader lease if it is not already acquired,
+</span></span></span><span class="line"><span class="cl"><span class="c1">// else it tries to renew the lease if it has already been acquired. Returns true
+</span></span></span><span class="line"><span class="cl"><span class="c1">// on success else returns false.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">le</span> <span class="o">*</span><span class="nx">LeaderElector</span><span class="p">)</span> <span class="nf">tryAcquireOrRenew</span><span class="p">()</span> <span class="kt">bool</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">now</span> <span class="o">:=</span> <span class="nx">metav1</span><span class="p">.</span><span class="nf">Now</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 这个 leaderElectionRecord 就是保存在 endpoint/configmap 的 annotation 中的值。
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 每个节点都将 HolderIdentity 设置为自己，以及关于获取和更新锁的时间。后面会对时间进行修正，才会更新到 API server
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">leaderElectionRecord</span> <span class="o">:=</span> <span class="nx">rl</span><span class="p">.</span><span class="nx">LeaderElectionRecord</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">HolderIdentity</span><span class="p">:</span>       <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Lock</span><span class="p">.</span><span class="nf">Identity</span><span class="p">(),</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">LeaseDurationSeconds</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">LeaseDuration</span> <span class="o">/</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">RenewTime</span><span class="p">:</span>            <span class="nx">now</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">AcquireTime</span><span class="p">:</span>          <span class="nx">now</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 1. 获取或者创建 ElectionRecord
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">oldLeaderElectionRecord</span><span class="p">,</span> <span class="nx">oldLeaderElectionRawRecord</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Lock</span><span class="p">.</span><span class="nf">Get</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 记录不存在的话，则创建一条新的记录
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="k">if</span> <span class="p">!</span><span class="nx">errors</span><span class="p">.</span><span class="nf">IsNotFound</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">klog</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;error retrieving resource lock %v: %v&#34;</span><span class="p">,</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Lock</span><span class="p">.</span><span class="nf">Describe</span><span class="p">(),</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="kc">false</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="p">=</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Lock</span><span class="p">.</span><span class="nf">Create</span><span class="p">(</span><span class="nx">leaderElectionRecord</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">klog</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;error initially creating leader election record: %v&#34;</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="kc">false</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 创建记录成功，同时表示获得了锁，返回true
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">le</span><span class="p">.</span><span class="nx">observedRecord</span> <span class="p">=</span> <span class="nx">leaderElectionRecord</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nx">observedTime</span> <span class="p">=</span> <span class="nx">le</span><span class="p">.</span><span class="nx">clock</span><span class="p">.</span><span class="nf">Now</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">true</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 2. 正常获取了锁资源的记录，检查锁持有者和更新时间。
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="p">!</span><span class="nx">bytes</span><span class="p">.</span><span class="nf">Equal</span><span class="p">(</span><span class="nx">le</span><span class="p">.</span><span class="nx">observedRawRecord</span><span class="p">,</span> <span class="nx">oldLeaderElectionRawRecord</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 记录之前的锁持有者
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">le</span><span class="p">.</span><span class="nx">observedRecord</span> <span class="p">=</span> <span class="o">*</span><span class="nx">oldLeaderElectionRecord</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nx">observedRawRecord</span> <span class="p">=</span> <span class="nx">oldLeaderElectionRawRecord</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nx">observedTime</span> <span class="p">=</span> <span class="nx">le</span><span class="p">.</span><span class="nx">clock</span><span class="p">.</span><span class="nf">Now</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 在满足以下所有的条件下，认为锁由他人持有，并且还没有过期，返回 false
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// a. 当前锁持有者的并非自己
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// b. 上一次观察时间 + 观测检查间隔大于现在时间，即距离上次观测的间隔，小于 `LeaseDuration` 的设置值。
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">oldLeaderElectionRecord</span><span class="p">.</span><span class="nx">HolderIdentity</span><span class="p">)</span> <span class="p">&gt;</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">le</span><span class="p">.</span><span class="nx">observedTime</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">LeaseDuration</span><span class="p">).</span><span class="nf">After</span><span class="p">(</span><span class="nx">now</span><span class="p">.</span><span class="nx">Time</span><span class="p">)</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">		<span class="p">!</span><span class="nx">le</span><span class="p">.</span><span class="nf">IsLeader</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">klog</span><span class="p">.</span><span class="nf">V</span><span class="p">(</span><span class="mi">4</span><span class="p">).</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;lock is held by %v and has not yet expired&#34;</span><span class="p">,</span> <span class="nx">oldLeaderElectionRecord</span><span class="p">.</span><span class="nx">HolderIdentity</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">false</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 3. 更新资源的资源锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nx">le</span><span class="p">.</span><span class="nf">IsLeader</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">leaderElectionRecord</span><span class="p">.</span><span class="nx">AcquireTime</span> <span class="p">=</span> <span class="nx">oldLeaderElectionRecord</span><span class="p">.</span><span class="nx">AcquireTime</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">leaderElectionRecord</span><span class="p">.</span><span class="nx">LeaderTransitions</span> <span class="p">=</span> <span class="nx">oldLeaderElectionRecord</span><span class="p">.</span><span class="nx">LeaderTransitions</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">leaderElectionRecord</span><span class="p">.</span><span class="nx">LeaderTransitions</span> <span class="p">=</span> <span class="nx">oldLeaderElectionRecord</span><span class="p">.</span><span class="nx">LeaderTransitions</span> <span class="o">+</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 调用资源锁更新接口
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nx">err</span> <span class="p">=</span> <span class="nx">le</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">Lock</span><span class="p">.</span><span class="nf">Update</span><span class="p">(</span><span class="nx">leaderElectionRecord</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">klog</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Failed to update lock: %v&#34;</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">false</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">le</span><span class="p">.</span><span class="nx">observedRecord</span> <span class="p">=</span> <span class="nx">leaderElectionRecord</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">le</span><span class="p">.</span><span class="nx">observedTime</span> <span class="p">=</span> <span class="nx">le</span><span class="p">.</span><span class="nx">clock</span><span class="p">.</span><span class="nf">Now</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="kc">true</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>当应用在k8s上部署时，使用k8s的资源锁，可方便的实现高可用，但需要注意以下几点：</p>
+<ul>
+<li>推荐使用<code>configmap</code>作为资源锁，原因是某些组件如<code>kube-proxy</code>会去监听<code>endpoints</code>来更新节点iptables规则，当有大量资源锁时，势必会对性能有影响。</li>
+<li>当选举结束时调用<code>OnStoppedLeading</code>需要<strong>退出程序</strong>(例如<code>os.Exit(0)</code>)，若不退出程序，所有副本选举结束不会去竞争资源锁，就没有leader，造成服务不可用而这时程序并没有异常。需要执行退出逻辑，让Daemon程序k8s/systemd等重启服务来重新参与选主。</li>
+</ul></div>
+
+        
+        <div class="post-footer" id="post-footer">
+    <div class="post-meta-line"><span class="single-tag">
+                <a href='/tags/k8s/'>#k8s</a></span></div>
+
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-link">
+                <a href='/about'>About Me</a>
+            </div>
+        </div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+        </div>
+    </div><div class="post-nav"><a href="/lxcfs-high-system-cpu/" class="prev" rel="prev" title="cgroup引起的应用延迟"><i class="fas fa-angle-left fa-fw"></i>cgroup引起的应用延迟</a>
+            <a href="/kube-apiserver-authentication-code/" class="next" rel="next" title="kube-apiserver认证源码分析">kube-apiserver认证源码分析<i class="fas fa-angle-right fa-fw"></i></a></div></div>
+<div id="comments"><div id="giscus"></div><noscript>
+                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
+            </noscript></div></article></div>
+        </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
+            <div class="footer-line"></div>
+            <div class="footer-line">
+            </div>
+        </div></footer></div>
+
+    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
+            <i class="fas fa-arrow-up fa-fw"></i>
+        </a>
+    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
+            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
+            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
+        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
+
+<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
+</body>
+
+</html>

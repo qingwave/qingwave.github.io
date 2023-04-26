@@ -1,0 +1,434 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>cni - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/cni/</link>
+        <description>cni - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Fri, 01 Apr 2022 05:56:01 &#43;0000</lastBuildDate><atom:link href="https://qingwave.github.io/tags/cni/" rel="self" type="application/rss+xml" /><item>
+    <title>手写一个Kubernetes CNI网络插件</title>
+    <link>https://qingwave.github.io/how-to-write-k8s-cni/</link>
+    <pubDate>Fri, 01 Apr 2022 05:56:01 &#43;0000</pubDate><author>
+        <name>Qingwave</name>
+    </author><guid>https://qingwave.github.io/how-to-write-k8s-cni/</guid>
+    <description><![CDATA[<p>CNI(Container Network Interface) 即容器的网络API接口，在Kubernetes中通过CNI来扩展网络功能，今天我们从零开始实现一个自己的CNI网络插件。</p>
+<p>本文所有代码见:</p>
+<blockquote>
+<p><a href="https://github.com/qingwave/mycni" target="_blank" rel="noopener noreffer">https://github.com/qingwave/mycni</a></p>
+</blockquote>
+<h2 id="cni简介" class="headerLink">
+    <a href="#cni%e7%ae%80%e4%bb%8b" class="header-mark"></a>CNI简介</h2><p>Kubernetes提供了很多扩展点，通过CNI网络插件可以支持不同的网络设施，大大提供了系统的灵活性，目前也已成为容器网络领域的标准。</p>
+<p>Kubernetes与CNI的交互逻辑如下：
+
+
+</p>
+<p>Kubelet监听到Pod调度到当前节点后，通过rpc调用CRI(containerd, cri-o等)，CRI创建Sandbox容器，初始化Cgroup与Namespace，然后再调用CNI插件分配IP，最后完成容器创建与启动。</p>
+<p>不同于CRI、CSI通过rpc通信，CNI是通过二进制接口调用的，通过环境变量和标准输入传递具体网络配置，下图为Flannel CNI插件的工作流程，通过链式调用CNI插件实现对Pod的IP分配、网络配置：
+
+
+</p>
+<h2 id="实现cni" class="headerLink">
+    <a href="#%e5%ae%9e%e7%8e%b0cni" class="header-mark"></a>实现CNI</h2><p>实现一个完整的K8s CNI插件需要满足以下几点要求：</p>
+<ol>
+<li>Pod IP分配，即IPAM功能</li>
+<li>节点与其上所有Pod网络互通，以实现健康检查</li>
+<li>集群内所有Pod可通信，包括同节点与不同节点</li>
+<li>其他功能的支持，比如hostPort、兼容kube-proxy的iptables规则等</li>
+</ol>
+<p>我们主要实现前三点需求，通过Linux Bridge、Veth Pair以及路由来实现K8s网络方案。</p>
+<p>网络架构如下：
+
+
+</p>
+<p>包括两个组件：</p>
+<ol>
+<li>mycni: CNI插件，实现IPAM，为Pod分配IP配置路由，通过网桥实现同节点上不同Pod的通信</li>
+<li>mycnid: 节点上守护进程，监听K8s Node，获取各个节点CIDR写入路由</li>
+</ol>
+<h3 id="mycni" class="headerLink">
+    <a href="#mycni" class="header-mark"></a>Mycni</h3><p>CNI官方已经提供了<a href="https://github.com/containernetworking/cni/blob/main/pkg/skel/skel.go#L267" target="_blank" rel="noopener noreffer">工具包</a>，我们只需要实现<code>cmdAdd, cmdCheck, cmdDel</code>接口即可实现一个CNI插件。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">PluginMainWithError</span><span class="p">(</span><span class="nx">cmdAdd</span><span class="p">,</span> <span class="nx">cmdCheck</span><span class="p">,</span> <span class="nx">cmdDel</span> <span class="kd">func</span><span class="p">(</span><span class="nx">_</span> <span class="o">*</span><span class="nx">CmdArgs</span><span class="p">)</span> <span class="kt">error</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="nx">versionInfo</span> <span class="nx">version</span><span class="p">.</span><span class="nx">PluginInfo</span><span class="p">,</span> <span class="nx">about</span> <span class="kt">string</span><span class="p">)</span> <span class="o">*</span><span class="nx">types</span><span class="p">.</span><span class="nx">Error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="p">(</span><span class="o">&amp;</span><span class="nx">dispatcher</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">Getenv</span><span class="p">:</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Getenv</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">Stdin</span><span class="p">:</span>  <span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">Stdout</span><span class="p">:</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">Stderr</span><span class="p">:</span> <span class="nx">os</span><span class="p">.</span><span class="nx">Stderr</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}).</span><span class="nf">pluginMain</span><span class="p">(</span><span class="nx">cmdAdd</span><span class="p">,</span> <span class="nx">cmdCheck</span><span class="p">,</span> <span class="nx">cmdDel</span><span class="p">,</span> <span class="nx">versionInfo</span><span class="p">,</span> <span class="nx">about</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>我们主要关注网络创建过程，实现IP分配与网桥配置：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">cmdAdd</span><span class="p">(</span><span class="nx">args</span> <span class="o">*</span><span class="nx">skel</span><span class="p">.</span><span class="nx">CmdArgs</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 加载配置
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">conf</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">config</span><span class="p">.</span><span class="nf">LoadCNIConfig</span><span class="p">(</span><span class="nx">args</span><span class="p">.</span><span class="nx">StdinData</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 存储本机IP分配列表
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">s</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">store</span><span class="p">.</span><span class="nf">NewStore</span><span class="p">(</span><span class="nx">conf</span><span class="p">.</span><span class="nx">DataDir</span><span class="p">,</span> <span class="nx">conf</span><span class="p">.</span><span class="nx">Name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="nx">s</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// ipam服务，分配ip
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">ipam</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ipam</span><span class="p">.</span><span class="nf">NewIPAM</span><span class="p">(</span><span class="nx">conf</span><span class="p">,</span> <span class="nx">s</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">gateway</span> <span class="o">:=</span> <span class="nx">ipam</span><span class="p">.</span><span class="nf">Gateway</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">ip</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ipam</span><span class="p">.</span><span class="nf">AllocateIP</span><span class="p">(</span><span class="nx">args</span><span class="p">.</span><span class="nx">ContainerID</span><span class="p">,</span> <span class="nx">args</span><span class="p">.</span><span class="nx">IfName</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 创建网桥，虚拟设备，并绑定到网桥
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">br</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">bridge</span><span class="p">.</span><span class="nf">CreateBridge</span><span class="p">(</span><span class="nx">conf</span><span class="p">.</span><span class="nx">Bridge</span><span class="p">,</span> <span class="nx">mtu</span><span class="p">,</span> <span class="nx">ipam</span><span class="p">.</span><span class="nf">IPNet</span><span class="p">(</span><span class="nx">gateway</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">bridge</span><span class="p">.</span><span class="nf">SetupVeth</span><span class="p">(</span><span class="nx">netns</span><span class="p">,</span> <span class="nx">br</span><span class="p">,</span> <span class="nx">mtu</span><span class="p">,</span> <span class="nx">args</span><span class="p">.</span><span class="nx">IfName</span><span class="p">,</span> <span class="nx">ipam</span><span class="p">.</span><span class="nf">IPNet</span><span class="p">(</span><span class="nx">ip</span><span class="p">),</span> <span class="nx">gateway</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 返回网络配置信息
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">result</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">current</span><span class="p">.</span><span class="nx">Result</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">CNIVersion</span><span class="p">:</span> <span class="nx">current</span><span class="p">.</span><span class="nx">ImplementedSpecVersion</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">IPs</span><span class="p">:</span> <span class="p">[]</span><span class="o">*</span><span class="nx">current</span><span class="p">.</span><span class="nx">IPConfig</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">Address</span><span class="p">:</span> <span class="nx">net</span><span class="p">.</span><span class="nx">IPNet</span><span class="p">{</span><span class="nx">IP</span><span class="p">:</span> <span class="nx">ip</span><span class="p">,</span> <span class="nx">Mask</span><span class="p">:</span> <span class="nx">ipam</span><span class="p">.</span><span class="nf">Mask</span><span class="p">()},</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">Gateway</span><span class="p">:</span> <span class="nx">gateway</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">types</span><span class="p">.</span><span class="nf">PrintResult</span><span class="p">(</span><span class="nx">result</span><span class="p">,</span> <span class="nx">conf</span><span class="p">.</span><span class="nx">CNIVersion</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h4 id="ipam" class="headerLink">
+    <a href="#ipam" class="header-mark"></a>IPAM</h4><p>IPAM服务需要保证为Pod分配唯一的IP，K8s会为每个节点分配PodCIDR，只需要保证节点上所有Pod IP不冲突即可。</p>
+<p>通过本地文件来存储已分配的IP，当新Pod创建时只需要检查已分配IP，通过CIDR取一个未使用的IP。通常做法是将IP信息存储在数据库中(etcd)，简单期间本文只使用文件存储。</p>
+<p>首先需要保证并发请求时，IP分配不会冲突，可通过文件锁实现，存储实现如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">data</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">IPs</span>  <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="nx">containerNetINfo</span> <span class="s">`json:&#34;ips&#34;`</span> <span class="c1">// 存储IP信息
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">Last</span> <span class="kt">string</span>                      <span class="s">`json:&#34;last&#34;`</span><span class="c1">// 上一个分配IP
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Store</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="o">*</span><span class="nx">filemutex</span><span class="p">.</span><span class="nx">FileMutex</span> <span class="c1">// 文件锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">dir</span>      <span class="kt">string</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">data</span>     <span class="o">*</span><span class="nx">data</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">dataFile</span> <span class="kt">string</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>分配IP代码：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">im</span> <span class="o">*</span><span class="nx">IPAM</span><span class="p">)</span> <span class="nf">AllocateIP</span><span class="p">(</span><span class="nx">id</span><span class="p">,</span> <span class="nx">ifName</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">net</span><span class="p">.</span><span class="nx">IP</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">im</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nf">Lock</span><span class="p">()</span> <span class="c1">// 上锁，防止冲突
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">defer</span> <span class="nx">im</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nf">Unlock</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">im</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nf">LoadData</span><span class="p">();</span> <span class="c1">// 加载存储中IP数据
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 根据容器id查询ip是否已分配
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">ip</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">im</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nf">GetIPByID</span><span class="p">(</span><span class="nx">id</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nx">ip</span><span class="p">)</span> <span class="p">&gt;</span> <span class="mi">0</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">ip</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 从上次已分配IP开始，依次检查，如果IP未使用则添加到文件中
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">start</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="nx">net</span><span class="p">.</span><span class="nx">IP</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="nx">last</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">next</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">im</span><span class="p">.</span><span class="nf">NextIP</span><span class="p">(</span><span class="nx">start</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">==</span> <span class="nx">IPOverflowError</span> <span class="o">&amp;&amp;</span> <span class="p">!</span><span class="nx">last</span><span class="p">.</span><span class="nf">Equal</span><span class="p">(</span><span class="nx">im</span><span class="p">.</span><span class="nx">gateway</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">start</span> <span class="p">=</span> <span class="nx">im</span><span class="p">.</span><span class="nx">gateway</span>
+</span></span><span class="line"><span class="cl">			<span class="k">continue</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">// 分配IP
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="k">if</span> <span class="p">!</span><span class="nx">im</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nf">Contain</span><span class="p">(</span><span class="nx">next</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">err</span> <span class="o">:=</span> <span class="nx">im</span><span class="p">.</span><span class="nx">store</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="nx">next</span><span class="p">,</span> <span class="nx">id</span><span class="p">,</span> <span class="nx">ifName</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">next</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="nx">start</span> <span class="p">=</span> <span class="nx">next</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">start</span><span class="p">.</span><span class="nf">Equal</span><span class="p">(</span><span class="nx">last</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">break</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;ip: %s&#34;</span><span class="p">,</span> <span class="nx">next</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;no available ip&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>IP分配过程如下：</p>
+<ol>
+<li>加文件锁，读取已分配IP</li>
+<li>从上一个分配IP开始，遍历判断是否未分配</li>
+<li>如果IP未使用，存储到文件中并返回</li>
+</ol>
+<h4 id="节点内通信" class="headerLink">
+    <a href="#%e8%8a%82%e7%82%b9%e5%86%85%e9%80%9a%e4%bf%a1" class="header-mark"></a>节点内通信</h4><p>节点内通信通过网桥实现，创建一个虚拟设备对，分别绑定到Pod所在Namespace与网桥上，绑定IPAM分配的IP, 并设置默认路由。从而实现同一个节点上，Node-&gt;Pod与Pod之间的通信。</p>
+<p>首先，如果网桥不存在则通过netlink库创建</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">CreateBridge</span><span class="p">(</span><span class="nx">bridge</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">mtu</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">gateway</span> <span class="o">*</span><span class="nx">net</span><span class="p">.</span><span class="nx">IPNet</span><span class="p">)</span> <span class="p">(</span><span class="nx">netlink</span><span class="p">.</span><span class="nx">Link</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">l</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">LinkByName</span><span class="p">(</span><span class="nx">bridge</span><span class="p">);</span> <span class="nx">l</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">l</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">br</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">netlink</span><span class="p">.</span><span class="nx">Bridge</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">LinkAttrs</span><span class="p">:</span> <span class="nx">netlink</span><span class="p">.</span><span class="nx">LinkAttrs</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Name</span><span class="p">:</span>   <span class="nx">bridge</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">MTU</span><span class="p">:</span>    <span class="nx">mtu</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">TxQLen</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">LinkAdd</span><span class="p">(</span><span class="nx">br</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="o">&amp;&amp;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="nx">syscall</span><span class="p">.</span><span class="nx">EEXIST</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">dev</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">LinkByName</span><span class="p">(</span><span class="nx">bridge</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 添加地址，即Pod默认网关地址
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">AddrAdd</span><span class="p">(</span><span class="nx">dev</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">netlink</span><span class="p">.</span><span class="nx">Addr</span><span class="p">{</span><span class="nx">IPNet</span><span class="p">:</span> <span class="nx">gateway</span><span class="p">});</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 启动网桥
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">LinkSetUp</span><span class="p">(</span><span class="nx">dev</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">dev</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>为容器创建虚拟网卡</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">SetupVeth</span><span class="p">(</span><span class="nx">netns</span> <span class="nx">ns</span><span class="p">.</span><span class="nx">NetNS</span><span class="p">,</span> <span class="nx">br</span> <span class="nx">netlink</span><span class="p">.</span><span class="nx">Link</span><span class="p">,</span> <span class="nx">mtu</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">ifName</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">podIP</span> <span class="o">*</span><span class="nx">net</span><span class="p">.</span><span class="nx">IPNet</span><span class="p">,</span> <span class="nx">gateway</span> <span class="nx">net</span><span class="p">.</span><span class="nx">IP</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">hostIface</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">current</span><span class="p">.</span><span class="nx">Interface</span><span class="p">{}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">err</span> <span class="o">:=</span> <span class="nx">netns</span><span class="p">.</span><span class="nf">Do</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">hostNS</span> <span class="nx">ns</span><span class="p">.</span><span class="nx">NetNS</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="c1">// 在容器网络空间创建虚拟网卡
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">hostVeth</span><span class="p">,</span> <span class="nx">containerVeth</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ip</span><span class="p">.</span><span class="nf">SetupVeth</span><span class="p">(</span><span class="nx">ifName</span><span class="p">,</span> <span class="nx">mtu</span><span class="p">,</span> <span class="s">&#34;&#34;</span><span class="p">,</span> <span class="nx">hostNS</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">hostIface</span><span class="p">.</span><span class="nx">Name</span> <span class="p">=</span> <span class="nx">hostVeth</span><span class="p">.</span><span class="nx">Name</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="c1">// set ip for container veth
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">conLink</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">LinkByName</span><span class="p">(</span><span class="nx">containerVeth</span><span class="p">.</span><span class="nx">Name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 绑定Pod IP
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">AddrAdd</span><span class="p">(</span><span class="nx">conLink</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">netlink</span><span class="p">.</span><span class="nx">Addr</span><span class="p">{</span><span class="nx">IPNet</span><span class="p">:</span> <span class="nx">podIP</span><span class="p">});</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="c1">// 启动网卡
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">LinkSetUp</span><span class="p">(</span><span class="nx">conLink</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="c1">// 添加默认路径，网关即网桥的地址
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ip</span><span class="p">.</span><span class="nf">AddDefaultRoute</span><span class="p">(</span><span class="nx">gateway</span><span class="p">,</span> <span class="nx">conLink</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="p">})</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// need to lookup hostVeth again as its index has changed during ns move
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">hostVeth</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">LinkByName</span><span class="p">(</span><span class="nx">hostIface</span><span class="p">.</span><span class="nx">Name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;failed to lookup %q: %v&#34;</span><span class="p">,</span> <span class="nx">hostIface</span><span class="p">.</span><span class="nx">Name</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 将虚拟网卡另一端绑定到网桥上
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">LinkSetMaster</span><span class="p">(</span><span class="nx">hostVeth</span><span class="p">,</span> <span class="nx">br</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;failed to connect %q to bridge %v: %v&#34;</span><span class="p">,</span> <span class="nx">hostVeth</span><span class="p">.</span><span class="nf">Attrs</span><span class="p">().</span><span class="nx">Name</span><span class="p">,</span> <span class="nx">br</span><span class="p">.</span><span class="nf">Attrs</span><span class="p">().</span><span class="nx">Name</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>至此，CNI插件的功能实现完成。</p>
+<h3 id="mycnid" class="headerLink">
+    <a href="#mycnid" class="header-mark"></a>Mycnid</h3><p><code>mycnid</code>为节点上的守护进程，实现不同节点的Pod通信，主要功能包括：</p>
+<ol>
+<li>监听K8s Nodes, 获取本节点的PodCIDR写入配置文件(默认位置在<code>/run/mycni/subnet.json</code>)</li>
+<li>为其他节点添加路由(<code>ip route add podCIDR via nodeip</code>)</li>
+<li>一些初始化配置，写入默认的Iptables规则，初始化网桥</li>
+</ol>
+<h4 id="节点间通信" class="headerLink">
+    <a href="#%e8%8a%82%e7%82%b9%e9%97%b4%e9%80%9a%e4%bf%a1" class="header-mark"></a>节点间通信</h4><p>通过Controller监听Node资源，当前有节点Add/Delete时，调用Reconcile同步路由</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">r</span> <span class="o">*</span><span class="nx">Reconciler</span><span class="p">)</span> <span class="nf">Reconcile</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span> <span class="nx">req</span> <span class="nx">reconcile</span><span class="p">.</span><span class="nx">Request</span><span class="p">)</span> <span class="p">(</span><span class="nx">reconcile</span><span class="p">.</span><span class="nx">Result</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">result</span> <span class="o">:=</span> <span class="nx">reconcile</span><span class="p">.</span><span class="nx">Result</span><span class="p">{}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">nodes</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">corev1</span><span class="p">.</span><span class="nx">NodeList</span><span class="p">{}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 获取所有节点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nf">List</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">nodes</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">result</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 获取节点的CIDR，生成路由
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">cidrs</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="nx">netlink</span><span class="p">.</span><span class="nx">Route</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">node</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">nodes</span><span class="p">.</span><span class="nx">Items</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">node</span><span class="p">.</span><span class="nx">Name</span> <span class="o">==</span> <span class="nx">r</span><span class="p">.</span><span class="nx">config</span><span class="p">.</span><span class="nx">nodeName</span> <span class="p">{</span> <span class="c1">// 跳过当前节点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="k">continue</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 生成期望路由
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">_</span><span class="p">,</span> <span class="nx">cidr</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">net</span><span class="p">.</span><span class="nf">ParseCIDR</span><span class="p">(</span><span class="nx">node</span><span class="p">.</span><span class="nx">Spec</span><span class="p">.</span><span class="nx">PodCIDR</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">nodeip</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">getNodeInternalIP</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">route</span> <span class="o">:=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nx">Route</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Dst</span><span class="p">:</span>        <span class="nx">cidr</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Gw</span><span class="p">:</span>         <span class="nx">nodeip</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">ILinkIndex</span><span class="p">:</span> <span class="nx">r</span><span class="p">.</span><span class="nx">hostLink</span><span class="p">.</span><span class="nf">Attrs</span><span class="p">().</span><span class="nx">Index</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">cidrs</span><span class="p">[</span><span class="nx">cidr</span><span class="p">.</span><span class="nf">String</span><span class="p">()]</span> <span class="p">=</span> <span class="nx">route</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 与本地的路由对比，不存在则创建
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="k">if</span> <span class="nx">currentRoute</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.</span><span class="nx">routes</span><span class="p">[</span><span class="nx">cidr</span><span class="p">.</span><span class="nf">String</span><span class="p">()];</span> <span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nf">isRouteEqual</span><span class="p">(</span><span class="nx">route</span><span class="p">,</span> <span class="nx">currentRoute</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">continue</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.</span><span class="nf">ReplaceRoute</span><span class="p">(</span><span class="nx">currentRoute</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">result</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.</span><span class="nf">addRoute</span><span class="p">(</span><span class="nx">route</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">result</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 删除多余的路由
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">for</span> <span class="nx">cidr</span><span class="p">,</span> <span class="nx">route</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">r</span><span class="p">.</span><span class="nx">routes</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">cidrs</span><span class="p">[</span><span class="nx">cidr</span><span class="p">];</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.</span><span class="nf">delRoute</span><span class="p">(</span><span class="nx">route</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">result</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">result</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 创建路由
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">r</span> <span class="o">*</span><span class="nx">Reconciler</span><span class="p">)</span> <span class="nf">addRoute</span><span class="p">(</span><span class="nx">route</span> <span class="nx">netlink</span><span class="p">.</span><span class="nx">Route</span><span class="p">)</span> <span class="p">(</span><span class="nx">err</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">r</span><span class="p">.</span><span class="nx">routes</span><span class="p">[</span><span class="nx">route</span><span class="p">.</span><span class="nx">Dst</span><span class="p">.</span><span class="nf">String</span><span class="p">()]</span> <span class="p">=</span> <span class="nx">route</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">log</span><span class="p">.</span><span class="nf">Info</span><span class="p">(</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;add route: %s&#34;</span><span class="p">,</span> <span class="nx">route</span><span class="p">.</span><span class="nf">String</span><span class="p">()))</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">err</span> <span class="p">=</span> <span class="nx">netlink</span><span class="p">.</span><span class="nf">RouteAdd</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">route</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">log</span><span class="p">.</span><span class="nf">Error</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="s">&#34;failed to add route&#34;</span><span class="p">,</span> <span class="s">&#34;route&#34;</span><span class="p">,</span> <span class="nx">route</span><span class="p">.</span><span class="nf">String</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>主要步骤包括：</p>
+<ol>
+<li>当前Node变化时获取集群中所有Node网络信息（PodCIDR、IP等）</li>
+<li>与节点上路由进行比对，若缺少则添加，若宿主机上存在多余的路由则删除</li>
+</ol>
+<blockquote>
+<p>为什么不是直接对变化的Node修改对应的路由？</p>
+<p>通过获取所有节点网络信息与宿主机进行路由比对，符合Kubernetes编程规范，声明式编程而不是过程式，这种方式不会丢事件。即使手动误删了路由，下次同步也会将其恢复。</p>
+</blockquote>
+<h4 id="其他配置" class="headerLink">
+    <a href="#%e5%85%b6%e4%bb%96%e9%85%8d%e7%bd%ae" class="header-mark"></a>其他配置</h4><p>如果使用Docker的话，Docker会禁止非Docker网桥的流量转发，需要配置iptables</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">iptables -A FORWARD -i <span class="si">${</span><span class="nv">bridge</span><span class="si">}</span> -j ACCEPT
+</span></span></code></pre></div><p>大部分集群允许Pod访问外部网络，需要配置SNAT：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">sudo iptables -t nat -A POSTROUTING -s <span class="nv">$cidr</span> -j MASQUERADE
+</span></span><span class="line"><span class="cl"><span class="c1"># 另外允许主机网卡转发</span>
+</span></span><span class="line"><span class="cl">iptables -A FORWARD -i <span class="nv">$hostNetWork</span> -j ACCEPT
+</span></span></code></pre></div><p>代码如下，通过<code>github.com/coreos/go-iptables/iptables</code>可以配置iptables：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">addIptables</span><span class="p">(</span><span class="nx">bridgeName</span><span class="p">,</span> <span class="nx">hostDeviceName</span><span class="p">,</span> <span class="nx">nodeCIDR</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">ipt</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">iptables</span><span class="p">.</span><span class="nf">NewWithProtocol</span><span class="p">(</span><span class="nx">iptables</span><span class="p">.</span><span class="nx">ProtocolIPv4</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ipt</span><span class="p">.</span><span class="nf">AppendUnique</span><span class="p">(</span><span class="s">&#34;filter&#34;</span><span class="p">,</span> <span class="s">&#34;FORWARD&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="nx">bridgeName</span><span class="p">,</span> <span class="s">&#34;-j&#34;</span><span class="p">,</span> <span class="s">&#34;ACCEPT&#34;</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ipt</span><span class="p">.</span><span class="nf">AppendUnique</span><span class="p">(</span><span class="s">&#34;filter&#34;</span><span class="p">,</span> <span class="s">&#34;FORWARD&#34;</span><span class="p">,</span> <span class="s">&#34;-i&#34;</span><span class="p">,</span> <span class="nx">hostDeviceName</span><span class="p">,</span> <span class="s">&#34;-j&#34;</span><span class="p">,</span> <span class="s">&#34;ACCEPT&#34;</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">ipt</span><span class="p">.</span><span class="nf">AppendUnique</span><span class="p">(</span><span class="s">&#34;nat&#34;</span><span class="p">,</span> <span class="s">&#34;POSTROUTING&#34;</span><span class="p">,</span> <span class="s">&#34;-s&#34;</span><span class="p">,</span> <span class="nx">nodeCIDR</span><span class="p">,</span> <span class="s">&#34;-j&#34;</span><span class="p">,</span> <span class="s">&#34;MASQUERADE&#34;</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="演示" class="headerLink">
+    <a href="#%e6%bc%94%e7%a4%ba" class="header-mark"></a>演示</h2><p>通过kind模拟创建多节点k8s集群<code>kind create cluster --config deploy/kind.yaml</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="c"># cat deploy/kind.yaml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Cluster</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">kind.x-k8s.io/v1alpha4</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">networking</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c"># 禁止默认的CNI</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">disableDefaultCNI</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">nodes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c"># 包括一个master节点，三个worker</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l">control-plane</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l">worker</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l">worker</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l">worker</span><span class="w">
+</span></span></span></code></pre></div><p>创建完成后，可以看到所有节点都是NotReady，这是因为我们没有装CNI</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">mycni kubectl get no
+</span></span><span class="line"><span class="cl">NAME                 STATUS     ROLES                  AGE   VERSION
+</span></span><span class="line"><span class="cl">kind-control-plane   NotReady   control-plane,master   37s   v1.23.4
+</span></span><span class="line"><span class="cl">kind-worker          NotReady   &lt;none&gt;                 18s   v1.23.4
+</span></span><span class="line"><span class="cl">kind-worker2         NotReady   &lt;none&gt;                 18s   v1.23.4
+</span></span><span class="line"><span class="cl">kind-worker3         NotReady   &lt;none&gt;                 18s   v1.23.4
+</span></span></code></pre></div><p>接下编译我们的mycni镜像，通过<code>kind load docker-image</code>加载到集群中。</p>
+<p>部署CNI插件，这里参考了Flannel的部署，主要是通过Daemonset在每个节点上部署一个Pod，初始化容器将mycni检查二进制文件拷贝到/opt/cni/bin，将配置文件拷贝到/etc/cni/net.d，再启动mycnid容器。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">kubectl apply -f deploy/mycni.yaml
+</span></span></code></pre></div><p>部署完成后，可以看到所有节点状态变为Ready。</p>
+<p>最后测试Pod的网络配置情况，部署一个多副本Alpine Deployment</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubectl create deployment cni-test --image<span class="o">=</span>alpine --replicas<span class="o">=</span><span class="m">6</span> -- top
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">kubectl get po -owide
+</span></span><span class="line"><span class="cl">NAME                        READY   STATUS    RESTARTS   AGE   IP           NODE           NOMINATED NODE   READINESS GATES
+</span></span><span class="line"><span class="cl">cni-test-5df744744c-5wthb   1/1     Running   <span class="m">0</span>          12s   10.244.2.3   kind-worker2   &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">cni-test-5df744744c-7cdll   1/1     Running   <span class="m">0</span>          12s   10.244.1.2   kind-worker    &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">cni-test-5df744744c-jssjk   1/1     Running   <span class="m">0</span>          12s   10.244.3.2   kind-worker3   &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">cni-test-5df744744c-jw6xv   1/1     Running   <span class="m">0</span>          12s   10.244.1.3   kind-worker    &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">cni-test-5df744744c-klbr4   1/1     Running   <span class="m">0</span>          12s   10.244.3.3   kind-worker3   &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">cni-test-5df744744c-w7q9t   1/1     Running   <span class="m">0</span>          12s   10.244.2.2   kind-worker2   &lt;none&gt;           &lt;none&gt;
+</span></span></code></pre></div><p>所有Pod可以正常启动，首先测试Node与Pod的通信, 结果如下</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">root@kind-worker:/# ping 10.244.1.2
+</span></span><span class="line"><span class="cl">PING 10.244.1.2 <span class="o">(</span>10.244.1.2<span class="o">)</span> 56<span class="o">(</span>84<span class="o">)</span> bytes of data.
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.1.2: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">1</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span>0.101 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.1.2: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">2</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span>0.049 ms
+</span></span><span class="line"><span class="cl">--- 10.244.1.2 ping statistics ---
+</span></span></code></pre></div><p>同节点上的Pod通信：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">~ kubectl <span class="nb">exec</span> cni-test-5df744744c-7cdll -- ping 10.244.1.3 -c <span class="m">4</span>
+</span></span><span class="line"><span class="cl">PING 10.244.1.3 <span class="o">(</span>10.244.1.3<span class="o">)</span>: <span class="m">56</span> data bytes
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.1.3: <span class="nv">seq</span><span class="o">=</span><span class="m">0</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span>0.118 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.1.3: <span class="nv">seq</span><span class="o">=</span><span class="m">1</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span>0.077 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.1.3: <span class="nv">seq</span><span class="o">=</span><span class="m">2</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span>0.082 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.1.3: <span class="nv">seq</span><span class="o">=</span><span class="m">3</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span>0.085 ms
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">--- 10.244.1.3 ping statistics ---
+</span></span><span class="line"><span class="cl"><span class="m">4</span> packets transmitted, <span class="m">4</span> packets received, 0% packet loss
+</span></span><span class="line"><span class="cl">round-trip min/avg/max <span class="o">=</span> 0.077/0.090/0.118 ms
+</span></span></code></pre></div><p>不同节点的Pod通信</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"> ~ kubectl <span class="nb">exec</span> cni-test-5df744744c-7cdll -- ping 10.244.2.2 -c <span class="m">4</span>
+</span></span><span class="line"><span class="cl">PING 10.244.2.2 <span class="o">(</span>10.244.2.2<span class="o">)</span>: <span class="m">56</span> data bytes
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.2.2: <span class="nv">seq</span><span class="o">=</span><span class="m">0</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">62</span> <span class="nv">time</span><span class="o">=</span>0.298 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.2.2: <span class="nv">seq</span><span class="o">=</span><span class="m">1</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">62</span> <span class="nv">time</span><span class="o">=</span>0.234 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.2.2: <span class="nv">seq</span><span class="o">=</span><span class="m">2</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">62</span> <span class="nv">time</span><span class="o">=</span>0.180 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 10.244.2.2: <span class="nv">seq</span><span class="o">=</span><span class="m">3</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">62</span> <span class="nv">time</span><span class="o">=</span>0.234 ms
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">--- 10.244.2.2 ping statistics ---
+</span></span><span class="line"><span class="cl"><span class="m">4</span> packets transmitted, <span class="m">4</span> packets received, 0% packet loss
+</span></span><span class="line"><span class="cl">round-trip min/avg/max <span class="o">=</span> 0.180/0.236/0.298 ms
+</span></span></code></pre></div><p>Pod访问外网</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">~ kubectl <span class="nb">exec</span> cni-test-5df744744c-7cdll -- ping www.baidu.com -c <span class="m">4</span>
+</span></span><span class="line"><span class="cl">PING www.baidu.com <span class="o">(</span>103.235.46.39<span class="o">)</span>: <span class="m">56</span> data bytes
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 103.235.46.39: <span class="nv">seq</span><span class="o">=</span><span class="m">0</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">47</span> <span class="nv">time</span><span class="o">=</span>312.115 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 103.235.46.39: <span class="nv">seq</span><span class="o">=</span><span class="m">1</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">47</span> <span class="nv">time</span><span class="o">=</span>311.126 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 103.235.46.39: <span class="nv">seq</span><span class="o">=</span><span class="m">2</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">47</span> <span class="nv">time</span><span class="o">=</span>311.653 ms
+</span></span><span class="line"><span class="cl"><span class="m">64</span> bytes from 103.235.46.39: <span class="nv">seq</span><span class="o">=</span><span class="m">3</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">47</span> <span class="nv">time</span><span class="o">=</span>311.250 ms
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">--- www.baidu.com ping statistics ---
+</span></span><span class="line"><span class="cl"><span class="m">4</span> packets transmitted, <span class="m">4</span> packets received, 0% packet loss
+</span></span><span class="line"><span class="cl">round-trip min/avg/max <span class="o">=</span> 311.126/311.536/312.115 ms
+</span></span></code></pre></div><p>通过测试验证，我们实现的mycni满足k8s的CNI网络插件的要求，可以实现集群内所有Pod的通信，以及Node与Pod的通信，Pod也可以正常访问外网。</p>
+<h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>本文首先介绍了CNI的架构，通过手动实现一个CNI网络插件，可以更加深入的了解CNI的工作原理以及Linux相关网络知识。</p>
+<p>欢迎指正，所有代码见：</p>
+<blockquote>
+<p><a href="https://github.com/qingwave/mycni" target="_blank" rel="noopener noreffer">https://github.com/qingwave/mycni</a></p>
+</blockquote>
+<h2 id="引用" class="headerLink">
+    <a href="#%e5%bc%95%e7%94%a8" class="header-mark"></a>引用</h2><ul>
+<li><a href="https://www.cni.dev/docs/" target="_blank" rel="noopener noreffer">https://www.cni.dev/docs/</a></li>
+<li><a href="https://ronaknathani.com/blog/2020/08/how-a-kubernetes-pod-gets-an-ip-address/" target="_blank" rel="noopener noreffer">https://ronaknathani.com/blog/2020/08/how-a-kubernetes-pod-gets-an-ip-address/</a></li>
+</ul>
+<blockquote>
+<p>Explore more in <a href="https://qingwave.github.io" target="_blank" rel="noopener noreffer">https://qingwave.github.io</a></p>
+</blockquote>
+]]></description>
+</item></channel>
+</rss>

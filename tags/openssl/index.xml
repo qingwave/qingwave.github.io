@@ -1,0 +1,39 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>openssl - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/openssl/</link>
+        <description>openssl - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Fri, 10 May 2019 22:45:12 &#43;0000</lastBuildDate><atom:link href="https://qingwave.github.io/tags/openssl/" rel="self" type="application/rss+xml" /><item>
+    <title>openssl常用命令</title>
+    <link>https://qingwave.github.io/openssl-cmd/</link>
+    <pubDate>Fri, 10 May 2019 22:45:12 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/openssl-cmd/</guid>
+    <description><![CDATA[<h3 id="输出x509证书信息" class="headerLink">
+    <a href="#%e8%be%93%e5%87%bax509%e8%af%81%e4%b9%a6%e4%bf%a1%e6%81%af" class="header-mark"></a>输出x509证书信息</h3><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">openssl x509 -noout -text  -in ca.pem
+</span></span></code></pre></div><p>结果如下</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">Certificate:
+</span></span><span class="line"><span class="cl">    Data:
+</span></span><span class="line"><span class="cl">        Version: <span class="m">3</span> <span class="o">(</span>0x2<span class="o">)</span>
+</span></span><span class="line"><span class="cl">        Serial Number:
+</span></span><span class="line"><span class="cl">            5f:11:aa:b3:70:18:fd:89:b0:25:7a:9e:36:c5:e7:ce:33:5a:cc:b7
+</span></span><span class="line"><span class="cl">    Signature Algorithm: sha256WithRSAEncryption
+</span></span><span class="line"><span class="cl">        Issuer: <span class="nv">C</span><span class="o">=</span>CN, <span class="nv">ST</span><span class="o">=</span>BeiJing, <span class="nv">L</span><span class="o">=</span>BeiJing, <span class="nv">O</span><span class="o">=</span>xx, <span class="nv">OU</span><span class="o">=</span>xx, <span class="nv">CN</span><span class="o">=</span>xx
+</span></span><span class="line"><span class="cl">        Validity
+</span></span><span class="line"><span class="cl">            Not Before: Dec <span class="m">26</span> 06:17:00 <span class="m">2019</span> GMT
+</span></span><span class="line"><span class="cl">            Not After : Dec  <span class="m">2</span> 06:17:00 <span class="m">2119</span> GMT <span class="c1">#过期时间</span>
+</span></span><span class="line"><span class="cl">        Subject: <span class="nv">C</span><span class="o">=</span>CN, <span class="nv">ST</span><span class="o">=</span>BeiJing, <span class="nv">L</span><span class="o">=</span>BeiJing, <span class="nv">O</span><span class="o">=</span>xx, <span class="nv">OU</span><span class="o">=</span>xx, <span class="nv">CN</span><span class="o">=</span>xx
+</span></span><span class="line"><span class="cl">        Subject Public Key Info:
+</span></span><span class="line"><span class="cl">        ...
+</span></span></code></pre></div><h3 id="验证公钥私钥是否匹配" class="headerLink">
+    <a href="#%e9%aa%8c%e8%af%81%e5%85%ac%e9%92%a5%e7%a7%81%e9%92%a5%e6%98%af%e5%90%a6%e5%8c%b9%e9%85%8d" class="header-mark"></a>验证公钥私钥是否匹配</h3><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">diff -eq &lt;<span class="o">(</span>openssl x509 -pubkey -noout -in cert.crt<span class="o">)</span> &lt;<span class="o">(</span>openssl rsa -pubout -in cert.key<span class="o">)</span>
+</span></span></code></pre></div><p>正常会输出</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">writing RSA key
+</span></span></code></pre></div><h3 id="验证证书ca" class="headerLink">
+    <a href="#%e9%aa%8c%e8%af%81%e8%af%81%e4%b9%a6ca" class="header-mark"></a>验证证书CA</h3><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">openssl verify -CAfile ca.pem client.pem
+</span></span></code></pre></div><p>正常输出</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">client.pem: OK
+</span></span></code></pre></div>]]></description>
+</item></channel>
+</rss>

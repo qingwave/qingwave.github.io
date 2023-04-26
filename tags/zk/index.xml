@@ -1,0 +1,470 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>zk - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/zk/</link>
+        <description>zk - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Mon, 08 Aug 2022 08:48:26 &#43;0000</lastBuildDate><atom:link href="https://qingwave.github.io/tags/zk/" rel="self" type="application/rss+xml" /><item>
+    <title>Golang分布式应用之ZooKeeper</title>
+    <link>https://qingwave.github.io/golang-distributed-system-x-zk/</link>
+    <pubDate>Mon, 08 Aug 2022 08:48:26 &#43;0000</pubDate><author>
+        <name>Qingwave</name>
+    </author><guid>https://qingwave.github.io/golang-distributed-system-x-zk/</guid>
+    <description><![CDATA[<p>ZooKeeper是Apache下一个开源项目，提供分布式配置、同步服务以及命名注册等，是一个高可靠的分布式协调系统。</p>
+<p>其应用场景与etcd类似，可以使用在</p>
+<ul>
+<li>服务发现</li>
+<li>分布式锁</li>
+<li>选主</li>
+<li>分布式队列</li>
+<li>分布式系统协调</li>
+<li>负载均衡</li>
+</ul>
+<p>如在Hadooop、Kafka中将ZooKeeper作为核心组件。本文结合Golang来编写对应的中间件，所有代码见<a href="https://github.com/qingwave/gocorex" target="_blank" rel="noopener noreffer">https://github.com/qingwave/gocorex</a></p>
+<h2 id="服务注册" class="headerLink">
+    <a href="#%e6%9c%8d%e5%8a%a1%e6%b3%a8%e5%86%8c" class="header-mark"></a>服务注册</h2><p>服务注册主要细节在<a href="/golang-distributed-system-x-etcd" rel="">etcd</a>中已提及，主要来解决分布式环境中服务注册注销与状态感知，包括：</p>
+<ul>
+<li>服务注册、注销</li>
+<li>服务宕机或异常时，自动注销</li>
+<li>感知服务端点变化</li>
+</ul>
+<p>借助zk实现服务发现:</p>
+<ul>
+<li>可以通过将端点写同一个目录(相同前缀，如/services/job/endpoint1, /services/job/endpoint2)，写入临时节点，如果服务宕机，Session过期对应端点会自动删除</li>
+<li>通过Watch API可以监听端点变化</li>
+</ul>
+<p>核心代码如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="c1">// 注册，1表示临时节点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">d</span> <span class="o">*</span><span class="nx">ZkDiscovery</span><span class="p">)</span> <span class="nf">Register</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">d</span><span class="p">.</span><span class="nx">conn</span><span class="p">.</span><span class="nf">Create</span><span class="p">(</span><span class="nx">d</span><span class="p">.</span><span class="nx">myKey</span><span class="p">,</span> <span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="nx">d</span><span class="p">.</span><span class="nx">Val</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="nx">d</span><span class="p">.</span><span class="nx">ACL</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">==</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">ErrNodeExists</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 注销，直接删除对应Key即可
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">d</span> <span class="o">*</span><span class="nx">ZkDiscovery</span><span class="p">)</span> <span class="nf">UnRegister</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">err</span> <span class="o">:=</span> <span class="nx">d</span><span class="p">.</span><span class="nx">conn</span><span class="p">.</span><span class="nf">Delete</span><span class="p">(</span><span class="nx">d</span><span class="p">.</span><span class="nx">myKey</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">==</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">ErrNoNode</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>服务监听通过zk Watch接口</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">d</span> <span class="o">*</span><span class="nx">ZkDiscovery</span><span class="p">)</span> <span class="nf">Watch</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">d</span><span class="p">.</span><span class="nx">watchContext</span><span class="p">,</span> <span class="nx">d</span><span class="p">.</span><span class="nx">watchCancel</span> <span class="p">=</span> <span class="nx">context</span><span class="p">.</span><span class="nf">WithCancel</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 获取最新列表
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">d</span><span class="p">.</span><span class="nf">refreshServices</span><span class="p">();</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">d</span><span class="p">.</span><span class="nx">Callbacks</span><span class="p">.</span><span class="nx">OnStartedDiscovering</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">d</span><span class="p">.</span><span class="nx">Callbacks</span><span class="p">.</span><span class="nf">OnStartedDiscovering</span><span class="p">(</span><span class="nx">d</span><span class="p">.</span><span class="nf">ListServices</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="nx">d</span><span class="p">.</span><span class="nf">watchCancel</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">d</span><span class="p">.</span><span class="nx">Callbacks</span><span class="p">.</span><span class="nx">OnStoppedDiscovering</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">d</span><span class="p">.</span><span class="nx">Callbacks</span><span class="p">.</span><span class="nf">OnStoppedDiscovering</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nx">loop</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 添加节点变化
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">children</span><span class="p">,</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">ch</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">d</span><span class="p">.</span><span class="nx">conn</span><span class="p">.</span><span class="nf">ChildrenW</span><span class="p">(</span><span class="nx">d</span><span class="p">.</span><span class="nx">Path</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">d</span><span class="p">.</span><span class="nf">setServices</span><span class="p">(</span><span class="nx">containerx</span><span class="p">.</span><span class="nf">NewSet</span><span class="p">(</span><span class="nx">children</span><span class="o">...</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">select</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">case</span> <span class="o">&lt;-</span><span class="nx">d</span><span class="p">.</span><span class="nx">watchContext</span><span class="p">.</span><span class="nf">Done</span><span class="p">():</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">		<span class="k">case</span> <span class="nx">e</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// zk 是一个一次性触发器，收到事件后需要重新watch
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">goto</span> <span class="nx">loop</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">e</span><span class="p">.</span><span class="nx">Err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">e</span><span class="p">.</span><span class="nx">Err</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">// 当子节点变化时，获取最新服务列表
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="k">switch</span> <span class="nx">e</span><span class="p">.</span><span class="nx">Type</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">case</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">EventNodeCreated</span><span class="p">,</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">EventNodeChildrenChanged</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">d</span><span class="p">.</span><span class="nf">refreshServices</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">			<span class="k">switch</span> <span class="nx">e</span><span class="p">.</span><span class="nx">State</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">case</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">StateExpired</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;node [%s] expired&#34;</span><span class="p">,</span> <span class="nx">d</span><span class="p">.</span><span class="nx">myKey</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="k">case</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">StateDisconnected</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">d</span><span class="p">.</span><span class="nx">Callbacks</span><span class="p">.</span><span class="nx">OnServiceChanged</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">d</span><span class="p">.</span><span class="nx">Callbacks</span><span class="p">.</span><span class="nf">OnServiceChanged</span><span class="p">(</span><span class="nx">d</span><span class="p">.</span><span class="nf">ListServices</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>通过worker模拟不同的端点，测试代码如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">ctx</span><span class="p">,</span> <span class="nx">cancel</span> <span class="o">:=</span> <span class="nx">context</span><span class="p">.</span><span class="nf">WithCancel</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nf">Background</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">worker</span> <span class="o">:=</span> <span class="kd">func</span><span class="p">(</span><span class="nx">i</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">run</span> <span class="kt">bool</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">id</span> <span class="o">:=</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;10.0.0.%d&#34;</span><span class="p">,</span> <span class="nx">i</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">val</span> <span class="o">:=</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;10.0.0.%d&#34;</span><span class="p">,</span> <span class="nx">i</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="nx">sd</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">zkdiscovery</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="nx">zkdiscovery</span><span class="p">.</span><span class="nx">ZkDiscoveryConfig</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Endpoints</span><span class="p">:</span>      <span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">&#34;127.0.0.1&#34;</span><span class="p">},</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Path</span><span class="p">:</span>           <span class="s">&#34;/zk/services&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">SessionTimeout</span><span class="p">:</span> <span class="mi">2</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Key</span><span class="p">:</span>            <span class="nx">id</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Val</span><span class="p">:</span>            <span class="nx">val</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Callbacks</span><span class="p">:</span> <span class="nx">zkdiscovery</span><span class="p">.</span><span class="nx">DiscoveryCallbacks</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">OnStartedDiscovering</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">services</span> <span class="p">[]</span><span class="nx">zkdiscovery</span><span class="p">.</span><span class="nx">Service</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="nx">log</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;[%s] onstarted, services: %v&#34;</span><span class="p">,</span> <span class="nx">id</span><span class="p">,</span> <span class="nx">services</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">				<span class="p">},</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">OnStoppedDiscovering</span><span class="p">:</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="nx">log</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;[%s] onstoped&#34;</span><span class="p">,</span> <span class="nx">id</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">				<span class="p">},</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">OnServiceChanged</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">services</span> <span class="p">[]</span><span class="nx">zkdiscovery</span><span class="p">.</span><span class="nx">Service</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="nx">log</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;[%s] onchanged, services: %v&#34;</span><span class="p">,</span> <span class="nx">id</span><span class="p">,</span> <span class="nx">services</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">				<span class="p">},</span>
+</span></span><span class="line"><span class="cl">			<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="p">})</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">log</span><span class="p">.</span><span class="nf">Fatalf</span><span class="p">(</span><span class="s">&#34;failed to create service discovery: %v&#34;</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="k">defer</span> <span class="nx">sd</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="p">!</span><span class="nx">run</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">sd</span><span class="p">.</span><span class="nf">UnRegister</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nf">Background</span><span class="p">());</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">log</span><span class="p">.</span><span class="nf">Fatalf</span><span class="p">(</span><span class="s">&#34;failed to unregister service [%s]: %v&#34;</span><span class="p">,</span> <span class="nx">id</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">sd</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nf">Background</span><span class="p">());</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">log</span><span class="p">.</span><span class="nf">Fatalf</span><span class="p">(</span><span class="s">&#34;failed to register service [%s]: %v&#34;</span><span class="p">,</span> <span class="nx">id</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">sd</span><span class="p">.</span><span class="nf">Watch</span><span class="p">(</span><span class="nx">ctx</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">log</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;[%s] failed to watch service: %v&#34;</span><span class="p">,</span> <span class="nx">id</span><span class="p">,</span> <span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">wg</span> <span class="o">:=</span> <span class="nx">group</span><span class="p">.</span><span class="nf">NewGroup</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="mi">3</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">id</span> <span class="o">:=</span> <span class="nx">i</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">wg</span><span class="p">.</span><span class="nf">Go</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span> <span class="p">{</span> <span class="nf">worker</span><span class="p">(</span><span class="nx">id</span><span class="p">,</span> <span class="kc">true</span><span class="p">)</span> <span class="p">})</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">go</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nf">worker</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="kc">true</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// unregister
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">go</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="nf">worker</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="kc">false</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// wg.Wait()
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">	<span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">5</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nf">cancel</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>通过结果可以看到服务能够正常注册注销，而且可以监听到节点变化</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">2022/08/09 03:01:29 connected to 127.0.0.1:2181
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 connected to 127.0.0.1:2181
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 connected to 127.0.0.1:2181
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 authenticated: <span class="nv">id</span><span class="o">=</span>72787622169739423, <span class="nv">timeout</span><span class="o">=</span><span class="m">4000</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 re-submitting <span class="sb">`</span>0<span class="sb">`</span> credentials after reconnect
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 authenticated: <span class="nv">id</span><span class="o">=</span>72787622169739424, <span class="nv">timeout</span><span class="o">=</span><span class="m">4000</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 authenticated: <span class="nv">id</span><span class="o">=</span>72787622169739425, <span class="nv">timeout</span><span class="o">=</span><span class="m">4000</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 re-submitting <span class="sb">`</span>0<span class="sb">`</span> credentials after reconnect
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 re-submitting <span class="sb">`</span>0<span class="sb">`</span> credentials after reconnect
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 <span class="o">[</span>10.0.0.2<span class="o">]</span> onstarted, services: <span class="o">[{</span>10.0.0.1 <span class="o">}</span> <span class="o">{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 <span class="o">[</span>10.0.0.0<span class="o">]</span> onstarted, services: <span class="o">[{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}</span> <span class="o">{</span>10.0.0.1 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:29 <span class="o">[</span>10.0.0.1<span class="o">]</span> onstarted, services: <span class="o">[{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}</span> <span class="o">{</span>10.0.0.1 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:31 connected to 127.0.0.1:2181
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:31 authenticated: <span class="nv">id</span><span class="o">=</span>72787622169739426, <span class="nv">timeout</span><span class="o">=</span><span class="m">4000</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:31 re-submitting <span class="sb">`</span>0<span class="sb">`</span> credentials after reconnect
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:31 <span class="o">[</span>10.0.0.0<span class="o">]</span> onchanged, services: <span class="o">[{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}</span> <span class="o">{</span>10.0.0.1 <span class="o">}</span> <span class="o">{</span>10.0.0.3 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:31 <span class="o">[</span>10.0.0.1<span class="o">]</span> onchanged, services: <span class="o">[{</span>10.0.0.3 <span class="o">}</span> <span class="o">{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}</span> <span class="o">{</span>10.0.0.1 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:31 <span class="o">[</span>10.0.0.2<span class="o">]</span> onchanged, services: <span class="o">[{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}</span> <span class="o">{</span>10.0.0.1 <span class="o">}</span> <span class="o">{</span>10.0.0.3 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:31 <span class="o">[</span>10.0.0.3<span class="o">]</span> onstarted, services: <span class="o">[{</span>10.0.0.1 <span class="o">}</span> <span class="o">{</span>10.0.0.3 <span class="o">}</span> <span class="o">{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:33 connected to 127.0.0.1:2181
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:33 authenticated: <span class="nv">id</span><span class="o">=</span>72787622169739427, <span class="nv">timeout</span><span class="o">=</span><span class="m">4000</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:33 re-submitting <span class="sb">`</span>0<span class="sb">`</span> credentials after reconnect
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:33 <span class="o">[</span>10.0.0.3<span class="o">]</span> onchanged, services: <span class="o">[{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}</span> <span class="o">{</span>10.0.0.3 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:33 <span class="o">[</span>10.0.0.2<span class="o">]</span> onchanged, services: <span class="o">[{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}</span> <span class="o">{</span>10.0.0.3 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:33 <span class="o">[</span>10.0.0.0<span class="o">]</span> onchanged, services: <span class="o">[{</span>10.0.0.3 <span class="o">}</span> <span class="o">{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:33 <span class="o">[</span>10.0.0.1<span class="o">]</span> onchanged, services: <span class="o">[{</span>10.0.0.0 <span class="o">}</span> <span class="o">{</span>10.0.0.2 <span class="o">}</span> <span class="o">{</span>10.0.0.3 <span class="o">}]</span>
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:33 recv loop terminated: EOF
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:33 send loop terminated: &lt;nil&gt;
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:34 <span class="o">[</span>10.0.0.3<span class="o">]</span> onstoped
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:34 <span class="o">[</span>10.0.0.0<span class="o">]</span> onstoped
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:34 <span class="o">[</span>10.0.0.2<span class="o">]</span> onstoped
+</span></span><span class="line"><span class="cl">2022/08/09 03:01:34 <span class="o">[</span>10.0.0.1<span class="o">]</span> onstoped
+</span></span></code></pre></div><h2 id="分布式锁" class="headerLink">
+    <a href="#%e5%88%86%e5%b8%83%e5%bc%8f%e9%94%81" class="header-mark"></a>分布式锁</h2><p>在包<a href="https://github.com/go-zookeeper/zk" target="_blank" rel="noopener noreffer">github.com/go-zookeeper/zk</a>中已经实现了分布式锁，主要借助了ZooKeeper的临时节点的功能</p>
+<ul>
+<li>加锁时，创建临时节点（client与zk server会保持长链接，链接中断则创建的临时数据会被删除）</li>
+<li>解锁时，直接删除节点即可</li>
+</ul>
+<p>主要来看加锁过程</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">l</span> <span class="o">*</span><span class="nx">Lock</span><span class="p">)</span> <span class="nf">LockWithData</span><span class="p">(</span><span class="nx">data</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">l</span><span class="p">.</span><span class="nx">lockPath</span> <span class="o">!=</span> <span class="s">&#34;&#34;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">ErrDeadlock</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">prefix</span> <span class="o">:=</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;%s/lock-&#34;</span><span class="p">,</span> <span class="nx">l</span><span class="p">.</span><span class="nx">path</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">path</span> <span class="o">:=</span> <span class="s">&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="kd">var</span> <span class="nx">err</span> <span class="kt">error</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 重试3次
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="mi">3</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 创建临时顺序节点，同名节点会加序列号
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">path</span><span class="p">,</span> <span class="nx">err</span> <span class="p">=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">c</span><span class="p">.</span><span class="nf">CreateProtectedEphemeralSequential</span><span class="p">(</span><span class="nx">prefix</span><span class="p">,</span> <span class="nx">data</span><span class="p">,</span> <span class="nx">l</span><span class="p">.</span><span class="nx">acl</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">==</span> <span class="nx">ErrNoNode</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="c1">// Create parent node.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="nx">parts</span> <span class="o">:=</span> <span class="nx">strings</span><span class="p">.</span><span class="nf">Split</span><span class="p">(</span><span class="nx">l</span><span class="p">.</span><span class="nx">path</span><span class="p">,</span> <span class="s">&#34;/&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">pth</span> <span class="o">:=</span> <span class="s">&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">			<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">p</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="kd">var</span> <span class="nx">exists</span> <span class="kt">bool</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">pth</span> <span class="o">+=</span> <span class="s">&#34;/&#34;</span> <span class="o">+</span> <span class="nx">p</span>
+</span></span><span class="line"><span class="cl">                <span class="c1">// 父路径不存在，创建父节点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>				<span class="nx">exists</span><span class="p">,</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="p">=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">c</span><span class="p">.</span><span class="nf">Exists</span><span class="p">(</span><span class="nx">pth</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">				<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">				<span class="p">}</span>
+</span></span><span class="line"><span class="cl">				<span class="k">if</span> <span class="nx">exists</span> <span class="o">==</span> <span class="kc">true</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="k">continue</span>
+</span></span><span class="line"><span class="cl">				<span class="p">}</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="p">=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">c</span><span class="p">.</span><span class="nf">Create</span><span class="p">(</span><span class="nx">pth</span><span class="p">,</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">{},</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">l</span><span class="p">.</span><span class="nx">acl</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">				<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="o">&amp;&amp;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="nx">ErrNodeExists</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">					<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">				<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="nx">err</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">break</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 解析序列号
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">seq</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">parseSeq</span><span class="p">(</span><span class="nx">path</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 获取lock下所有子节点，根据序列号判断是否获得锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">children</span><span class="p">,</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">c</span><span class="p">.</span><span class="nf">Children</span><span class="p">(</span><span class="nx">l</span><span class="p">.</span><span class="nx">path</span><span class="p">)</span>        
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="nx">lowestSeq</span> <span class="o">:=</span> <span class="nx">seq</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">prevSeq</span> <span class="o">:=</span> <span class="o">-</span><span class="mi">1</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">prevSeqPath</span> <span class="o">:=</span> <span class="s">&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">p</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">children</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">s</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">parseSeq</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">s</span> <span class="p">&lt;</span> <span class="nx">lowestSeq</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">lowestSeq</span> <span class="p">=</span> <span class="nx">s</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">// 获取此节点前一个序列号
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="k">if</span> <span class="nx">s</span> <span class="p">&lt;</span> <span class="nx">seq</span> <span class="o">&amp;&amp;</span> <span class="nx">s</span> <span class="p">&gt;</span> <span class="nx">prevSeq</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">prevSeq</span> <span class="p">=</span> <span class="nx">s</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">prevSeqPath</span> <span class="p">=</span> <span class="nx">p</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 如果当前节点序列号最低，则获取到锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="k">if</span> <span class="nx">seq</span> <span class="o">==</span> <span class="nx">lowestSeq</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="c1">// Acquired the lock
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="k">break</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="c1">// 否则等待节点删除
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">_</span><span class="p">,</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">ch</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">l</span><span class="p">.</span><span class="nx">c</span><span class="p">.</span><span class="nf">GetW</span><span class="p">(</span><span class="nx">l</span><span class="p">.</span><span class="nx">path</span> <span class="o">+</span> <span class="s">&#34;/&#34;</span> <span class="o">+</span> <span class="nx">prevSeqPath</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="o">&amp;&amp;</span> <span class="nx">err</span> <span class="o">!=</span> <span class="nx">ErrNoNode</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="o">&amp;&amp;</span> <span class="nx">err</span> <span class="o">==</span> <span class="nx">ErrNoNode</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="c1">// try again
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="k">continue</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="nx">ev</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">ch</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">ev</span><span class="p">.</span><span class="nx">Err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">ev</span><span class="p">.</span><span class="nx">Err</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">l</span><span class="p">.</span><span class="nx">seq</span> <span class="p">=</span> <span class="nx">seq</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">l</span><span class="p">.</span><span class="nx">lockPath</span> <span class="p">=</span> <span class="nx">path</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>主要逻辑如下：</p>
+<ol>
+<li>创建临时顺序节点</li>
+<li>如果父节点不存在，则创建父节点</li>
+<li>获取lock下所有子节点序列号</li>
+<li>如果当前节点序列号最小，则获得锁</li>
+<li>否则，等待前一个删除，直到获取锁</li>
+</ol>
+<p>对比etcd的实现，大体思路基本一致，主要差异点在于</p>
+<ul>
+<li>TTL实现：etcd通过Lease的实现TTL，获取锁后不断刷新Lease; zk通过Session来实现TTL，Session中止会自动清楚临时节点</li>
+<li>顺序获取锁：etcd通过Revision来实现；zk则通过临时顺序节点</li>
+</ul>
+<h2 id="对比etcd" class="headerLink">
+    <a href="#%e5%af%b9%e6%af%94etcd" class="header-mark"></a>对比etcd</h2><p>ZooKeeper与etcd的使用场景高度重合，可以项目替代，主要区别有以下几点</p>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th>ZooKeeper</th>
+<th>etcd</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一致性协议</td>
+<td>zab</td>
+<td>raft</td>
+</tr>
+<tr>
+<td>健康检查</td>
+<td>基于Session</td>
+<td>心跳，Lease刷新</td>
+</tr>
+<tr>
+<td>Watch</td>
+<td>一次性触发器、只能添加子节点创建、删除，事件不包含数据</td>
+<td>可以添加前缀、Range、子节点变化</td>
+</tr>
+<tr>
+<td>多版本控制</td>
+<td>不支持</td>
+<td>支持，所有Key含有Revision</td>
+</tr>
+</tbody>
+</table>
+<p>etcd作为后期之秀，在功能上更丰富，新项目可以优先尝试使用etcd作为其分布式协调引擎。</p>
+<h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>本文分析了ZooKeeper在分布式锁、服务发现等场景上的实现方式，并对比了与etcd的差异点。</p>
+<p>本文所有代码见<a href="https://github.com/qingwave/gocorex" target="_blank" rel="noopener noreffer">https://github.com/qingwave/gocorex</a>，欢迎批评指正。</p>
+<blockquote>
+<p>Explore more in <a href="https://qingwave.github.io" target="_blank" rel="noopener noreffer">https://qingwave.github.io</a></p>
+</blockquote>
+]]></description>
+</item><item>
+    <title>golang zk大量disconnected event</title>
+    <link>https://qingwave.github.io/golang-zk-statedisconnected/</link>
+    <pubDate>Tue, 02 Mar 2021 17:16:23 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/golang-zk-statedisconnected/</guid>
+    <description><![CDATA[<h2 id="背景" class="headerLink">
+    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>在容器平台上我们提供了<code>zk</code>做白名单功能，<code>Pod</code>启动时 sidecar会自动注册<code>zk</code>。昨天遇到<code>zk server</code>抖动，<code>sidecar</code>容器输出大量<code>StateDisconnected</code>事件，zk正常后仍无法恢复，由于大量日志造成<code>sidecar</code>容器 cpu占用过高，进而引发<code>dockerd</code>cpu占用过高，严重时影响dockerd正常调用。</p>
+<h2 id="问题分析" class="headerLink">
+    <a href="#%e9%97%ae%e9%a2%98%e5%88%86%e6%9e%90" class="header-mark"></a>问题分析</h2><h3 id="问题复现" class="headerLink">
+    <a href="#%e9%97%ae%e9%a2%98%e5%a4%8d%e7%8e%b0" class="header-mark"></a>问题复现</h3><p>正常情况下，<code>sidecar</code>启动后会去注册<code>zk</code>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># docker logs -f 01a1a4a74785</span>
+</span></span><span class="line"><span class="cl">I0302 15:04:05.476463       <span class="m">1</span> manager.go:116<span class="o">]</span> start run plugin zk
+</span></span><span class="line"><span class="cl">2021/03/02 15:04:05 Connected to 10.38.161.60:11000
+</span></span><span class="line"><span class="cl">I0302 15:04:05.488006       <span class="m">1</span> zk.go:152<span class="o">]</span> zookeeper connect succeed: zk.srv:11000
+</span></span><span class="line"><span class="cl">2021/03/02 15:04:05 authenticated: <span class="nv">id</span><span class="o">=</span>33746806328105493, <span class="nv">timeout</span><span class="o">=</span><span class="m">30000</span>
+</span></span><span class="line"><span class="cl">2021/03/02 15:04:05 re-submitting <span class="sb">`</span>0<span class="sb">`</span> credentials after reconnect
+</span></span><span class="line"><span class="cl">I0302 15:04:05.516446       <span class="m">1</span> zk.go:220<span class="o">]</span> watching zk node:<span class="o">[</span>/tasks/cluster.xxx_default_deployment.htool/10.46.12.72<span class="o">]</span> in cluster<span class="o">[</span>xxx<span class="o">]</span> <span class="c1">#注册成功，开始watch</span>
+</span></span></code></pre></div><p>通过<code>iptable</code>s来模拟异常，首先进入到容器<code>network namesapce</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nv">pod</span><span class="o">=</span>htool-6875bcb898-w7llc
+</span></span><span class="line"><span class="cl"><span class="nv">containerid</span><span class="o">=</span><span class="k">$(</span>docker ps <span class="p">|</span>grep <span class="nv">$pod</span><span class="p">|</span>awk <span class="s1">&#39;{print $1}&#39;</span><span class="p">|</span>head -n 1<span class="k">)</span>
+</span></span><span class="line"><span class="cl"><span class="nv">pid</span><span class="o">=</span><span class="k">$(</span>docker inspect -f <span class="o">{{</span>.State.Pid<span class="o">}}</span> <span class="nv">$containerid</span><span class="k">)</span>
+</span></span><span class="line"><span class="cl">nsenter -n --target <span class="nv">$pid</span>
+</span></span></code></pre></div><p>使用<code>iptables</code> <code>drop</code>掉发往<code>zk</code>的请求(11000为zk server端口)</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">iptables -A OUTPUT -p tcp -m tcp --dport <span class="m">11000</span> -j DROP
+</span></span></code></pre></div><p>zk client自动重试（1s一次），日志显示<code>Failed to connect to 10.38.161.54:11000: dial tcp 10.38.161.54:11000: i/o timeout</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">I0302 15:04:05.516446       <span class="m">1</span> zk.go:220<span class="o">]</span> watching zk node:<span class="o">[</span>/tasks/cluster.xxx_default_deployment.htool/10.46.12.72<span class="o">]</span> in cluster<span class="o">[</span>xxx<span class="o">]</span>
+</span></span><span class="line"><span class="cl">2021/03/02 15:08:55 recv loop terminated: <span class="nv">err</span><span class="o">=</span>failed to <span class="nb">read</span> from connection: <span class="nb">read</span> tcp 10.46.12.72:36884-&gt;10.38.161.60:11000: i/o timeout
+</span></span><span class="line"><span class="cl">2021/03/02 15:08:55 send loop terminated: <span class="nv">err</span><span class="o">=</span>&lt;nil&gt;
+</span></span><span class="line"><span class="cl">2021/03/02 15:08:56 Failed to connect to 10.38.161.54:11000: dial tcp 10.38.161.54:11000: i/o timeout
+</span></span></code></pre></div><p>网络恢复，删除<code>iptables</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">iptables -D OUTPUT -p tcp -m tcp --dport <span class="m">11000</span> -j DROP
+</span></span></code></pre></div><p>出现大量<code>StateDisconnected</code>日志</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">I0302 15:09:50.951897       <span class="m">1</span> zk.go:232<span class="o">]</span> Unknown zk event<span class="o">[</span>StateDisconnected<span class="o">]</span> <span class="k">for</span> znode:<span class="o">[</span>/tasks/cluster.xxx_default_deployment.htool/10.46.12.72<span class="o">]</span>
+</span></span><span class="line"><span class="cl">I0302 15:09:50.951893       <span class="m">1</span> zk.go:232<span class="o">]</span> Unknown zk event<span class="o">[</span>StateDisconnected<span class="o">]</span> <span class="k">for</span> znode:<span class="o">[</span>/tasks/cluster.xxx_default_deployment.htool/10.46.12.72<span class="o">]</span>
+</span></span><span class="line"><span class="cl">...
+</span></span></code></pre></div><h3 id="问题分析-1" class="headerLink">
+    <a href="#%e9%97%ae%e9%a2%98%e5%88%86%e6%9e%90-1" class="header-mark"></a>问题分析</h3><p><code>sidecar</code>中zk watch代码如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="nx">exist</span><span class="p">,</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">eventCh</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">conn</span><span class="p">.</span><span class="nf">ExistsW</span><span class="p">(</span><span class="nx">node</span><span class="p">)</span> <span class="c1">//监听zk事件
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">watcher</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="k">select</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="k">case</span> <span class="nx">e</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">eventCh</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                        <span class="k">switch</span> <span class="nx">e</span><span class="p">.</span><span class="nx">State</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                        <span class="k">case</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">StateExpired</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                                <span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;node[%v] expired&#34;</span><span class="p">,</span> <span class="nx">node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                        <span class="k">case</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">StateConnected</span><span class="p">,</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">StateHasSession</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                                <span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Get zk event: %v &#34;</span><span class="p">,</span> <span class="nx">e</span><span class="p">.</span><span class="nx">State</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                        <span class="k">default</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                                <span class="nx">klog</span><span class="p">.</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;Get zk event[%v] for znode:[%v]&#34;</span><span class="p">,</span> <span class="nx">e</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">node</span><span class="p">)</span> <span class="c1">// 出错位置
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">                <span class="k">case</span> <span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nf">Done</span><span class="p">():</span>
+</span></span><span class="line"><span class="cl">                        <span class="c1">// we close the conn in caller
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                        <span class="k">break</span> <span class="nx">watcher</span>
+</span></span><span class="line"><span class="cl">                <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span></code></pre></div><p><code>ExistsW</code>函数由<code>github.com/samuel/go-zookeeper/zk</code>库提供，监听zk给定目录的事件</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">c</span> <span class="o">*</span><span class="nx">Conn</span><span class="p">)</span> <span class="nf">ExistsW</span><span class="p">(</span><span class="nx">path</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="kt">bool</span><span class="p">,</span> <span class="o">*</span><span class="nx">Stat</span><span class="p">,</span> <span class="o">&lt;-</span><span class="kd">chan</span> <span class="nx">Event</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kd">var</span> <span class="nx">ech</span> <span class="o">&lt;-</span><span class="kd">chan</span> <span class="nx">Event</span>
+</span></span><span class="line"><span class="cl">    <span class="o">...</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">ech</span> <span class="p">=</span> <span class="nx">c</span><span class="p">.</span><span class="nf">addWatcher</span><span class="p">(</span><span class="nx">path</span><span class="p">,</span> <span class="nx">watchTypeData</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">exists</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">res</span><span class="p">.</span><span class="nx">Stat</span><span class="p">,</span> <span class="nx">ech</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>当zk异常恢复后，<code>c.addWatcher</code>中的<code>channel</code>被<code>close</code>，即<code>sidecar</code>中<code>eventCh</code>关闭，进入死循环。</p>
+<h3 id="修复验证" class="headerLink">
+    <a href="#%e4%bf%ae%e5%a4%8d%e9%aa%8c%e8%af%81" class="header-mark"></a>修复验证</h3><p>知道了原因，修复很简单，判断下eventCh状态即可</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">select</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">case</span> <span class="nx">e</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">eventCh</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;event channel closed&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="nx">e</span><span class="p">.</span><span class="nx">Err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Get zk event: %v, err: %v&#34;</span><span class="p">,</span> <span class="nx">e</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">e</span><span class="p">.</span><span class="nx">Err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="k">switch</span> <span class="nx">e</span><span class="p">.</span><span class="nx">State</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">case</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">StateExpired</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;node[%v] expired&#34;</span><span class="p">,</span> <span class="nx">node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">case</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">StateConnected</span><span class="p">,</span> <span class="nx">zk</span><span class="p">.</span><span class="nx">StateHasSession</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="k">return</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;Get zk event: %v &#34;</span><span class="p">,</span> <span class="nx">e</span><span class="p">.</span><span class="nx">State</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">default</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="nx">klog</span><span class="p">.</span><span class="nf">Infof</span><span class="p">(</span><span class="s">&#34;Get zk event[%v] for znode:[%v]&#34;</span><span class="p">,</span> <span class="nx">e</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">node</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span></code></pre></div><p>在修复代码后，再次验证可正常注册</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="mi">2021</span><span class="o">/</span><span class="mo">03</span><span class="o">/</span><span class="mo">02</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">40</span> <span class="nx">Failed</span> <span class="nx">to</span> <span class="nx">connect</span> <span class="nx">to</span> <span class="mf">10.38.161.60</span><span class="p">:</span><span class="mi">11000</span><span class="p">:</span> <span class="nx">dial</span> <span class="nx">tcp</span> <span class="mf">10.38.161.60</span><span class="p">:</span><span class="mi">11000</span><span class="p">:</span> <span class="nx">i</span><span class="o">/</span><span class="nx">o</span> <span class="nx">timeout</span>
+</span></span><span class="line"><span class="cl"><span class="mi">2021</span><span class="o">/</span><span class="mo">03</span><span class="o">/</span><span class="mo">02</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">40</span> <span class="nx">Connected</span> <span class="nx">to</span> <span class="mf">10.38.161.55</span><span class="p">:</span><span class="mi">11000</span>
+</span></span><span class="line"><span class="cl"><span class="mi">2021</span><span class="o">/</span><span class="mo">03</span><span class="o">/</span><span class="mo">02</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">40</span> <span class="nx">authentication</span> <span class="nx">failed</span><span class="p">:</span> <span class="nx">zk</span><span class="p">:</span> <span class="nx">session</span> <span class="nx">has</span> <span class="nx">been</span> <span class="nx">expired</span> <span class="nx">by</span> <span class="nx">the</span> <span class="nx">server</span>
+</span></span><span class="line"><span class="cl"><span class="nx">W0302</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mf">40.222923</span>       <span class="mi">1</span> <span class="nx">zk</span><span class="p">.</span><span class="k">go</span><span class="p">:</span><span class="mi">300</span><span class="p">]</span> <span class="nx">meet</span> <span class="kt">error</span> <span class="nx">when</span> <span class="nx">watching</span> <span class="nx">node</span> <span class="nx">path</span><span class="p">:</span> <span class="nx">Get</span> <span class="nx">zk</span> <span class="nx">event</span><span class="p">:</span> <span class="nx">StateDisconnected</span><span class="p">,</span> <span class="nx">err</span><span class="p">:</span> <span class="nx">zk</span><span class="p">:</span> <span class="nx">session</span> <span class="nx">has</span> <span class="nx">been</span> <span class="nx">expired</span> <span class="nx">by</span> <span class="nx">the</span> <span class="nx">server</span>
+</span></span><span class="line"><span class="cl"><span class="mi">2021</span><span class="o">/</span><span class="mo">03</span><span class="o">/</span><span class="mo">02</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">40</span> <span class="nx">Connected</span> <span class="nx">to</span> <span class="mf">10.38.161.54</span><span class="p">:</span><span class="mi">11000</span>
+</span></span><span class="line"><span class="cl"><span class="mi">2021</span><span class="o">/</span><span class="mo">03</span><span class="o">/</span><span class="mo">02</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">40</span> <span class="nx">authenticated</span><span class="p">:</span> <span class="nx">id</span><span class="p">=</span><span class="mi">177861994644216038</span><span class="p">,</span> <span class="nx">timeout</span><span class="p">=</span><span class="mi">30000</span>
+</span></span><span class="line"><span class="cl"><span class="mi">2021</span><span class="o">/</span><span class="mo">03</span><span class="o">/</span><span class="mo">02</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">40</span> <span class="nx">re</span><span class="o">-</span><span class="nx">submitting</span> <span class="s">`1`</span> <span class="nx">credentials</span> <span class="nx">after</span> <span class="nx">reconnect</span>
+</span></span><span class="line"><span class="cl"><span class="nx">I0302</span> <span class="mi">15</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mf">41.238524</span>       <span class="mi">1</span> <span class="nx">zk</span><span class="p">.</span><span class="k">go</span><span class="p">:</span><span class="mi">220</span><span class="p">]</span> <span class="nx">watching</span> <span class="nx">zk</span> <span class="nx">node</span><span class="p">:[</span><span class="o">/</span><span class="nx">tasks</span><span class="o">/</span><span class="nx">cluster</span><span class="p">.</span><span class="nx">xxx_default_deployment</span><span class="p">.</span><span class="nx">htool</span><span class="o">/</span><span class="mf">10.46.12.72</span><span class="p">]</span> <span class="nx">in</span> <span class="nx">cluster</span><span class="p">[</span><span class="nx">xxx</span><span class="p">]</span>
+</span></span></code></pre></div><h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>这个问题其实与<code>zk</code>没关系，是由于没有判断<code>channel</code>状态，陷入死循环。通常情况下大部分应用只有退出时才会关闭<code>channel</code>，不需要特殊处理。</p>
+]]></description>
+</item></channel>
+</rss>

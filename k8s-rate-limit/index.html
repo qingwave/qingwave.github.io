@@ -1,52 +1,258 @@
-<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh-cn"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>kubernetes apiserver限流方案</title><meta content="index,follow" name="robots"/><meta content="kubernetes apiserver限流方案" property="og:title"/><meta content="https://qingwave.github.io/k8s-rate-limit" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/k8s-rate-limit" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
+<!DOCTYPE html>
+<html lang="zh-CN">
 
-  window.dataLayer = window.dataLayer || [];
-  function gtag() {
-    window.dataLayer.push(arguments);
-  }
-  gtag("js", new Date());
-  gtag("config", id);
-})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.95a5b0bf.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Wed Nov 11 2020 13:17:00 GMT+0000 (Coordinated Universal Time)">Nov 11, 2020</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">kubernetes apiserver限流方案</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="背景">背景</h2><p>为了防止突发流量影响 apiserver 可用性，k8s 支持多种限流配置，包括：</p><ul><li>MaxInFlightLimit，server 级别整体限流</li><li>Client 限流</li><li>EventRateLimit, 限制 event</li><li>APF，更细力度的限制配置</li></ul><h3 id="maxinflightlimit">MaxInFlightLimit</h3><p>MaxInFlightLimit 限流，apiserver 默认可设置最大并发量（集群级别，区分只读与修改操作），通过参数<code>--max-requests-inflight</code>和 <code>--max-mutating-requests-inflight</code>， 可以简单实现限流。</p><h3 id="client-限流">Client 限流</h3><p>例如 client-go 默认的 qps 为 5，但是只支持客户端限流，集群管理员无法控制用户行为。</p><h3 id="eventratelimit">EventRateLimit</h3><p>EventRateLimit 在 1.13 之后支持，只限制 event 请求，集成在 apiserver 内部 webhoook 中，可配置某个用户、namespace、server 等 event 操作限制，通过 webhook 形式实现。</p><p>具体原理可以参考<a href="https://kubernetes.io/zh/docs/reference/access-authn-authz/admission-controllers/#eventratelimit">提案</a>，每个 eventratelimit 配置使用一个单独的令牌桶限速器，每次 event 操作，遍历每个匹配的限速器检查是否能获取令牌，如果可以允许请求，否则返回<code>429</code>。</p><p><strong>优点</strong></p><ul><li>实现简单，允许一定量的并发</li><li>可支持 server/namespace/user 等级别的限流</li></ul><p><strong>缺点</strong></p><ul><li>仅支持 event，通过 webhook 实现只能拦截修改类请求</li><li>所有 namespace 的限流相同，没有优先级</li></ul><h3 id="api-优先级和公平性">API 优先级和公平性</h3><p>apiserver 默认的限流方式太过简单，一个错误的客户端发送大量请求可能造成其他客户端请求异常，也不支持突发流量。</p><p>API 优先级和公平性（APF）是 MaxInFlightLimit 限流的一种替代方案，设计文档见<a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1040-priority-and-fairness">提案</a>。</p><p>API 优先级和公平性（1.15 以上，alpha 版本）， 以更细粒度（byUser，byNamespace）对请求进行分类和隔离。 支持突发流量，通过使用公平排队技术从队列中分发请求从而避免饥饿。</p><p>APF 限流通过两种资源，<code>PriorityLevelConfigurations</code>定义隔离类型和可处理的并发预算量，还可以调整排队行为。 <code>FlowSchemas</code>用于对每个入站请求进行分类，并与一个 <code>PriorityLevelConfigurations</code>相匹配。</p><p>可对用户或用户组或全局进行某些资源某些请求的限制，如限制 default namespace 写 services put/patch 请求。</p><p><strong>优点</strong></p><ul><li>考虑情况较全面，支持优先级，白名单等</li><li>可支持 server/namespace/user/resource 等细粒度级别的限流</li></ul><p><strong>缺点</strong></p><ul><li>配置复杂，不直观，需要对 APF 原理深入了解</li><li>功能较新，缺少生产环境验证</li></ul><p><strong>APF 测试</strong> 开启 APF，需要在 apiserver 配置<code>--feature-gates=APIPriorityAndFairness=true --runtime-config=flowcontrol.apiserver.k8s.io/v1alpha1=true</code></p><p>开启后，获取默认的 FlowSchemas</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ kubectl get flowschemas.flowcontrol.apiserver.k8s.io</span></span>
-<span class="line"><span style="color:#f8f8f2">NAME                           PRIORITYLEVEL     MATCHINGPRECEDENCE   DISTINGUISHERMETHOD   AGE    MISSINGPL</span></span>
-<span class="line"><span style="color:#f8f8f2">system-leader-election         leader-election   100                  ByUser                152m   False</span></span>
-<span class="line"><span style="color:#f8f8f2">workload-leader-election       leader-election   200                  ByUser                152m   False</span></span>
-<span class="line"><span style="color:#f8f8f2">system-nodes                   system            500                  ByUser                152m   False</span></span>
-<span class="line"><span style="color:#f8f8f2">kube-controller-manager        workload-high     800                  ByNamespace           152m   False</span></span>
-<span class="line"><span style="color:#f8f8f2">kube-scheduler                 workload-high     800                  ByNamespace           152m   False</span></span>
-<span class="line"><span style="color:#f8f8f2">kube-system-service-accounts   workload-high     900                  ByNamespace           152m   False</span></span>
-<span class="line"><span style="color:#f8f8f2">health-for-strangers           exempt            1000                 </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2">none</span><span style="color:#ff79c6">></span><span style="color:#f8f8f2">                151m   False</span></span>
-<span class="line"><span style="color:#f8f8f2">service-accounts               workload-low      9000                 ByUser                152m   False</span></span>
-<span class="line"><span style="color:#f8f8f2">global-default                 global-default    9900                 ByUser                152m   False</span></span>
-<span class="line"><span style="color:#f8f8f2">catch-all                      catch-all         10000                ByUser                152m   False</span></span></code></pre><p>FlowShema 配置</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#8be9fd">apiVersion</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">flowcontrol.apiserver.k8s.io/v1alpha1</span></span>
-<span class="line"><span style="color:#8be9fd">kind</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">FlowSchema</span></span>
-<span class="line"><span style="color:#8be9fd">metadata</span><span style="color:#ff79c6">:</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">health-for-strangers</span></span>
-<span class="line"><span style="color:#8be9fd">spec</span><span style="color:#ff79c6">:</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">matchingPrecedence</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">1000</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#匹配优先级，1~1000，越小优先级越高</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">priorityLevelConfiguration</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#关联的PriorityLevelConfigurations</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">exempt</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#排除rules，即不限制当前flowshema的rules</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">rules</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#请求规则</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">nonResourceRules</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#非资源</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">nonResourceURLs</span><span style="color:#ff79c6">:</span></span>
-<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">/healthz</span><span style="color:#e9f284">'</span></span>
-<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">/livez</span><span style="color:#e9f284">'</span></span>
-<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">/readyz</span><span style="color:#e9f284">'</span></span>
-<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#8be9fd">verbs</span><span style="color:#ff79c6">:</span></span>
-<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">*</span><span style="color:#e9f284">'</span></span>
-<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">subjects</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#对应的用户或用户组</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">kind</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">Group</span></span>
-<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#8be9fd">group</span><span style="color:#ff79c6">:</span></span>
-<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">system:unauthenticated</span></span></code></pre><p>PriorityLevelConfiguration 配置</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#8be9fd">apiVersion</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">flowcontrol.apiserver.k8s.io/v1alpha1</span></span>
-<span class="line"><span style="color:#8be9fd">kind</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">PriorityLevelConfiguration</span></span>
-<span class="line"><span style="color:#8be9fd">metadata</span><span style="color:#ff79c6">:</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">leader-election</span></span>
-<span class="line"><span style="color:#8be9fd">spec</span><span style="color:#ff79c6">:</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">limited</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#限制策略</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">assuredConcurrencyShares</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">10</span></span>
-<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">limitResponse</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#如何处理被限制的请求</span></span>
-<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">queuing</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#类型为Queue时，列队的设置</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#8be9fd">handSize</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">4</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#队列</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#8be9fd">queueLengthLimit</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">50</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#队列长度</span></span>
-<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#8be9fd">queues</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">16</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#队列数</span></span>
-<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">type</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">Queue</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#Queue或者Reject，Reject直接返回429，Queue将请求加入队列</span></span>
-<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">type</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">Limited</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#类型，Limited或Exempt， Exempt即不限制</span></span></code></pre><h2 id="总结">总结</h2><p>以上是 k8s 相关的限流策略，通过多种策略来保证集群的稳定性。</p><p>目前 MaxInFlightLimit 可以轻松开启，但是限制策略不精细，而 APF 功能较新，实现较复杂，在充分验证后，可通过 APF 对全集群进行限流。</p></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1 rounded-lg"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="/" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noodp" />
+    <title class="pjax-title">
+        kubernetes apiserver限流方案
+        
+    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="kubernetes apiserver限流方案" />
+<meta property="og:description" content="背景为了防止突发流量影响apiserver可用性，k8s支持多种限流配置，包括： MaxInFlightLimit，server级别整体限流 Client限流 EventRateLimit, 限制event APF，更细力度的限制配置 Ma" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://qingwave.github.io/k8s-rate-limit/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2020-11-11T13:17:00+00:00" />
+<meta property="article:modified_time" content="2021-11-20T10:59:07+00:00" /><meta property="og:site_name" content="Qingwave" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
+
+<meta name="twitter:title" content="kubernetes apiserver限流方案"/>
+<meta name="twitter:description" content="背景为了防止突发流量影响apiserver可用性，k8s支持多种限流配置，包括： MaxInFlightLimit，server级别整体限流 Client限流 EventRateLimit, 限制event APF，更细力度的限制配置 Ma"/>
+<meta name="application-name" content="Qingwave">
+<meta name="apple-mobile-web-app-title" content="Qingwave">
+
+<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/k8s-rate-limit/" /><link rel="prev" href="https://qingwave.github.io/k8s-sideccar-lifecycle/" /><link rel="next" href="https://qingwave.github.io/k8s-dns-optimize/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "kubernetes apiserver限流方案",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/qingwave.github.io\/k8s-rate-limit\/"
+        },"genre": "posts","keywords": "k8s, apiserver","wordcount":  1672 ,
+        "url": "https:\/\/qingwave.github.io\/k8s-rate-limit\/","datePublished": "2020-11-11T13:17:00+00:00","dateModified": "2021-11-20T10:59:07+00:00","publisher": {
+            "@type": "Organization",
+            "name": ""},"author": {
+                "@type": "Person",
+                "name": "qinng"
+            },"description": ""
+    }
+    </script></head>
+
+<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
+        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
+        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
+        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
+        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
+        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
+        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
+    </script>
+    <div id="back-to-top"></div>
+    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div>
+<main class="main">
+            <div class="container"><div class="toc" id="toc-auto">
+        <h2 class="toc-title">目录</h2>
+        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#背景">背景</a>
+      <ul>
+        <li><a href="#maxinflightlimit">MaxInFlightLimit</a></li>
+        <li><a href="#client限流">Client限流</a></li>
+        <li><a href="#eventratelimit">EventRateLimit</a></li>
+        <li><a href="#api-优先级和公平性">API 优先级和公平性</a></li>
+      </ul>
+    </li>
+    <li><a href="#总结">总结</a></li>
+  </ul>
+</nav></div>
+    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">kubernetes apiserver限流方案</h1><div class="post-meta">
+            <div class="post-meta-line"><time datetime="Nov 11, 2020">Nov 11, 2020</time>
+            </div>
+        </div><div class="details toc" id="toc-static"  kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#背景">背景</a>
+      <ul>
+        <li><a href="#maxinflightlimit">MaxInFlightLimit</a></li>
+        <li><a href="#client限流">Client限流</a></li>
+        <li><a href="#eventratelimit">EventRateLimit</a></li>
+        <li><a href="#api-优先级和公平性">API 优先级和公平性</a></li>
+      </ul>
+    </li>
+    <li><a href="#总结">总结</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><h2 id="背景" class="headerLink">
+    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>为了防止突发流量影响apiserver可用性，k8s支持多种限流配置，包括：</p>
+<ul>
+<li>MaxInFlightLimit，server级别整体限流</li>
+<li>Client限流</li>
+<li>EventRateLimit, 限制event</li>
+<li>APF，更细力度的限制配置</li>
+</ul>
+<h3 id="maxinflightlimit" class="headerLink">
+    <a href="#maxinflightlimit" class="header-mark"></a>MaxInFlightLimit</h3><p>MaxInFlightLimit限流，apiserver默认可设置最大并发量（集群级别，区分只读与修改操作），通过参数<code>--max-requests-inflight</code>和 <code>--max-mutating-requests-inflight</code>， 可以简单实现限流。</p>
+<h3 id="client限流" class="headerLink">
+    <a href="#client%e9%99%90%e6%b5%81" class="header-mark"></a>Client限流</h3><p>例如client-go默认的qps为5，但是只支持客户端限流，集群管理员无法控制用户行为。</p>
+<h3 id="eventratelimit" class="headerLink">
+    <a href="#eventratelimit" class="header-mark"></a>EventRateLimit</h3><p>EventRateLimit在1.13之后支持，只限制event请求，集成在apiserver内部webhoook中，可配置某个用户、namespace、server等event操作限制，通过webhook形式实现。</p>
+<p>具体原理可以参考<a href="https://kubernetes.io/zh/docs/reference/access-authn-authz/admission-controllers/#eventratelimit" target="_blank" rel="noopener noreffer">提案</a>，每个eventratelimit 配置使用一个单独的令牌桶限速器，每次event操作，遍历每个匹配的限速器检查是否能获取令牌，如果可以允许请求，否则返回<code>429</code>。</p>
+<p><strong>优点</strong></p>
+<ul>
+<li>实现简单，允许一定量的并发</li>
+<li>可支持server/namespace/user等级别的限流</li>
+</ul>
+<p><strong>缺点</strong></p>
+<ul>
+<li>仅支持event，通过webhook实现只能拦截修改类请求</li>
+<li>所有namespace的限流相同，没有优先级</li>
+</ul>
+<h3 id="api-优先级和公平性" class="headerLink">
+    <a href="#api-%e4%bc%98%e5%85%88%e7%ba%a7%e5%92%8c%e5%85%ac%e5%b9%b3%e6%80%a7" class="header-mark"></a>API 优先级和公平性</h3><p>apiserver默认的限流方式太过简单，一个错误的客户端发送大量请求可能造成其他客户端请求异常，也不支持突发流量。</p>
+<p>API 优先级和公平性（APF）是MaxInFlightLimit限流的一种替代方案，设计文档见<a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1040-priority-and-fairness" target="_blank" rel="noopener noreffer">提案</a>。</p>
+<p>API 优先级和公平性（1.15以上，alpha版本）， 以更细粒度（byUser，byNamespace）对请求进行分类和隔离。 支持突发流量，通过使用公平排队技术从队列中分发请求从而避免饥饿。</p>
+<p>APF限流通过两种资源，<code>PriorityLevelConfigurations</code>定义隔离类型和可处理的并发预算量，还可以调整排队行为。 <code>FlowSchemas</code>用于对每个入站请求进行分类，并与一个 <code>PriorityLevelConfigurations</code>相匹配。</p>
+<p>可对用户或用户组或全局进行某些资源某些请求的限制，如限制default namespace写services put/patch请求。</p>
+<p><strong>优点</strong></p>
+<ul>
+<li>考虑情况较全面，支持优先级，白名单等</li>
+<li>可支持server/namespace/user/resource等细粒度级别的限流</li>
+</ul>
+<p><strong>缺点</strong></p>
+<ul>
+<li>配置复杂，不直观，需要对APF原理深入了解</li>
+<li>功能较新，缺少生产环境验证</li>
+</ul>
+<p><strong>APF测试</strong>
+开启APF，需要在apiserver配置<code>--feature-gates=APIPriorityAndFairness=true --runtime-config=flowcontrol.apiserver.k8s.io/v1alpha1=true</code></p>
+<p>开启后，获取默认的FlowSchemas</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ kubectl get flowschemas.flowcontrol.apiserver.k8s.io 
+</span></span><span class="line"><span class="cl">NAME                           PRIORITYLEVEL     MATCHINGPRECEDENCE   DISTINGUISHERMETHOD   AGE    MISSINGPL
+</span></span><span class="line"><span class="cl">system-leader-election         leader-election   <span class="m">100</span>                  ByUser                152m   False
+</span></span><span class="line"><span class="cl">workload-leader-election       leader-election   <span class="m">200</span>                  ByUser                152m   False
+</span></span><span class="line"><span class="cl">system-nodes                   system            <span class="m">500</span>                  ByUser                152m   False
+</span></span><span class="line"><span class="cl">kube-controller-manager        workload-high     <span class="m">800</span>                  ByNamespace           152m   False
+</span></span><span class="line"><span class="cl">kube-scheduler                 workload-high     <span class="m">800</span>                  ByNamespace           152m   False
+</span></span><span class="line"><span class="cl">kube-system-service-accounts   workload-high     <span class="m">900</span>                  ByNamespace           152m   False
+</span></span><span class="line"><span class="cl">health-for-strangers           exempt            <span class="m">1000</span>                 &lt;none&gt;                151m   False
+</span></span><span class="line"><span class="cl">service-accounts               workload-low      <span class="m">9000</span>                 ByUser                152m   False
+</span></span><span class="line"><span class="cl">global-default                 global-default    <span class="m">9900</span>                 ByUser                152m   False
+</span></span><span class="line"><span class="cl">catch-all                      catch-all         <span class="m">10000</span>                ByUser                152m   False
+</span></span></code></pre></div><p>FlowShema配置</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">flowcontrol.apiserver.k8s.io/v1alpha1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">FlowSchema</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">health-for-strangers</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">matchingPrecedence</span><span class="p">:</span><span class="w"> </span><span class="m">1000</span><span class="w"> </span><span class="c">#匹配优先级，1~1000，越小优先级越高</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">priorityLevelConfiguration</span><span class="p">:</span><span class="w"> </span><span class="c">#关联的PriorityLevelConfigurations</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">exempt</span><span class="w"> </span><span class="c">#排除rules，即不限制当前flowshema的rules</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">rules</span><span class="p">:</span><span class="w"> </span><span class="c">#请求规则</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">nonResourceRules</span><span class="p">:</span><span class="w"> </span><span class="c">#非资源</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">nonResourceURLs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="s2">&#34;/healthz&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="s2">&#34;/livez&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="s2">&#34;/readyz&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">verbs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="s2">&#34;*&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">subjects</span><span class="p">:</span><span class="w"> </span><span class="c">#对应的用户或用户组</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Group</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">group</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">system:unauthenticated</span><span class="w">
+</span></span></span></code></pre></div><p>PriorityLevelConfiguration配置</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">flowcontrol.apiserver.k8s.io/v1alpha1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">PriorityLevelConfiguration</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">leader-election</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">limited</span><span class="p">:</span><span class="w"> </span><span class="c">#限制策略</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">assuredConcurrencyShares</span><span class="p">:</span><span class="w"> </span><span class="m">10</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">limitResponse</span><span class="p">:</span><span class="w"> </span><span class="c">#如何处理被限制的请求</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">queuing</span><span class="p">:</span><span class="w"> </span><span class="c">#类型为Queue时，列队的设置</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">handSize</span><span class="p">:</span><span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="c">#队列</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">queueLengthLimit</span><span class="p">:</span><span class="w"> </span><span class="m">50</span><span class="w"> </span><span class="c">#队列长度</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">queues</span><span class="p">:</span><span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="c">#队列数</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l">Queue</span><span class="w"> </span><span class="c">#Queue或者Reject，Reject直接返回429，Queue将请求加入队列</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l">Limited</span><span class="w"> </span><span class="c">#类型，Limited或Exempt， Exempt即不限制</span><span class="w">
+</span></span></span></code></pre></div><h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>以上是k8s相关的限流策略，通过多种策略来保证集群的稳定性。</p>
+<p>目前MaxInFlightLimit可以轻松开启，但是限制策略不精细，而APF功能较新，实现较复杂，在充分验证后，可通过APF对全集群进行限流。</p>
+</div>
+
+        
+        <div class="post-footer" id="post-footer">
+    <div class="post-meta-line"><span class="single-tag">
+                <a href='/tags/k8s/'>#k8s</a>
+                    <span class="separator"> </span>
+                <a href='/tags/apiserver/'>#apiserver</a></span></div>
+
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-link">
+                <a href='/about'>About Me</a>
+            </div>
+        </div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+        </div>
+    </div><div class="post-nav"><a href="/k8s-sideccar-lifecycle/" class="prev" rel="prev" title="Kubernetes中Sidecar生命周期管理"><i class="fas fa-angle-left fa-fw"></i>Kubernetes中Sidecar生命周期管理</a>
+            <a href="/k8s-dns-optimize/" class="next" rel="next" title="优化Kubernetes集群内DNS">优化Kubernetes集群内DNS<i class="fas fa-angle-right fa-fw"></i></a></div></div>
+<div id="comments"><div id="giscus"></div><noscript>
+                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
+            </noscript></div></article></div>
+        </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
+            <div class="footer-line"></div>
+            <div class="footer-line">
+            </div>
+        </div></footer></div>
+
+    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
+            <i class="fas fa-arrow-up fa-fw"></i>
+        </a>
+    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
+            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
+            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
+        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
+
+<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
+</body>
+
+</html>

@@ -1,0 +1,402 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>dns - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/dns/</link>
+        <description>dns - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Mon, 29 Mar 2021 10:55:24 &#43;0000</lastBuildDate><atom:link href="https://qingwave.github.io/tags/dns/" rel="self" type="application/rss+xml" /><item>
+    <title>Golang自定义DNS Nameserver</title>
+    <link>https://qingwave.github.io/golang-special-dns-nameserver/</link>
+    <pubDate>Mon, 29 Mar 2021 10:55:24 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/golang-special-dns-nameserver/</guid>
+    <description><![CDATA[<p>某些情况下我们希望程序通过自定义<code>Nameserver</code>去查询域名，而不希望通过操作系统给定的<code>Nameserver</code>，本文介绍如何在<code>Golang</code>中实现自定义<code>Nameserver</code>。</p>
+<h2 id="dns解析过程" class="headerLink">
+    <a href="#dns%e8%a7%a3%e6%9e%90%e8%bf%87%e7%a8%8b" class="header-mark"></a>DNS解析过程</h2><p><code>Golang</code>中一般通过<code>net.Resolver</code>的<code>LookupHost(ctx context.Context, host string) (addrs []string, err error)</code>去实现域名解析，解析过程如下：</p>
+<ol>
+<li>检查本地<code>hosts</code>文件是否存在解析记录，存在即返回解析地址</li>
+<li>不存在即根据<code>resolv.conf</code>中读取的<code>nameserver</code>发起递归查询</li>
+<li><code>nameserver</code>不断的向上级<code>nameserver</code>发起迭代查询</li>
+<li><code>nameserver</code>最终返回查询结果给请求者</li>
+</ol>
+<p>用户可以通过修改<code>/etc/resolv.conf</code>来添加特定的<code>nameserver</code>，但某些场景下我们不希望更改系统配置。比如在<code>kubernetes</code>中，作为<code>sidecar</code>服务需要通过<code>service</code>去访问其他集群内服务，必须更改<code>dnsPolicy</code>为<code>ClusterFirst</code>，但这可能会影响其他容器的DNS查询效率。</p>
+<h2 id="自定义nameserver" class="headerLink">
+    <a href="#%e8%87%aa%e5%ae%9a%e4%b9%89nameserver" class="header-mark"></a>自定义Nameserver</h2><p>在<code>Golang</code>中自定义<code>Nameserver</code>，需要我们自己实现一个<code>Resolver</code>，如果是<code>httpClient</code>需要自定义<code>DialContext()</code></p>
+<p><code>Resolver</code>实现如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="c1">// 默认dialer
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">dialer</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">net</span><span class="p">.</span><span class="nx">Dialer</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">Timeout</span><span class="p">:</span> <span class="mi">1</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 定义resolver
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">resolver</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">net</span><span class="p">.</span><span class="nx">Resolver</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">Dial</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span> <span class="nx">network</span><span class="p">,</span> <span class="nx">address</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">net</span><span class="p">.</span><span class="nx">Conn</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="nx">dialer</span><span class="p">.</span><span class="nf">DialContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="s">&#34;tcp&#34;</span><span class="p">,</span> <span class="nx">nameserver</span><span class="p">)</span> <span class="c1">// 通过tcp请求nameserver解析域名
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="p">},</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>自定义<code>Dialer</code>如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Dialer</span> <span class="kd">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">dialer</span>     <span class="o">*</span><span class="nx">net</span><span class="p">.</span><span class="nx">Dialer</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">resolver</span>   <span class="o">*</span><span class="nx">net</span><span class="p">.</span><span class="nx">Resolver</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">nameserver</span> <span class="kt">string</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// NewDialer create a Dialer with user&#39;s nameserver.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">NewDialer</span><span class="p">(</span><span class="nx">dialer</span> <span class="o">*</span><span class="nx">net</span><span class="p">.</span><span class="nx">Dialer</span><span class="p">,</span> <span class="nx">nameserver</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="o">*</span><span class="nx">Dialer</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">conn</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">dialer</span><span class="p">.</span><span class="nf">Dial</span><span class="p">(</span><span class="s">&#34;tcp&#34;</span><span class="p">,</span> <span class="nx">nameserver</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="nx">conn</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="o">&amp;</span><span class="nx">Dialer</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">dialer</span><span class="p">:</span> <span class="nx">dialer</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">resolver</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">net</span><span class="p">.</span><span class="nx">Resolver</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nx">Dial</span><span class="p">:</span> <span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span> <span class="nx">network</span><span class="p">,</span> <span class="nx">address</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">net</span><span class="p">.</span><span class="nx">Conn</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="nx">dialer</span><span class="p">.</span><span class="nf">DialContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="s">&#34;tcp&#34;</span><span class="p">,</span> <span class="nx">nameserver</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">nameserver</span><span class="p">:</span> <span class="nx">nameserver</span><span class="p">,</span> <span class="c1">// 用户设置的nameserver
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="p">},</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// DialContext connects to the address on the named network using
+</span></span></span><span class="line"><span class="cl"><span class="c1">// the provided context.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="p">(</span><span class="nx">d</span> <span class="o">*</span><span class="nx">Dialer</span><span class="p">)</span> <span class="nf">DialContext</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span> <span class="nx">network</span><span class="p">,</span> <span class="nx">address</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="nx">net</span><span class="p">.</span><span class="nx">Conn</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">host</span><span class="p">,</span> <span class="nx">port</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">net</span><span class="p">.</span><span class="nf">SplitHostPort</span><span class="p">(</span><span class="nx">address</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">err</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">ips</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">d</span><span class="p">.</span><span class="nx">resolver</span><span class="p">.</span><span class="nf">LookupHost</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">host</span><span class="p">)</span> <span class="c1">// 通过自定义nameserver查询域名
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">ip</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">ips</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 创建链接
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">conn</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">d</span><span class="p">.</span><span class="nx">dialer</span><span class="p">.</span><span class="nf">DialContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">network</span><span class="p">,</span> <span class="nx">ip</span><span class="o">+</span><span class="s">&#34;:&#34;</span><span class="o">+</span><span class="nx">port</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">conn</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">d</span><span class="p">.</span><span class="nx">dialer</span><span class="p">.</span><span class="nf">DialContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">network</span><span class="p">,</span> <span class="nx">address</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>httpClient</code>中自定义<code>DialContext()</code>如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="nx">ndialer</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nf">NewDialer</span><span class="p">(</span><span class="nx">dialer</span><span class="p">,</span> <span class="nx">nameserver</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nx">client</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">http</span><span class="p">.</span><span class="nx">Client</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">Transport</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">http</span><span class="p">.</span><span class="nx">Transport</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">DialContext</span><span class="p">:</span>         <span class="nx">ndialer</span><span class="p">.</span><span class="nx">DialContext</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">TLSHandshakeTimeout</span><span class="p">:</span> <span class="mi">10</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="p">},</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">Timeout</span><span class="p">:</span> <span class="nx">timeout</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>通过以上实现可解决自定义<code>Nameserver</code>，也可以在<code>Dailer</code>中添加缓存，实现DNS缓存。</p>]]></description>
+</item><item>
+    <title>优化Kubernetes集群内DNS</title>
+    <link>https://qingwave.github.io/k8s-dns-optimize/</link>
+    <pubDate>Mon, 01 Feb 2021 10:17:40 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/k8s-dns-optimize/</guid>
+    <description><![CDATA[<p>kubernetes集群内置的dns插件<code>kubedns/coredns</code>在高并发情况下可能遇到性能瓶颈，以下从配置与本地缓存方面说明如何减少dns查询失败率，提高性能。</p>
+<h2 id="配置优化" class="headerLink">
+    <a href="#%e9%85%8d%e7%bd%ae%e4%bc%98%e5%8c%96" class="header-mark"></a>配置优化</h2><h3 id="dnspolicy" class="headerLink">
+    <a href="#dnspolicy" class="header-mark"></a>dnsPolicy</h3><p>k8s 默认的 <code>dnsPolicy</code> 是<code>ClusterFirst</code>，因为 <code>ndots</code> 和 <code>serach domain</code> 在访问外部 dns 会有额外的查询次数。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/ <span class="c1"># cat /etc/resolv.conf </span>
+</span></span><span class="line"><span class="cl">nameserver 10.254.0.2
+</span></span><span class="line"><span class="cl">search default.svc.cluster.local svc.cluster.local cluster.local
+</span></span><span class="line"><span class="cl">options ndots:5
+</span></span><span class="line"><span class="cl">/ <span class="c1"># </span>
+</span></span><span class="line"><span class="cl">/ <span class="c1"># </span>
+</span></span><span class="line"><span class="cl">/ <span class="c1">#  host -v mi.com</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com.default.svc.cluster.local&#34;</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com.svc.cluster.local&#34;</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com.cluster.local&#34;</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> -&gt;&gt;HEADER<span class="s">&lt;&lt;- opco</span>de: QUERY, status: NOERROR, id: <span class="m">38967</span>
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> flags: qr rd ra<span class="p">;</span> QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: <span class="m">0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> QUESTION SECTION:
+</span></span><span class="line"><span class="cl"><span class="p">;</span>mi.com.                                IN        A
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> ANSWER SECTION:
+</span></span><span class="line"><span class="cl">mi.com.                        <span class="m">30</span>        IN        A        58.83.160.156
+</span></span></code></pre></div><p>如果不访问service，调整<code>dnsPolicy</code>为<code>Default</code>，直接走宿主机的dns</p>
+<h3 id="ndots" class="headerLink">
+    <a href="#ndots" class="header-mark"></a>ndots</h3><p>如需访问service，尽量减少<code>ndots</code>（默认5）即域名中点的个数小于<code>ndots</code>会按照search域（mi.com.default.svc.cluster.local）依次查询，若查询不到再查询原始域名，总共进行8次dns查询（4次ipv4, 4次ipv6）</p>
+<p>设置<code>ndots</code>为1后，只有两次查询（1次ipv4, ipv6）</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/ <span class="c1">#  host -v mi.com</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;mi.com&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> -&gt;&gt;HEADER<span class="s">&lt;&lt;- opco</span>de: QUERY, status: NOERROR, id: <span class="m">23894</span>
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> flags: qr rd ra<span class="p">;</span> QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: <span class="m">0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> QUESTION SECTION:
+</span></span><span class="line"><span class="cl"><span class="p">;</span>mi.com.                                IN        A
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">;;</span> ANSWER SECTION:
+</span></span><span class="line"><span class="cl">mi.com.                        <span class="m">30</span>        IN        A        58.83.160.156
+</span></span></code></pre></div><p>但此种方式service域名分割大于等于<code>ndots</code>，则解析不到，需要业务自行判断合适的<code>ndots</code>值</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/ <span class="c1">#  host -v prometheus.kube-system</span>
+</span></span><span class="line"><span class="cl">Trying <span class="s2">&#34;prometheus.kube-system&#34;</span>
+</span></span><span class="line"><span class="cl">Host prometheus.kube-system not found: 3<span class="o">(</span>NXDOMAIN<span class="o">)</span>
+</span></span><span class="line"><span class="cl">Received <span class="m">115</span> bytes from 10.254.0.2#53 in <span class="m">8</span> ms
+</span></span><span class="line"><span class="cl">Received <span class="m">115</span> bytes from 10.254.0.2#53 in <span class="m">8</span> ms
+</span></span></code></pre></div><h3 id="coredns优化" class="headerLink">
+    <a href="#coredns%e4%bc%98%e5%8c%96" class="header-mark"></a>coredns优化</h3><p>调整合理的副本数，阿里建议<code>coredns:node=1:8</code>，启动<code>AutoPath</code>插件减少查询次数，见<a href="2" rel="">DNS性能优化</a></p>
+<h2 id="dns缓存" class="headerLink">
+    <a href="#dns%e7%bc%93%e5%ad%98" class="header-mark"></a>DNS缓存</h2><h3 id="nodelocaldns" class="headerLink">
+    <a href="#nodelocaldns" class="header-mark"></a>NodeLocalDNS</h3><p>NodeLocal DNSCache 通过在集群节点上作为 DaemonSet 运行 dns 缓存代理来提高集群 DNS 性能，
+借助这种新架构，Pods 将可以访问在同一节点上运行的 dns 缓存代理，从而避免了 iptables DNAT 规则和连接跟踪。</p>
+<p>架构如下:
+
+
+</p>
+<p>NodeLocalDNS的设计提案见（<a href="3" rel="">nodelocal-dns-cache</a>）</p>
+<h4 id="验证" class="headerLink">
+    <a href="#%e9%aa%8c%e8%af%81" class="header-mark"></a>验证</h4><p>官方安装方式见<a href="https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/dns/nodelocaldns" target="_blank" rel="noopener noreffer">nodelocaldns</a>，需要自行替换变量</p>
+<p>可通过如下脚本，一键安装（注意设置kubedns svc ClusterIP）</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="cp">#!/bin/bash
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl">wget https://raw.githubusercontent.com/kubernetes/kubernetes/master/cluster/addons/dns/nodelocaldns/nodelocaldns.yaml
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># registery</span>
+</span></span><span class="line"><span class="cl"><span class="nv">docker_registery</span><span class="o">=</span>k8s.gcr.io/dns/k8s-dns-node-cache
+</span></span><span class="line"><span class="cl"><span class="c1"># kube-dns svc clusterip</span>
+</span></span><span class="line"><span class="cl"><span class="nv">kubedns_svc</span><span class="o">=</span>10.254.0.2
+</span></span><span class="line"><span class="cl"><span class="c1"># nodelocaldns ip</span>
+</span></span><span class="line"><span class="cl"><span class="nv">nodelocaldns_ip</span><span class="o">=</span>169.254.20.10
+</span></span><span class="line"><span class="cl"><span class="c1"># kube-proxy mode, iptables or ipvs</span>
+</span></span><span class="line"><span class="cl"><span class="nv">kubeproxy_mode</span><span class="o">=</span>iptables
+</span></span><span class="line"><span class="cl"><span class="nv">result</span><span class="o">=</span>result.yaml
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="o">[</span> <span class="si">${</span><span class="nv">kubeproxy_mode</span><span class="si">}</span> <span class="o">==</span> <span class="s2">&#34;ipvs&#34;</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+</span></span><span class="line"><span class="cl">    sed -e <span class="s2">&#34;s|k8s.gcr.io/dns/k8s-dns-node-cache|</span><span class="nv">$docker_registery</span><span class="s2">|g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__CLUSTER__DNS__/</span><span class="nv">$kubedns_svc</span><span class="s2">/g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__LOCAL__DNS__/</span><span class="nv">$nodelocaldns_ip</span><span class="s2">/g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s1">&#39;s/[ |,]__PILLAR__DNS__SERVER__//g&#39;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__DNS__DOMAIN__/cluster.local/g&#34;</span> nodelocaldns.yaml &gt;<span class="nv">$result</span>
+</span></span><span class="line"><span class="cl"><span class="k">else</span>
+</span></span><span class="line"><span class="cl">    sed -e <span class="s2">&#34;s|k8s.gcr.io/dns/k8s-dns-node-cache|</span><span class="nv">$docker_registery</span><span class="s2">|g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__DNS__SERVER__/</span><span class="nv">$kubedns_svc</span><span class="s2">/g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__LOCAL__DNS__/</span><span class="nv">$nodelocaldns_ip</span><span class="s2">/g&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl"><span class="se"></span>        -e <span class="s2">&#34;s/__PILLAR__DNS__DOMAIN__/cluster.local/g&#34;</span> nodelocaldns.yaml &gt;<span class="nv">$result</span>
+</span></span><span class="line"><span class="cl"><span class="k">fi</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">kubectl apply -f <span class="nv">$result</span>
+</span></span></code></pre></div><p>创建完成后，每个节点运行一个pod，查看pod(个别节点ingress-nginx占用8080端口，导致nodelocaldns启动失败)</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># kubectl  get po -n kube-system -l k8s-app=node-local-dns -o wide</span>
+</span></span><span class="line"><span class="cl">NAME                   READY   STATUS             RESTARTS   AGE    IP              NODE                            NOMINATED NODE   READINESS GATES
+</span></span><span class="line"><span class="cl">node-local-dns-2fvxb   0/1     CrashLoopBackOff   <span class="m">4</span>          103s   10.38.200.195   node04          &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-4zmcd   1/1     Running            <span class="m">0</span>          54d    10.38.201.55    node06   &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-55tzg   1/1     Running            <span class="m">0</span>          60d    10.38.200.186   node02          &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-cctg7   1/1     Running            <span class="m">0</span>          54d    10.38.200.242   node07   &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-khgmm   1/1     Running            <span class="m">0</span>          54d    10.38.201.36    node08   &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-mbr64   1/1     Running            <span class="m">0</span>          60d    10.38.200.187   node05          &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-t67vw   1/1     Running            <span class="m">0</span>          60d    10.38.200.188   node03          &lt;none&gt;           &lt;none&gt;
+</span></span><span class="line"><span class="cl">node-local-dns-tmm92   1/1     Running            <span class="m">14</span>         54d    10.38.200.57    node09   &lt;none&gt;           &lt;none&gt;
+</span></span></code></pre></div><p>默认配置如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">cluster.local:53 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">    errors
+</span></span><span class="line"><span class="cl">    cache <span class="o">{</span>
+</span></span><span class="line"><span class="cl">            success <span class="m">9984</span> <span class="m">30</span> <span class="c1"># 默认成功缓存30s</span>
+</span></span><span class="line"><span class="cl">            denial <span class="m">9984</span> <span class="m">5</span> <span class="c1">#失败缓存5s</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">    reload
+</span></span><span class="line"><span class="cl">    loop
+</span></span><span class="line"><span class="cl">    <span class="nb">bind</span> 169.254.20.10 10.254.0.2 <span class="c1">#本地监听ip</span>
+</span></span><span class="line"><span class="cl">    forward . 10.254.132.95 <span class="o">{</span> <span class="c1">#转发到kubedns-upstream</span>
+</span></span><span class="line"><span class="cl">            force_tcp
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">    prometheus :9253 <span class="c1">#监控接口</span>
+</span></span><span class="line"><span class="cl">    health 169.254.20.10:8080 <span class="c1">#健康检测端口</span>
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">in-addr.arpa:53 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">    errors
+</span></span><span class="line"><span class="cl">    cache <span class="m">30</span>
+</span></span><span class="line"><span class="cl">    reload
+</span></span><span class="line"><span class="cl">    loop
+</span></span><span class="line"><span class="cl">    <span class="nb">bind</span> 169.254.20.10 10.254.0.2
+</span></span><span class="line"><span class="cl">    forward . 10.254.132.95 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">            force_tcp
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">    prometheus :9253
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">ip6.arpa:53 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">    errors
+</span></span><span class="line"><span class="cl">    cache <span class="m">30</span>
+</span></span><span class="line"><span class="cl">    reload
+</span></span><span class="line"><span class="cl">    loop
+</span></span><span class="line"><span class="cl">    <span class="nb">bind</span> 169.254.20.10 10.254.0.2
+</span></span><span class="line"><span class="cl">    forward . 10.254.132.95 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">            force_tcp
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">    prometheus :9253
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span><span class="line"><span class="cl">.:53 <span class="o">{</span>
+</span></span><span class="line"><span class="cl">    errors
+</span></span><span class="line"><span class="cl">    cache <span class="m">30</span>
+</span></span><span class="line"><span class="cl">    reload
+</span></span><span class="line"><span class="cl">    loop
+</span></span><span class="line"><span class="cl">    <span class="nb">bind</span> 169.254.20.10 10.254.0.2
+</span></span><span class="line"><span class="cl">    forward . /etc/resolv.conf
+</span></span><span class="line"><span class="cl">    prometheus :9253
+</span></span><span class="line"><span class="cl">    <span class="o">}</span>
+</span></span></code></pre></div><p>节点上查看localdns的网卡，本地将监听<code>169.254.20.10</code>与<code>10.254.0.2</code>两个地址，拦截kubedns((默认<code>10.254.0.2</code>)的请求，命中后直接返回，若未命中转发到kubedns(对应service <code>kube-dns-upstream</code>，kube-dns-upstream由localdns创建绑定kubedns pod)</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># ip addr show nodelocaldns</span>
+</span></span><span class="line"><span class="cl">182232: nodelocaldns: &lt;BROADCAST,NOARP&gt; mtu <span class="m">1500</span> qdisc noop state DOWN 
+</span></span><span class="line"><span class="cl">    link/ether 4e:62:1c:fd:56:12 brd ff:ff:ff:ff:ff:ff
+</span></span><span class="line"><span class="cl">    inet 169.254.20.10/32 brd 169.254.20.10 scope global nodelocaldns
+</span></span><span class="line"><span class="cl">       valid_lft forever preferred_lft forever
+</span></span><span class="line"><span class="cl">    inet 10.254.0.2/32 brd 10.254.0.2 scope global nodelocaldns
+</span></span><span class="line"><span class="cl">       valid_lft forever preferred_lft forever
+</span></span></code></pre></div><p>iptables规则，使用<code>NOTRACK</code>跳过其它表处理</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">iptables-save <span class="p">|</span> egrep <span class="s2">&#34;10.254.0.2|169.254.20.10&#34;</span>
+</span></span><span class="line"><span class="cl">-A PREROUTING -d 10.254.0.2/32 -p udp -m udp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">-A PREROUTING -d 10.254.0.2/32 -p tcp -m tcp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">-A PREROUTING -d 169.254.20.10/32 -p udp -m udp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">-A PREROUTING -d 169.254.20.10/32 -p tcp -m tcp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">-A OUTPUT -d 10.254.0.2/32 -p udp -m udp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">-A OUTPUT -d 10.254.0.2/32 -p tcp -m tcp --dport <span class="m">53</span> -j NOTRACK
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">-A INPUT -d 10.254.0.2/32 -p udp -m udp --dport <span class="m">53</span> -j ACCEPT
+</span></span><span class="line"><span class="cl">-A INPUT -d 10.254.0.2/32 -p tcp -m tcp --dport <span class="m">53</span> -j ACCEPT
+</span></span><span class="line"><span class="cl">-A OUTPUT -s 10.254.0.2/32 -p udp -m udp --sport <span class="m">53</span> -j ACCEPT
+</span></span><span class="line"><span class="cl">-A OUTPUT -s 10.254.0.2/32 -p tcp -m tcp --sport <span class="m">53</span> -j ACCEPT
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">...
+</span></span><span class="line"><span class="cl">-A KUBE-SERVICES -d 10.254.0.2/32 -p tcp -m comment --comment <span class="s2">&#34;kube-system/kube-dns:dns-tcp cluster IP&#34;</span> -m tcp --dport <span class="m">53</span> -j KUBE-SVC-ERIFXISQEP7F7OF4
+</span></span><span class="line"><span class="cl">-A KUBE-SERVICES -d 10.254.0.2/32 -p tcp -m comment --comment <span class="s2">&#34;kube-system/kube-dns:metrics cluster IP&#34;</span> -m tcp --dport <span class="m">9153</span> -j KUBE-SVC-JD5MR3NA4I4DYORP
+</span></span><span class="line"><span class="cl">-A KUBE-SERVICES -d 10.254.0.2/32 -p udp -m comment --comment <span class="s2">&#34;kube-system/kube-dns:dns cluster IP&#34;</span> -m udp --dport <span class="m">53</span> -j KUBE-SVC-TCOU7JCQXEZGVUNU
+</span></span></code></pre></div><p>在pod通过localdns解析域名</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># kubectl  exec -it dns-perf-client-64cfb49f9-9c5hg sh</span>
+</span></span><span class="line"><span class="cl">/ <span class="c1"># nslookup kubernetes 169.254.20.10</span>
+</span></span><span class="line"><span class="cl">Server:                169.254.20.10
+</span></span><span class="line"><span class="cl">Address:        169.254.20.10#53
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Name:        kubernetes.default.svc.cluster.local
+</span></span><span class="line"><span class="cl">Address: 10.254.0.1
+</span></span></code></pre></div><h4 id="压测" class="headerLink">
+    <a href="#%e5%8e%8b%e6%b5%8b" class="header-mark"></a>压测</h4><p>通过<code>dnsperf</code>进行压测</p>
+<p>测试域名列表如下</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># cat records.txt </span>
+</span></span><span class="line"><span class="cl">mi.com A
+</span></span><span class="line"><span class="cl">github.com A
+</span></span><span class="line"><span class="cl">www.microsoft.com A
+</span></span><span class="line"><span class="cl">www.aliyun.com A
+</span></span><span class="line"><span class="cl">kubernetes.io A
+</span></span><span class="line"><span class="cl">nginx A
+</span></span><span class="line"><span class="cl">nginx.default A
+</span></span><span class="line"><span class="cl">kubernetes A
+</span></span><span class="line"><span class="cl">kubernetes.default.svc.cluster.local A
+</span></span><span class="line"><span class="cl">kube-dns.kube-system.svc.cluster.local A
+</span></span></code></pre></div><p>测试命令</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">dnsperf -l <span class="m">120</span> -s 10.254.0.2 -d records.txt
+</span></span></code></pre></div><p>结果如下</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left"></th>
+<th style="text-align:left">client number</th>
+<th style="text-align:left">qps</th>
+<th style="text-align:left">avg-lantency(ms)</th>
+<th style="text-align:left">stddev(ms)</th>
+<th style="text-align:left">lost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">kubedns(1 pod)</td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">53910</td>
+<td style="text-align:left">1.83</td>
+<td style="text-align:left">6.07</td>
+<td style="text-align:left">0%</td>
+</tr>
+<tr>
+<td style="text-align:left">kubedns(2 pod)</td>
+<td style="text-align:left">2</td>
+<td style="text-align:left">110000</td>
+<td style="text-align:left">1.83</td>
+<td style="text-align:left">1.94</td>
+<td style="text-align:left">9%</td>
+</tr>
+<tr>
+<td style="text-align:left">kubedns(4 pod)</td>
+<td style="text-align:left">4</td>
+<td style="text-align:left">120000</td>
+<td style="text-align:left">3.2</td>
+<td style="text-align:left">0.8</td>
+<td style="text-align:left">24%</td>
+</tr>
+<tr>
+<td style="text-align:left">nodelocaldns</td>
+<td style="text-align:left">1</td>
+<td style="text-align:left">71494</td>
+<td style="text-align:left">1.39</td>
+<td style="text-align:left">1.66</td>
+<td style="text-align:left">0%</td>
+</tr>
+<tr>
+<td style="text-align:left">nodelocaldns</td>
+<td style="text-align:left">2</td>
+<td style="text-align:left">142000</td>
+<td style="text-align:left">1.37</td>
+<td style="text-align:left">1.55</td>
+<td style="text-align:left">0%</td>
+</tr>
+</tbody>
+</table>
+<p>相比<code>nodelocaldns</code>，<code>localdns</code>查询性能提高了33%，而且延时相对更小，由于<code>localdns</code>是分布式的整体qps相对kubedns有较大优势。当前测试相对简单，大部分请求会命中缓存，完整的测试结果待进一步验证。</p>
+<h4 id="优缺点" class="headerLink">
+    <a href="#%e4%bc%98%e7%bc%ba%e7%82%b9" class="header-mark"></a>优缺点</h4><p>优点：</p>
+<ul>
+<li>大幅减少dns查询延时</li>
+<li>提高dns qps</li>
+<li>不经过<code>iptables</code>与<code>conntrack</code></li>
+<li>默认使用tcp查询dns，避免 dns 5秒延时</li>
+</ul>
+<p>缺点：</p>
+<ul>
+<li>单点故障（OOM/Evicted/Config Error/Upgrade），社区通过起一个探测daemonset监听localdns状态，如果localdns异常将去掉iptables规则</li>
+<li><code>hostnetwork</code>, 占用多个端口（8080, 9253等）</li>
+<li>ipvs模式下，需要改动kubelet默认dns配置（<code>NOTRACK</code>将对<code>ipvs</code>无效，除非service后端实例为0）</li>
+</ul>
+<p>注意事项</p>
+<ul>
+<li>低版本dns存在tcp请求内存泄露</li>
+<li>安装时<code>iptables</code>与<code>ipvs</code>配置不同</li>
+</ul>
+<h4 id="ha" class="headerLink">
+    <a href="#ha" class="header-mark"></a>HA</h4><ul>
+<li>社区提案将<code>iptables</code>写入规则从<code>nodelocaldns</code>拆分为单独的daemonset，通过监听<code>localdns</code>地址来判断是否写入或删除<code>iptables</code>规则（ipvs默认下无效）</li>
+<li>在<code>/etc/resolv.conf</code>配置多个<code>nameservers</code>(不推荐，不同基础库表现不同，如<code>glibc 2.16+</code>查询dns时会向多个<code>nameservers</code>发送请求，反而造成了请求激增)</li>
+</ul>
+<h4 id="灰度方式" class="headerLink">
+    <a href="#%e7%81%b0%e5%ba%a6%e6%96%b9%e5%bc%8f" class="header-mark"></a>灰度方式</h4><ul>
+<li>通过<code>dnsConfi</code>g配置Pod级别dns（需要配置启动参数localip）</li>
+<li>通过设置<code>nodeselector</code>灰度Node级别dns策略</li>
+</ul>
+<h3 id="本地dns缓存" class="headerLink">
+    <a href="#%e6%9c%ac%e5%9c%b0dns%e7%bc%93%e5%ad%98" class="header-mark"></a>本地DNS缓存</h3><p>除了nodelocaldns，用户还可以在容器内或者添加sidecar来启用dns缓存</p>
+<ol>
+<li>
+<p>通过在镜像中加入nscd进程，缓存dns，如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">FROM ubuntu
+</span></span><span class="line"><span class="cl">RUN apt-get update <span class="o">&amp;&amp;</span> apt-get install -y nscd <span class="o">&amp;&amp;</span> rm -rf /var/lib/apt/lists/*
+</span></span><span class="line"><span class="cl">CMD service nscd start<span class="p">;</span> bash -c <span class="s2">&#34;sleep 3600&#34;</span>
+</span></span></code></pre></div><p>此种方式需要用户改动镜像，或者加入额外脚本配置<code>nscd</code></p>
+</li>
+<li>
+<p>另外可以配置可配置dns缓存 sidecar（如<code>coredns</code>, <code>dnsmasq</code>）来提高性能，此种方式灵活性高，但需要改动pod配置，而且较<code>nodelocaldns</code>浪费资源</p>
+</li>
+</ol>
+<h2 id="参考" class="headerLink">
+    <a href="#%e5%8f%82%e8%80%83" class="header-mark"></a>参考</h2><ul>
+<li><a href="https://kubernetes.io/zh/docs/tasks/administer-cluster/nodelocaldns/" target="_blank" rel="noopener noreffer">https://kubernetes.io/zh/docs/tasks/administer-cluster/nodelocaldns/</a></li>
+<li><a href="https://help.aliyun.com/document_detail/172339.html" target="_blank" rel="noopener noreffer">https://help.aliyun.com/document_detail/172339.html</a></li>
+<li><a href="https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/0030-nodelocal-dns-cache.md" target="_blank" rel="noopener noreffer">https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/0030-nodelocal-dns-cache.md</a></li>
+<li><a href="https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/1024-nodelocal-cache-dns/README.md" target="_blank" rel="noopener noreffer">https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/1024-nodelocal-cache-dns/README.md</a></li>
+<li><a href="https://lework.github.io/2020/11/09/node-local-dns/" target="_blank" rel="noopener noreffer">https://lework.github.io/2020/11/09/node-local-dns/</a></li>
+</ul>]]></description>
+</item></channel>
+</rss>

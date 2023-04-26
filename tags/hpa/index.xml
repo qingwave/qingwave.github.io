@@ -1,0 +1,92 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>hpa - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/hpa/</link>
+        <description>hpa - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Fri, 02 Apr 2021 13:41:00 &#43;0000</lastBuildDate><atom:link href="https://qingwave.github.io/tags/hpa/" rel="self" type="application/rss+xml" /><item>
+    <title>优化Kubernetes横向扩缩HPA</title>
+    <link>https://qingwave.github.io/k8s-hpa-enchance/</link>
+    <pubDate>Fri, 02 Apr 2021 13:41:00 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/k8s-hpa-enchance/</guid>
+    <description><![CDATA[<p>Pod水平自动扩缩（Horizontal Pod Autoscaler, 简称HPA）可以基于 CPU/MEM 利用率自动扩缩Deployment、StatefulSet 中的 Pod 数量，同时也可以基于其他应程序提供的自定义度量指标来执行自动扩缩。默认HPA可以满足一些简单场景，对于生产环境并不一定适合，本文主要分析HPA的不足与优化方式。</p>
+<h2 id="hpa-resource类型不足" class="headerLink">
+    <a href="#hpa-resource%e7%b1%bb%e5%9e%8b%e4%b8%8d%e8%b6%b3" class="header-mark"></a>HPA Resource类型不足</h2><p>默认HPA提供了Resource类型，通过CPU/MEM使用率指标（由metrics-server提供原始指标）来扩缩应用。</p>
+<h3 id="使用率计算方式" class="headerLink">
+    <a href="#%e4%bd%bf%e7%94%a8%e7%8e%87%e8%ae%a1%e7%ae%97%e6%96%b9%e5%bc%8f" class="header-mark"></a>使用率计算方式</h3><p>在Resource类型中，使用率计算是通过<code>request</code>而不是<code>limit</code>，源码如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="c1">// 获取Pod resource request
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">calculatePodRequests</span><span class="p">(</span><span class="nx">pods</span> <span class="p">[]</span><span class="o">*</span><span class="nx">v1</span><span class="p">.</span><span class="nx">Pod</span><span class="p">,</span> <span class="nx">resource</span> <span class="nx">v1</span><span class="p">.</span><span class="nx">ResourceName</span><span class="p">)</span> <span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int64</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">requests</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int64</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="nx">pods</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">pod</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">pods</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">podSum</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">		<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">container</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">pod</span><span class="p">.</span><span class="nx">Spec</span><span class="p">.</span><span class="nx">Containers</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="nx">containerRequest</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">container</span><span class="p">.</span><span class="nx">Resources</span><span class="p">.</span><span class="nx">Requests</span><span class="p">[</span><span class="nx">resource</span><span class="p">];</span> <span class="nx">ok</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="nx">podSum</span> <span class="o">+=</span> <span class="nx">containerRequest</span><span class="p">.</span><span class="nf">MilliValue</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;missing request for %s&#34;</span><span class="p">,</span> <span class="nx">resource</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">			<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">requests</span><span class="p">[</span><span class="nx">pod</span><span class="p">.</span><span class="nx">Name</span><span class="p">]</span> <span class="p">=</span> <span class="nx">podSum</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">requests</span><span class="p">,</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1">// 计算使用率
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kd">func</span> <span class="nf">GetResourceUtilizationRatio</span><span class="p">(</span><span class="nx">metrics</span> <span class="nx">PodMetricsInfo</span><span class="p">,</span> <span class="nx">requests</span> <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int64</span><span class="p">,</span> <span class="nx">targetUtilization</span> <span class="kt">int32</span><span class="p">)</span> <span class="p">(</span><span class="nx">utilizationRatio</span> <span class="kt">float64</span><span class="p">,</span> <span class="nx">currentUtilization</span> <span class="kt">int32</span><span class="p">,</span> <span class="nx">rawAverageValue</span> <span class="kt">int64</span><span class="p">,</span> <span class="nx">err</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">metricsTotal</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">requestsTotal</span> <span class="o">:=</span> <span class="nb">int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">numEntries</span> <span class="o">:=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="nx">podName</span><span class="p">,</span> <span class="nx">metric</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">metrics</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">request</span><span class="p">,</span> <span class="nx">hasRequest</span> <span class="o">:=</span> <span class="nx">requests</span><span class="p">[</span><span class="nx">podName</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="p">!</span><span class="nx">hasRequest</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="c1">// we check for missing requests elsewhere, so assuming missing requests == extraneous metrics
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="k">continue</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">		<span class="nx">metricsTotal</span> <span class="o">+=</span> <span class="nx">metric</span><span class="p">.</span><span class="nx">Value</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">requestsTotal</span> <span class="o">+=</span> <span class="nx">request</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">numEntries</span><span class="o">++</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">currentUtilization</span> <span class="p">=</span> <span class="nb">int32</span><span class="p">((</span><span class="nx">metricsTotal</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span> <span class="o">/</span> <span class="nx">requestsTotal</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nb">float64</span><span class="p">(</span><span class="nx">currentUtilization</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float64</span><span class="p">(</span><span class="nx">targetUtilization</span><span class="p">),</span> <span class="nx">currentUtilization</span><span class="p">,</span> <span class="nx">metricsTotal</span> <span class="o">/</span> <span class="nb">int64</span><span class="p">(</span><span class="nx">numEntries</span><span class="p">),</span> <span class="kc">nil</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>通常在Paas平台中会对资源进行超配，<code>limit</code>即用户请求资源，<code>request</code>即实际分配资源，如果按照request来计算使用率（会超过100%）是不符合预期的。相关issue见<a href="https://github.com/kubernetes/kubernetes/issues/72811" target="_blank" rel="noopener noreffer">72811</a>，目前还存在争论。可以修改源码，或者使用自定义指标来代替。</p>
+<h3 id="多容器pod使用率问题" class="headerLink">
+    <a href="#%e5%a4%9a%e5%ae%b9%e5%99%a8pod%e4%bd%bf%e7%94%a8%e7%8e%87%e9%97%ae%e9%a2%98" class="header-mark"></a>多容器Pod使用率问题</h3><p>默认提供的<code>Resource</code>类型的HPA，通过上述方式计算资源使用率，核心方式如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="nx">metricsTotal</span> <span class="p">=</span> <span class="nf">sum</span><span class="p">(</span><span class="nx">pod</span><span class="p">.</span><span class="nx">container</span><span class="p">.</span><span class="nx">metricValue</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="nx">requestsTotal</span> <span class="p">=</span> <span class="nf">sum</span><span class="p">(</span><span class="nx">pod</span><span class="p">.</span><span class="nx">container</span><span class="p">.</span><span class="nx">Request</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="nx">currentUtilization</span> <span class="p">=</span> <span class="nb">int32</span><span class="p">((</span><span class="nx">metricsTotal</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span> <span class="o">/</span> <span class="nx">requestsTotal</span><span class="p">)</span>
+</span></span></code></pre></div><p>计算出所有<code>container</code>的资源使用量再比总的申请量，对于单容器Pod这没影响。但对于多容器Pod，比如Pod包含多个容器con1、con2(request都为1cpu)，con1使用率10%，con2使用率100%，HPA目标使用率60%，按照目前方式得到使用率为55%不会进行扩容，但实际con2已经达到资源瓶颈，势必会影响服务质量。当前系统中，多容器Pod通常都是1个主容器与多个sidecar，依赖主容器的指标更合适点。</p>
+<p>好在<em>1.20</em>版本中已经支持了<a href="https://kubernetes.io/zh/docs/tasks/run-application/horizontal-pod-autoscale/#container-resource-metrics" target="_blank" rel="noopener noreffer">ContainerResource</a>可以配置基于某个容器的资源使用率来进行扩缩，如果是之前的版本建议使用自定义指标替换。</p>
+<h2 id="性能问题" class="headerLink">
+    <a href="#%e6%80%a7%e8%83%bd%e9%97%ae%e9%a2%98" class="header-mark"></a>性能问题</h2><h3 id="单线程架构" class="headerLink">
+    <a href="#%e5%8d%95%e7%ba%bf%e7%a8%8b%e6%9e%b6%e6%9e%84" class="header-mark"></a>单线程架构</h3><p>默认的<code>hpa-controller</code>是单个Goroutine执行的，随着集群规模的增多，势必会成为性能瓶颈，目前默认hpa资源同步周期会<code>15s</code>，假设每个metric请求延时为<code>100ms</code>，当前架构只能支持<code>150</code>个HPA资源（保证在15s内同步一次）</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">a</span> <span class="o">*</span><span class="nx">HorizontalController</span><span class="p">)</span> <span class="nf">Run</span><span class="p">(</span><span class="nx">stopCh</span> <span class="o">&lt;-</span><span class="kd">chan</span> <span class="kd">struct</span><span class="p">{})</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// start a single worker (we may wish to start more in the future)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">go</span> <span class="nx">wait</span><span class="p">.</span><span class="nf">Until</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">worker</span><span class="p">,</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span> <span class="nx">stopCh</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="o">&lt;-</span><span class="nx">stopCh</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>可以通过调整<code>worker</code>数量来横向扩展，已提交<a href="https://github.com/kubernetes/kubernetes/pull/99688" target="_blank" rel="noopener noreffer">PR</a>。</p>
+<h3 id="调用链路" class="headerLink">
+    <a href="#%e8%b0%83%e7%94%a8%e9%93%be%e8%b7%af" class="header-mark"></a>调用链路</h3><p>在<code>hpa controller</code>中一次hpa资源同步，需要调用多次apiserver接口，主要链路如下</p>
+<ol>
+<li>通过<code>scaleForResourceMappings</code>得到scale资源</li>
+<li>调用<code>computeReplicasForMetrics</code>获取metrics value</li>
+<li>调用<code>Scales().Update</code>更新计算出的副本数</li>
+</ol>
+<p>尤其在获取metrics value时，需要先调用apiserver，apiserver调用metrics-server/custom-metrics-server，当集群内存在大量hpa时可能会对apiserver性能产生一定影响。</p>
+<h2 id="其他" class="headerLink">
+    <a href="#%e5%85%b6%e4%bb%96" class="header-mark"></a>其他</h2><p>对于自定义指标用户需要实现<code>custom.metrics.k8s.io</code>或<code>external.metrics.k8s.io</code>，目前已经有部分开源实现见<a href="https://github.com/kubernetes/metrics/blob/master/IMPLEMENTATIONS.md#custom-metrics-api" target="_blank" rel="noopener noreffer">custom-metrics-api</a>。</p>
+<p>另外，hpa核心的扩缩算法根据当前指标和期望指标来计算扩缩比例，并不适合所有场景，只使用线性增长的指标。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">期望副本数 = ceil[当前副本数 * (当前指标 / 期望指标)]
+</span></span></code></pre></div><p><a href="https://github.com/DataDog/https://github.com/DataDog/watermarkpodautoscaler" target="_blank" rel="noopener noreffer">watermarkpodautoscaler</a>提供了更灵活的扩缩算法，比如平均值、水位线等，可以作为参考。</p>
+<h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>Kubernetes提供原生的HPA只能满足一部分场景，如果要上生产环境，必须对其做一些优化，本文总结了当前HPA存在的不足，例如在性能、使用率计算方面，并提供了解决思路。</p>]]></description>
+</item></channel>
+</rss>

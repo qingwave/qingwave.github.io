@@ -1,88 +1,280 @@
-<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh-cn"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>Docker多阶段构建</title><meta content="index,follow" name="robots"/><meta content="Docker多阶段构建" property="og:title"/><meta content="https://qingwave.github.io/multi-stage-dockerfile" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/multi-stage-dockerfile" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
+<!DOCTYPE html>
+<html lang="zh-CN">
 
-  window.dataLayer = window.dataLayer || [];
-  function gtag() {
-    window.dataLayer.push(arguments);
-  }
-  gtag("js", new Date());
-  gtag("config", id);
-})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.95a5b0bf.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a class="items-center flex" href="/"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold" href="/blogs">写作</a></li><li class=""><a class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold" href="/project">项目</a></li><li class=""><a class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold" href="/tags">标签</a></li><li class=""><a class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold" href="/about">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Thu Aug 16 2018 17:56:37 GMT+0000 (Coordinated Universal Time)">Aug 16, 2018</time> · <a class="capitalize hover:underline" href="/categories/cloud">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">Docker多阶段构建</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="之前的做法">之前的做法</h2><p>在 Docker 17.05 版本之前，我们构建 Docker 镜像时，通常会采用两种方式：</p><h3 id="全部放入一个-dockerfile">全部放入一个 Dockerfile</h3><p>一种方式是将所有的构建过程编包含在一个 Dockerfile 中，包括项目及其依赖库的编译、测试、打包等流程，这里可能会带来的一些问题：</p><ul><li>Dockerfile 特别长，可维护性降低</li><li>镜像层次多，镜像体积较大，部署时间变长</li><li>源代码存在泄露的风险</li></ul><p>例如编写 app.go 文件，该程序输出 Hello World!</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">package</span><span style="color:#f8f8f2"> main</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#ff79c6">import</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">fmt</span><span style="color:#e9f284">"</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> </span><span style="color:#50fa7b">main</span><span style="color:#f8f8f2">(){</span></span>
-<span class="line"><span style="color:#f8f8f2">    fmt.</span><span style="color:#8be9fd">Printf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">Hello World!</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">);</span></span>
-<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>编写 Dockerfile.one 文件</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">FROM golang:1.9-alpine</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">RUN apk --no-cache add git ca-certificates</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">WORKDIR /go/src/github.com/go/helloworld/</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">COPY app.go .</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">RUN go get -d -v github.com/go-sql-driver/mysql \</span></span>
-<span class="line"><span style="color:#f8f8f2">  &#x26;&#x26; CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app . \</span></span>
-<span class="line"><span style="color:#f8f8f2">  &#x26;&#x26; cp /go/src/github.com/go/helloworld/app /root</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">WORKDIR /root/</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">CMD ["./app"]</span></span></code></pre><p>构建镜像</p><p><code>$ docker build -t go/helloworld:1 -f Dockerfile.one .</code></p><h3 id="分散到多个-dockerfile">分散到多个 Dockerfile</h3><p>另一种方式，就是我们事先在一个 Dockerfile 将项目及其依赖库编译测试打包好后，再将其拷贝到运行环境中，这种方式需要我们编写两个 Dockerfile 和一些编译脚本才能将其两个阶段自动整合起来，这种方式虽然可以很好地规避第一种方式存在的风险，但明显部署过程较复杂。</p><p>例如，编写 Dockerfile.build 文件</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">FROM golang:1.9-alpine</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">RUN apk --no-cache add git</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">WORKDIR /go/src/github.com/go/helloworld</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">COPY app.go .</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">RUN go get -d -v github.com/go-sql-driver/mysql \</span></span>
-<span class="line"><span style="color:#f8f8f2">  &#x26;&#x26; CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .</span></span></code></pre><p>编写 Dockerfile.copy 文件</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">FROM alpine:latest</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">RUN apk --no-cache add ca-certificates</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">WORKDIR /root/</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">COPY app .</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">CMD ["./app"]</span></span></code></pre><p>新建 build.sh</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">#!/bin/sh</span></span>
-<span class="line"><span style="color:#8be9fd">echo</span><span style="color:#f8f8f2"> Building go/helloworld:build</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">docker build -t go/helloworld:build </span><span style="color:#8be9fd">.</span><span style="color:#f8f8f2"> -f Dockerfile.build</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">docker create --name extract go/helloworld:build</span></span>
-<span class="line"><span style="color:#f8f8f2">docker cp extract:/go/src/github.com/go/helloworld/app ./app</span></span>
-<span class="line"><span style="color:#f8f8f2">docker rm -f extract</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#8be9fd">echo</span><span style="color:#f8f8f2"> Building go/helloworld:2</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">docker build --no-cache -t go/helloworld:2 </span><span style="color:#8be9fd">.</span><span style="color:#f8f8f2"> -f Dockerfile.copy</span></span>
-<span class="line"><span style="color:#f8f8f2">rm ./app</span></span></code></pre><p>现在运行脚本即可构建镜像</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ chmod +x build.sh</span></span>
-<span class="line"><span style="color:#f8f8f2">$ ./build.sh</span></span></code></pre><p>对比两种方式生成的镜像大小</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ docker image ls</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">REPOSITORY      TAG    IMAGE ID        CREATED         SIZE</span></span>
-<span class="line"><span style="color:#f8f8f2">go/helloworld   2      f7cf3465432c    22 seconds ago  6.47MB</span></span>
-<span class="line"><span style="color:#f8f8f2">go/helloworld   1      f55d3e16affc    2 minutes ago   295MB</span></span></code></pre><h2 id="使用多阶段构建">使用多阶段构建</h2><p>为解决以上问题，Docker v17.05 开始支持多阶段构建 ( multistage builds )。使用多阶段构建我们就可以很容易解决前面提到的问题，并且只需要编写一个 Dockerfile ：</p><p>例如，编写 Dockerfile 文件</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">FROM golang:1.9-alpine as builder</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">RUN apk --no-cache add git</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">WORKDIR /go/src/github.com/go/helloworld/</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">RUN go get -d -v github.com/go-sql-driver/mysql</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">COPY app.go .</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">FROM alpine:latest as prod</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">RUN apk --no-cache add ca-certificates</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">WORKDIR /root/</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">COPY --from=0 /go/src/github.com/go/helloworld/app .</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">CMD ["./app"]</span></span></code></pre><p>构建镜像</p><p><code>$ docker build -t go/helloworld:3 .</code></p><p>对比三个镜像大小</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ docker image ls</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">REPOSITORY        TAG   IMAGE ID         CREATED            SIZE</span></span>
-<span class="line"><span style="color:#f8f8f2">go/helloworld     3     d6911ed9c846     7 seconds ago      6.47MB</span></span>
-<span class="line"><span style="color:#f8f8f2">go/helloworld     2     f7cf3465432c     22 seconds ago     6.47MB</span></span>
-<span class="line"><span style="color:#f8f8f2">go/helloworld     1     f55d3e16affc     2 minutes ago      295MB</span></span></code></pre><p>很明显使用多阶段构建的镜像体积小，同时也完美解决了上边提到的问题。</p><p>只构建某一阶段的镜像 我们可以使用 as 来为某一阶段命名，例如</p><p><code>FROM golang:1.9-alpine as builder</code></p><p>例如当我们只想构建 builder 阶段的镜像时，我们可以在使用 docker build 命令时加上 —target 参数即可</p><p><code>$ docker build --target builder -t username/imagename:tag .</code></p><p>构建时从其他镜像复制文件 上面例子中我们使用 COPY —from=0 /go/src/github.com/go/helloworld/app . 从上一阶段的镜像中复制文件，我们也可以复制任意镜像中的文件。</p><p><code>$ COPY --from=nginx:latest /etc/nginx/nginx.conf /nginx.conf</code></p></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1 rounded-lg"><a class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted" href="/tags/docker">#docker</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" href="/rss.xml" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a class="hover:brightness-50" href="/">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noodp" />
+    <title class="pjax-title">
+        Docker多阶段构建
+        
+    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="Docker多阶段构建" />
+<meta property="og:description" content="之前的做法在 Docker 17.05 版本之前，我们构建 Docker 镜像时，通常会采用两种方式： 全部放入一个 Dockerfile一种方式是将所有的构建过程编包含在一个 Dockerfile 中，包括项目及其依赖库的编译、测试、打包等流程，这里可能会带来的" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://qingwave.github.io/multi-stage-dockerfile/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2018-08-16T17:56:37+00:00" />
+<meta property="article:modified_time" content="2021-11-20T10:59:07+00:00" /><meta property="og:site_name" content="Qingwave" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
+
+<meta name="twitter:title" content="Docker多阶段构建"/>
+<meta name="twitter:description" content="之前的做法在 Docker 17.05 版本之前，我们构建 Docker 镜像时，通常会采用两种方式： 全部放入一个 Dockerfile一种方式是将所有的构建过程编包含在一个 Dockerfile 中，包括项目及其依赖库的编译、测试、打包等流程，这里可能会带来的"/>
+<meta name="application-name" content="Qingwave">
+<meta name="apple-mobile-web-app-title" content="Qingwave">
+
+<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/multi-stage-dockerfile/" /><link rel="next" href="https://qingwave.github.io/apline-timezone/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "Docker多阶段构建",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/qingwave.github.io\/multi-stage-dockerfile\/"
+        },"genre": "posts","keywords": "docker","wordcount":  854 ,
+        "url": "https:\/\/qingwave.github.io\/multi-stage-dockerfile\/","datePublished": "2018-08-16T17:56:37+00:00","dateModified": "2021-11-20T10:59:07+00:00","publisher": {
+            "@type": "Organization",
+            "name": ""},"author": {
+                "@type": "Person",
+                "name": "Qingwave"
+            },"description": ""
+    }
+    </script></head>
+
+<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
+        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
+        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
+        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
+        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
+        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
+        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
+    </script>
+    <div id="back-to-top"></div>
+    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div>
+<main class="main">
+            <div class="container"><div class="toc" id="toc-auto">
+        <h2 class="toc-title">目录</h2>
+        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#之前的做法">之前的做法</a>
+      <ul>
+        <li><a href="#全部放入一个-dockerfile">全部放入一个 Dockerfile</a></li>
+        <li><a href="#分散到多个-dockerfile">分散到多个 Dockerfile</a></li>
+      </ul>
+    </li>
+    <li><a href="#使用多阶段构建">使用多阶段构建</a></li>
+  </ul>
+</nav></div>
+    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">Docker多阶段构建</h1><div class="post-meta">
+            <div class="post-meta-line"><time datetime="Aug 16, 2018">Aug 16, 2018</time>
+            </div>
+        </div><div class="details toc" id="toc-static"  kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#之前的做法">之前的做法</a>
+      <ul>
+        <li><a href="#全部放入一个-dockerfile">全部放入一个 Dockerfile</a></li>
+        <li><a href="#分散到多个-dockerfile">分散到多个 Dockerfile</a></li>
+      </ul>
+    </li>
+    <li><a href="#使用多阶段构建">使用多阶段构建</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><h2 id="之前的做法" class="headerLink">
+    <a href="#%e4%b9%8b%e5%89%8d%e7%9a%84%e5%81%9a%e6%b3%95" class="header-mark"></a>之前的做法</h2><p>在 Docker 17.05 版本之前，我们构建 Docker 镜像时，通常会采用两种方式：</p>
+<h3 id="全部放入一个-dockerfile" class="headerLink">
+    <a href="#%e5%85%a8%e9%83%a8%e6%94%be%e5%85%a5%e4%b8%80%e4%b8%aa-dockerfile" class="header-mark"></a>全部放入一个 Dockerfile</h3><p>一种方式是将所有的构建过程编包含在一个  Dockerfile  中，包括项目及其依赖库的编译、测试、打包等流程，这里可能会带来的一些问题：</p>
+<ul>
+<li>Dockerfile  特别长，可维护性降低</li>
+<li>镜像层次多，镜像体积较大，部署时间变长</li>
+<li>源代码存在泄露的风险</li>
+</ul>
+<p>例如编写  app.go  文件，该程序输出  Hello World!</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>  
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="s">&#34;fmt&#34;</span>  
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">(){</span>  
+</span></span><span class="line"><span class="cl">    <span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;Hello World!&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>编写  Dockerfile.one  文件</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">FROM golang:1.9-alpine
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">RUN apk --no-cache add git ca-certificates
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">WORKDIR /go/src/github.com/go/helloworld/
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">COPY app.go .
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">RUN go get -d -v github.com/go-sql-driver/mysql \
+</span></span><span class="line"><span class="cl">  &amp;&amp; CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app . \
+</span></span><span class="line"><span class="cl">  &amp;&amp; cp /go/src/github.com/go/helloworld/app /root
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">WORKDIR /root/
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">CMD [&#34;./app&#34;]
+</span></span></code></pre></div><p>构建镜像</p>
+<p><code>$ docker build -t go/helloworld:1 -f Dockerfile.one .</code></p>
+<h3 id="分散到多个-dockerfile" class="headerLink">
+    <a href="#%e5%88%86%e6%95%a3%e5%88%b0%e5%a4%9a%e4%b8%aa-dockerfile" class="header-mark"></a>分散到多个 Dockerfile</h3><p>另一种方式，就是我们事先在一个  Dockerfile  将项目及其依赖库编译测试打包好后，再将其拷贝到运行环境中，这种方式需要我们编写两个  Dockerfile  和一些编译脚本才能将其两个阶段自动整合起来，这种方式虽然可以很好地规避第一种方式存在的风险，但明显部署过程较复杂。</p>
+<p>例如，编写  Dockerfile.build  文件</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">FROM golang:1.9-alpine
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">RUN apk --no-cache add git
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">WORKDIR /go/src/github.com/go/helloworld
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">COPY app.go .
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">RUN go get -d -v github.com/go-sql-driver/mysql \
+</span></span><span class="line"><span class="cl">  &amp;&amp; CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
+</span></span></code></pre></div><p>编写  Dockerfile.copy  文件</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">FROM alpine:latest
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">RUN apk --no-cache add ca-certificates
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">WORKDIR /root/
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">COPY app .
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">CMD [&#34;./app&#34;]
+</span></span></code></pre></div><p>新建  build.sh</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="cp">#!/bin/sh
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span><span class="nb">echo</span> Building go/helloworld:build
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">docker build -t go/helloworld:build . -f Dockerfile.build
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">docker create --name extract go/helloworld:build
+</span></span><span class="line"><span class="cl">docker cp extract:/go/src/github.com/go/helloworld/app ./app
+</span></span><span class="line"><span class="cl">docker rm -f extract
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> Building go/helloworld:2
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">docker build --no-cache -t go/helloworld:2 . -f Dockerfile.copy
+</span></span><span class="line"><span class="cl">rm ./app
+</span></span></code></pre></div><p>现在运行脚本即可构建镜像</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ chmod +x build.sh
+</span></span><span class="line"><span class="cl">$ ./build.sh
+</span></span></code></pre></div><p>对比两种方式生成的镜像大小</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ docker image ls
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">REPOSITORY      TAG    IMAGE ID        CREATED         SIZE
+</span></span><span class="line"><span class="cl">go/helloworld   <span class="m">2</span>      f7cf3465432c    <span class="m">22</span> seconds ago  6.47MB
+</span></span><span class="line"><span class="cl">go/helloworld   <span class="m">1</span>      f55d3e16affc    <span class="m">2</span> minutes ago   295MB
+</span></span></code></pre></div><h2 id="使用多阶段构建" class="headerLink">
+    <a href="#%e4%bd%bf%e7%94%a8%e5%a4%9a%e9%98%b6%e6%ae%b5%e6%9e%84%e5%bb%ba" class="header-mark"></a>使用多阶段构建</h2><p>为解决以上问题，Docker v17.05 开始支持多阶段构建 ( multistage builds )。使用多阶段构建我们就可以很容易解决前面提到的问题，并且只需要编写一个  Dockerfile ：</p>
+<p>例如，编写  Dockerfile  文件</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">FROM golang:1.9-alpine as builder
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">RUN apk --no-cache add git
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">WORKDIR /go/src/github.com/go/helloworld/
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">RUN go get -d -v github.com/go-sql-driver/mysql
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">COPY app.go .
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">FROM alpine:latest as prod
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">RUN apk --no-cache add ca-certificates
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">WORKDIR /root/
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">COPY --from=0 /go/src/github.com/go/helloworld/app .
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">CMD [&#34;./app&#34;]
+</span></span></code></pre></div><p>构建镜像</p>
+<p><code>$ docker build -t go/helloworld:3 .</code></p>
+<p>对比三个镜像大小</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ docker image ls
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">REPOSITORY        TAG   IMAGE ID         CREATED            SIZE
+</span></span><span class="line"><span class="cl">go/helloworld     <span class="m">3</span>     d6911ed9c846     <span class="m">7</span> seconds ago      6.47MB
+</span></span><span class="line"><span class="cl">go/helloworld     <span class="m">2</span>     f7cf3465432c     <span class="m">22</span> seconds ago     6.47MB
+</span></span><span class="line"><span class="cl">go/helloworld     <span class="m">1</span>     f55d3e16affc     <span class="m">2</span> minutes ago      295MB
+</span></span></code></pre></div><p>很明显使用多阶段构建的镜像体积小，同时也完美解决了上边提到的问题。</p>
+<p>只构建某一阶段的镜像
+我们可以使用  as  来为某一阶段命名，例如</p>
+<p><code>FROM golang:1.9-alpine as builder</code></p>
+<p>例如当我们只想构建  builder  阶段的镜像时，我们可以在使用  docker build  命令时加上  &ndash;target  参数即可</p>
+<p><code>$ docker build --target builder -t username/imagename:tag .</code></p>
+<p>构建时从其他镜像复制文件
+上面例子中我们使用  COPY &ndash;from=0 /go/src/github.com/go/helloworld/app .  从上一阶段的镜像中复制文件，我们也可以复制任意镜像中的文件。</p>
+<p><code>$ COPY --from=nginx:latest /etc/nginx/nginx.conf /nginx.conf</code></p>
+</div>
+
+        
+        <div class="post-footer" id="post-footer">
+    <div class="post-meta-line"><span class="single-tag">
+                <a href='/tags/docker/'>#docker</a></span></div>
+
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-link">
+                <a href='/about'>About Me</a>
+            </div>
+        </div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+        </div>
+    </div><div class="post-nav">
+            <a href="/apline-timezone/" class="next" rel="next" title="apline镜像添加时区与字符设置">apline镜像添加时区与字符设置<i class="fas fa-angle-right fa-fw"></i></a></div></div>
+<div id="comments"><div id="giscus"></div><noscript>
+                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
+            </noscript></div></article></div>
+        </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
+            <div class="footer-line"></div>
+            <div class="footer-line">
+            </div>
+        </div></footer></div>
+
+    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
+            <i class="fas fa-arrow-up fa-fw"></i>
+        </a>
+    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
+            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
+            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
+        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
+
+<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
+</body>
+
+</html>

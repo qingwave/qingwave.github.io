@@ -1,0 +1,328 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>prometheus - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/prometheus/</link>
+        <description>prometheus - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Tue, 30 Mar 2021 19:07:20 &#43;0000</lastBuildDate><atom:link href="https://qingwave.github.io/tags/prometheus/" rel="self" type="application/rss+xml" /><item>
+    <title>Prometheus高可用自动分区方案</title>
+    <link>https://qingwave.github.io/prometheus-auto-federation/</link>
+    <pubDate>Tue, 30 Mar 2021 19:07:20 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/prometheus-auto-federation/</guid>
+    <description><![CDATA[<p>在<a href="/prometheus-federation" rel="">Prometheus分区实践</a>中我们介绍了使用集群联邦与远程存储来扩展Prometheus以及监控数据持久化，但之前的分区方案存在一定不足，如分区配置较难维护，全局Prometheus存在性能瓶颈等，本文通过<code>Thanos+Kvass</code>实现更优雅的Prometheus扩展方案。</p>
+<h2 id="自动分区" class="headerLink">
+    <a href="#%e8%87%aa%e5%8a%a8%e5%88%86%e5%8c%ba" class="header-mark"></a>自动分区</h2><p>之前分区方案依赖Prometheus提供的<code>hashmod</code>方法，通过在配置中指定<code>hash</code>对象与<code>modules</code>进行散列（md5），每个分片只抓取相同job命中的对象，例如我们可以通过对<code>node</code>散列从而对<code>cadvisor</code>、<code>node-exporter</code>等job做分片。</p>
+<p>通过这种方式可以简单的扩展Prometheus，降低其抓取压力，但是显而易见<code>hashmod</code>需要指定散列对象，每个job可能需要配置不同的对象如<code>node</code>、<code>pod</code>、<code>ip</code>等，随着采集对象增多，配置难以维护。直到看见了<a href="https://github.com/tkestack/kvass" target="_blank" rel="noopener noreffer">Kvass</a>，Kvass是一个Prometheus横向扩展方案，可以不依赖<code>hashmod</code>动态调整target，支持数千万series规模。</p>
+<p>Kvass核心架构如下：
+
+
+</p>
+<ul>
+<li><code>Kvass-Coordinator</code>: 加载配置文件并进行服务发现，获取所有target，周期性分配target到<code>kvass-sidecar</code>，以及管理分片负载与扩缩容</li>
+<li><code>Kvass-Sidecar</code>: 根据<code>Coordinator</code>分发的target生成配置，以及代理Prometheus请求</li>
+</ul>
+<p>通过Kvass可实现Prometheus动态横向扩展，而不依赖<code>hashmod</code>，灵活性更高。</p>
+<h2 id="全局查询" class="headerLink">
+    <a href="#%e5%85%a8%e5%b1%80%e6%9f%a5%e8%af%a2" class="header-mark"></a>全局查询</h2><p>另一个问题是在集群联邦中我们需要一个全局的Prometheus来聚合分区Prometheus的数据，依赖原生的<code>/federate</code>接口，随着数据量增多，全局Prometheus必然会达到性能瓶颈。高可用Prometheus集群解决方案<a href="https://github.com/thanos-io/thanos" target="_blank" rel="noopener noreffer">Thanos</a>中提供了全局查询功能，通过<code>Thanos-Query</code>与<code>Thanos-Sidecar</code>可实现查询多个Prometheus的数据，并支持了去重。</p>
+<p>Thanos组件较多，核心架构如下：
+
+
+</p>
+<ul>
+<li><code>Thanos Query</code>: 实现了<code>Prometheus API</code>，将来自下游组件提供的数据进行聚合最终返回给查询数据的client (如 grafana)，类似数据库中间件</li>
+<li><code>Thanos Sidecar</code>: 连接Prometheus，将其数据提供给<code>Thanos Query</code>查询，并且可将其上传到对象存储，以供长期存储</li>
+<li><code>Thanos Store Gateway</code>: 将对象存储的数据暴露给<code>Thanos Query</code>去查询</li>
+<li><code>Thanos Ruler</code>: 对监控数据进行评估和告警，还可以计算出新的监控数据，将这些新数据提供给<code>Thanos Query</code>查询并且可上传到对象存储，以供长期存储</li>
+<li><code>Thanos Compact</code>: 将对象存储中的数据进行压缩和降低采样率，加速大时间区间监控数据查询的速度</li>
+</ul>
+<p>借助于Thanos提供的<code>Query</code>与<code>Ruler</code>我们可以实现全局查询与聚合。</p>
+<h2 id="最终方案" class="headerLink">
+    <a href="#%e6%9c%80%e7%bb%88%e6%96%b9%e6%a1%88" class="header-mark"></a>最终方案</h2><p><code>Kvass+Thanos</code>可实现Prometheus自动扩展、全局查询，再配合<code>Remote Wirite</code>实现数据支持化，通过Grafana展示监控数据
+
+
+</p>
+<h3 id="测试验证" class="headerLink">
+    <a href="#%e6%b5%8b%e8%af%95%e9%aa%8c%e8%af%81" class="header-mark"></a>测试验证</h3><p>所有部署文件见<a href="https://github.com/qingwave/kube-monitor/tree/master/prometheus-kvass" target="_blank" rel="noopener noreffer">prometheus-kvass</a></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">git clone https://github.com/qingwave/kube-monitor.git
+</span></span><span class="line"><span class="cl">kubectl apply -f kube-monitor/prometheus-kvass
+</span></span></code></pre></div><p>结果如下：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ kubectl get po
+</span></span><span class="line"><span class="cl">NAME                                 READY   STATUS    RESTARTS   AGE
+</span></span><span class="line"><span class="cl">kvass-coordinator-7f65c546d9-vxgxr   2/2     Running   <span class="m">2</span>          29h
+</span></span><span class="line"><span class="cl">metrics-774949d94d-4btzh             1/1     Running   <span class="m">0</span>          10s
+</span></span><span class="line"><span class="cl">metrics-774949d94d-558gn             1/1     Running   <span class="m">1</span>          29h
+</span></span><span class="line"><span class="cl">metrics-774949d94d-gs8kc             1/1     Running   <span class="m">1</span>          29h
+</span></span><span class="line"><span class="cl">metrics-774949d94d-r85rc             1/1     Running   <span class="m">1</span>          29h
+</span></span><span class="line"><span class="cl">metrics-774949d94d-xhbk9             1/1     Running   <span class="m">0</span>          10s
+</span></span><span class="line"><span class="cl">metrics-774949d94d-z5mwk             1/1     Running   <span class="m">1</span>          29h
+</span></span><span class="line"><span class="cl">prometheus-rep-0-0                   3/3     Running   <span class="m">0</span>          49s
+</span></span><span class="line"><span class="cl">prometheus-rep-0-1                   3/3     Running   <span class="m">0</span>          48s
+</span></span><span class="line"><span class="cl">prometheus-rep-0-2                   3/3     Running   <span class="m">0</span>          19s
+</span></span><span class="line"><span class="cl">thanos-query-b469b648f-ltxth         1/1     Running   <span class="m">0</span>          60s
+</span></span><span class="line"><span class="cl">thanos-rule-0                        1/1     Running   <span class="m">2</span>          25h
+</span></span></code></pre></div><p>Deployment <code>metrics</code>有6个副本，每个生成10045 series，<code>kvass-coordinator</code>配置每个分区最大series为30000，以及Prometheus默认的指标，需要3个Prometheus分片。</p>
+<p>每个分片包含2个target</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">prometheus_tsdb_head_chunks<span class="o">{</span><span class="nv">instance</span><span class="o">=</span><span class="s2">&#34;127.0.0.1:9090&#34;</span>,job<span class="o">=</span><span class="s2">&#34;prometheus_shards&#34;</span>,replicate<span class="o">=</span><span class="s2">&#34;prometheus-rep-0-0&#34;</span>,shard<span class="o">=</span><span class="s2">&#34;0&#34;</span><span class="o">}</span>	<span class="m">20557</span>
+</span></span></code></pre></div><p>通过<code>Thanos Query</code>可以查询到多个Prometheus分片的数据，以及聚合规则<code>metrics_count</code>
+
+
+</p>
+<h3 id="待优化问题" class="headerLink">
+    <a href="#%e5%be%85%e4%bc%98%e5%8c%96%e9%97%ae%e9%a2%98" class="header-mark"></a>待优化问题</h3><p>此方案可满足绝大部分场景，用户可通过自己的实际环境配合不同的组件，但也存在一些需要优化确认的问题</p>
+<ul>
+<li><code>Thanos Ruler</code>不支持远程写接口，只能存储于Thanos提供的对象存储中</li>
+<li><code>Thanos Query</code>全局查询依赖多个下游组件，可能只返回部分结果挺好使</li>
+<li><code>Coordinator</code>性能需要压测验证</li>
+</ul>
+<h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p><code>Kvass+Thanos+Remote-write</code>可以实现Prometheus集群的自动分区、全局查询、数据持久化等功能，满足绝大部分场景。虽然有一些问题需要验证优化，但瑕不掩瑜，能够解决原生Prometheus扩展性问题。</p>
+<h2 id="引用" class="headerLink">
+    <a href="#%e5%bc%95%e7%94%a8" class="header-mark"></a>引用</h2><ul>
+<li><a href="https://qingwave.github.io/prometheus-federation/" target="_blank" rel="noopener noreffer">https://qingwave.github.io/prometheus-federation/</a></li>
+<li><a href="https://github.com/tkestack/kvass" target="_blank" rel="noopener noreffer">https://github.com/tkestack/kvass</a></li>
+<li><a href="https://github.com/thanos-io/thanos" target="_blank" rel="noopener noreffer">https://github.com/thanos-io/thanos</a></li>
+</ul>]]></description>
+</item><item>
+    <title>Prometheus最佳实践-聚合函数</title>
+    <link>https://qingwave.github.io/prometheus-best-practice-operation/</link>
+    <pubDate>Thu, 16 Jul 2020 15:28:39 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/prometheus-best-practice-operation/</guid>
+    <description><![CDATA[<h2 id="rate" class="headerLink">
+    <a href="#rate" class="header-mark"></a>rate</h2><p>prometheus中<code>rate</code>只能用于<code>counter</code>类型，对于需要聚合的数据需要先<code>rate</code>再<code>sum</code>，而不是<code>rate(sum)</code></p>
+<h2 id="数据准确性" class="headerLink">
+    <a href="#%e6%95%b0%e6%8d%ae%e5%87%86%e7%a1%ae%e6%80%a7" class="header-mark"></a>数据准确性</h2><p><code>rate/increase/delta</code>等操作对于原始值进行了外推（类似线性插件），得到的不是准确值</p>
+<p>如<code>rate(http_requests_total[2m])</code>指两分钟内每秒平均请求量，通过<code>2m</code>内首尾两个数据外推得到差值，比120s得到；
+同理<code>increase(http_requests_total[2m])</code>指的不是首尾两个值的增长量，而是外推后计算出<code>2m</code>内的增长量。</p>
+<h2 id="absent" class="headerLink">
+    <a href="#absent" class="header-mark"></a>absent</h2><p>通常报警中，我们需要对某个对象是不是有数据进行监控（即<code>nodata</code>监控），<code>absent</code>用来验证指标是不是有数据很有用</p>
+<h2 id="predict_linear" class="headerLink">
+    <a href="#predict_linear" class="header-mark"></a>predict_linear</h2><p>线性回归预测，适合线性数据的预测，如预测etcd的未来4小时文件描述符使用量</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">predict_linear(cluster:etcd:fd_utilization[1h], 3600 * 4)
+</span></span></code></pre></div><h2 id="quantile_over_time" class="headerLink">
+    <a href="#quantile_over_time" class="header-mark"></a>quantile_over_time</h2><p>一段时间内统计分位数</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">quantile_over_time(0.9, http_requests_total[1d]) # 一天内请求量的90分位
+</span></span></code></pre></div><h2 id="bool" class="headerLink">
+    <a href="#bool" class="header-mark"></a>bool</h2><p>某些情况的需要比较两个标量（通常用来报警），可以使用bool</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">http_requests_total &gt; bool 100 
+</span></span></code></pre></div>]]></description>
+</item><item>
+    <title>Prometheus分区实践</title>
+    <link>https://qingwave.github.io/prometheus-federation/</link>
+    <pubDate>Tue, 12 Feb 2019 18:32:27 &#43;0000</pubDate><author>
+        <name>Qingwave</name>
+    </author><guid>https://qingwave.github.io/prometheus-federation/</guid>
+    <description><![CDATA[<h2 id="背景" class="headerLink">
+    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>单个Prometheus Server可以轻松的处理数以百万的时间序列。但当机器规模过大时，需要对其进行分区，Prometheus也提供了集群联邦的功能，方便对其扩展。</p>
+<p>我们采用Prometheus来监控k8s集群，节点数400，采集的samples是280w，Prometheus官方的显示每秒可抓取10w samples。当集群规模扩大到上千节点时，单个Prometheus不足以处理大量数据，需要对其进行分区。</p>
+<blockquote>
+<p>可以根据<code>scrape_samples_scraped{job=${JOBNAME}}</code>来统计各个job的samples数目
+可以根据<code>count({__name__=~&quot;.*:.*&quot;})</code>来统计metrics总数</p>
+</blockquote>
+<h2 id="集群联邦" class="headerLink">
+    <a href="#%e9%9b%86%e7%be%a4%e8%81%94%e9%82%a6" class="header-mark"></a>集群联邦</h2><p>在Promehtues的源码中，<code>federate</code>联邦功能在<code>web</code>中，是一个特殊的查询接口，允许一个prometheus抓取另一个prometheus的metrics</p>
+<p>可以通过全局的prometheus抓取其他slave prometheus从而达到分区的目的
+
+
+</p>
+<p>使用federate进行分区通过有两种方式</p>
+<h3 id="功能分区" class="headerLink">
+    <a href="#%e5%8a%9f%e8%83%bd%e5%88%86%e5%8c%ba" class="header-mark"></a>功能分区</h3><p>每个模块为一个分区，如node-exporter为一个分区，kube-state-metrics为一个分区，再使用全局的Prometheus汇总
+
+
+</p>
+<p>实现简单，但当单个job采集任务过大（如node-exporter）时，单个Prometheus slave也会成为瓶颈</p>
+<h3 id="水平扩展" class="headerLink">
+    <a href="#%e6%b0%b4%e5%b9%b3%e6%89%a9%e5%b1%95" class="header-mark"></a>水平扩展</h3><p>针对功能分区的不足，将同一任务的不同实例的监控数据采集任务划分到不同的Prometheus实例。通过relabel设置，我们可以确保当前Prometheus Server只收集当前采集任务的一部分实例的监控指标。
+
+
+</p>
+<p>下为官方提供的配置</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">global</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">external_labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">slave</span><span class="p">:</span><span class="w"> </span><span class="m">1</span><span class="w">  </span><span class="c"># This is the 2nd slave. This prevents clashes between slaves.</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">scrape_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l">some_job</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c"># Add usual service discovery here, such as static_configs</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">relabel_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="l">__address__]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">modulus</span><span class="p">:</span><span class="w">       </span><span class="m">4</span><span class="w">    </span><span class="c"># 4 slaves</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">target_label</span><span class="p">:</span><span class="w">  </span><span class="l">__tmp_hash</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">action</span><span class="p">:</span><span class="w">        </span><span class="l">hashmod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="l">__tmp_hash]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">regex</span><span class="p">:</span><span class="w">         </span><span class="l">^1$ </span><span class="w"> </span><span class="c"># This is the 2nd slave</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">action</span><span class="p">:</span><span class="w">        </span><span class="l">keep</span><span class="w">
+</span></span></span></code></pre></div><p>并且通过当前数据中心的一个中心Prometheus Server将监控数据进行聚合到任务级别。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">scrape_config</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l">slaves</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">honor_labels</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">metrics_path</span><span class="p">:</span><span class="w"> </span><span class="l">/federate</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">params</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">match[]</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="s1">&#39;{__name__=~&#34;^slave:.*&#34;}&#39;</span><span class="w">   </span><span class="c"># Request all slave-level time series</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">static_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">targets</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="l">slave0:9090</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="l">slave1:9090</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="l">slave3:9090</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="l">slave4:9090</span><span class="w">
+</span></span></span></code></pre></div><p>水平扩展，即通过联邦集群的特性在任务的实例级别对Prometheus采集任务进行划分，以支持规模的扩展。</p>
+<h2 id="我们的方案" class="headerLink">
+    <a href="#%e6%88%91%e4%bb%ac%e7%9a%84%e6%96%b9%e6%a1%88" class="header-mark"></a>我们的方案</h2><h3 id="整体架构" class="headerLink">
+    <a href="#%e6%95%b4%e4%bd%93%e6%9e%b6%e6%9e%84" class="header-mark"></a>整体架构</h3><ul>
+<li>Promehtues以容器化的方式部署在k8s集群中</li>
+<li>收集node-exporter、cadvisor、kubelet、kube-state-metrics、k8s核心组件、自定义metrics</li>
+<li>通过实现opentsdb-adapter，对监控数据做持久化</li>
+<li>通过falcon-adapter,为监控数据提供报警
+
+
+</li>
+</ul>
+<h3 id="分区方案" class="headerLink">
+    <a href="#%e5%88%86%e5%8c%ba%e6%96%b9%e6%a1%88" class="header-mark"></a>分区方案</h3><ul>
+<li>Prometheus分区包括master Prometheus 与 slave Promehtues</li>
+<li>我们将监控数据分为多个层次: cluster, namespace, deployment/daemonset, pod, node</li>
+<li>由于kubelet, node-exporter, cadvisor等是以node为单位采集的，所以安装node节点来划分不同job</li>
+<li>slave Prometheus 按照node切片采集node，pod级别数据</li>
+<li>kube-state-metrics暂时无法切片，可通过replicaset 设置多个，单独作为一个kube-state Prometheus，供其他slave Prometheus采集</li>
+<li>其他etcd, apiserver等自定义组件可通过master Promehtues直接采集</li>
+</ul>
+<p>整体架构如下
+
+
+</p>
+<p>master Prometheus配置</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">global</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">scrape_interval</span><span class="p">:</span><span class="w"> </span><span class="l">60s</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">scrape_timeout</span><span class="p">:</span><span class="w"> </span><span class="l">30s</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">evaluation_interval</span><span class="p">:</span><span class="w"> </span><span class="l">60s</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">external_labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span><span class="w"> </span>{{<span class="l">CLUSTER}}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">production_environment</span><span class="p">:</span><span class="w"> </span>{{<span class="l">ENV}}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">rule_files</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="l">cluster.yml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="l">namespace.yml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="l">deployment.yml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="l">daemonset.yml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">scrape_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l">federate-slave</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">honor_labels</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">metrics_path</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;/federate&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">params</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">&#39;match[]&#39;</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="s1">&#39;{__name__=~&#34;pod:.*|node:.*&#34;}&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">kubernetes_sd_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l">pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespaces</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">names</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">kube-system</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">relabel_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">__meta_kubernetes_pod_label_app</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l">keep</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="l">prometheus-slave.*</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">__meta_kubernetes_pod_container_port_number</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l">keep</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="m">9090</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l">federate-kubestate</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">honor_labels</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">metrics_path</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;/federate&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">params</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">&#39;match[]&#39;</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="s1">&#39;{__name__=~&#34;deployment:.*|daemonset:.*&#34;}&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">kubernetes_sd_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l">pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespaces</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">names</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">kube-system</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">relabel_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">__meta_kubernetes_pod_label_app</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l">keep</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="l">prometheus-kubestate.*</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">__meta_kubernetes_pod_container_port_number</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l">keep</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="m">9090</span><span class="w">
+</span></span></span></code></pre></div><p>slave Prometheus配置</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">global</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">scrape_interval</span><span class="p">:</span><span class="w"> </span><span class="l">60s</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">scrape_timeout</span><span class="p">:</span><span class="w"> </span><span class="l">30s</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">evaluation_interval</span><span class="p">:</span><span class="w"> </span><span class="l">60s</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">external_labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">cluster</span><span class="p">:</span><span class="w"> </span>{{<span class="l">CLUSTER}}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">production_environment</span><span class="p">:</span><span class="w"> </span>{{<span class="l">ENV}}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">rule_files</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="l">node.yml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="l">pod.yml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">scrape_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l">federate-kubestate</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">honor_labels</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">metrics_path</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;/federate&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">params</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">&#39;match[]&#39;</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="s1">&#39;{__name__=~&#34;pod:.*|node:.*&#34;}&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">kubernetes_sd_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l">pod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespaces</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">names</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">kube-system</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">relabel_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">__meta_kubernetes_pod_label_app</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l">keep</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="l">prometheus-kubestate.*</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">__meta_kubernetes_pod_container_port_number</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l">keep</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="m">9090</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">metric_relabel_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="l">node]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">modulus</span><span class="p">:</span><span class="w">       </span>{{<span class="l">MODULES}}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">target_label</span><span class="p">:</span><span class="w">  </span><span class="l">__tmp_hash</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w">        </span><span class="l">hashmod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="l">__tmp_hash]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">regex</span><span class="p">:</span><span class="w">         </span>{{<span class="l">SLAVEID}}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w">        </span><span class="l">keep</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l">kubelet</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">scheme</span><span class="p">:</span><span class="w"> </span><span class="l">https</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">kubernetes_sd_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l">node</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">namespaces</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">names</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">tls_config</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">insecure_skip_verify</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">relabel_configs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">regex</span><span class="p">:</span><span class="w"> </span><span class="l">__meta_kubernetes_node_label_(.+)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">replacement</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;$1&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w"> </span><span class="l">labelmap</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="l">__meta_kubernetes_node_label_kubernetes_io_hostname]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">modulus</span><span class="p">:</span><span class="w">       </span>{{<span class="l">MODULES}}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">target_label</span><span class="p">:</span><span class="w">  </span><span class="l">__tmp_hash</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w">        </span><span class="l">hashmod</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">source_labels</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="l">__tmp_hash]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">regex</span><span class="p">:</span><span class="w">         </span>{{<span class="l">SLAVEID}}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">action</span><span class="p">:</span><span class="w">        </span><span class="l">keep</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span>- <span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l">...</span><span class="w">
+</span></span></span></code></pre></div><h3 id="可能的问题" class="headerLink">
+    <a href="#%e5%8f%af%e8%83%bd%e7%9a%84%e9%97%ae%e9%a2%98" class="header-mark"></a>可能的问题</h3><ul>
+<li>如何部署，配置复杂，现在采用shell脚本加kustomize,是否有更简单的方法</li>
+<li>分区的动态扩展随着node的规模</li>
+<li>kube-state-metrics是否会成为瓶颈，目前的<a href="https://docs.google.com/document/d/1hm5XrM9dYYY085yOnmMDXu074E4RxjM7R5FS4-WOflo/edit" target="_blank" rel="noopener noreffer">kube-state-metrics性能测试</a></li>
+<li>由于分区同一个job的不同instance采集的时间有偏差，对聚合有一定影响</li>
+<li>可靠性保证，如果一个或多个slave的挂了如何处理，使用k8s来保证prometheus的可用性是否可靠</li>
+</ul>]]></description>
+</item></channel>
+</rss>

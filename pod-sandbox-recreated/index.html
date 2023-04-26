@@ -1,81 +1,252 @@
-<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh-cn"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>pod sandbox 创建失败</title><meta content="index,follow" name="robots"/><meta content="pod sandbox 创建失败" property="og:title"/><meta content="https://qingwave.github.io/pod-sandbox-recreated" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/pod-sandbox-recreated" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
+<!DOCTYPE html>
+<html lang="zh-CN">
 
-  window.dataLayer = window.dataLayer || [];
-  function gtag() {
-    window.dataLayer.push(arguments);
-  }
-  gtag("js", new Date());
-  gtag("config", id);
-})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.95a5b0bf.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Wed Mar 18 2020 18:22:05 GMT+0000 (Coordinated Universal Time)">Mar 18, 2020</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">pod sandbox 创建失败</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="背景">背景</h2><p>今天在 k8s 更新服务时,发现 pod 启动失败,报错<code>failed to start sandbox container</code>,如下所示:</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">Events:</span></span>
-<span class="line"><span style="color:#f8f8f2">  Type     Reason                  Age                     From                                           Message</span></span>
-<span class="line"><span style="color:#f8f8f2">  ----     ------                  ----                    ----                                           -------</span></span>
-<span class="line"><span style="color:#f8f8f2">  Normal   Scheduled               28m                     default-scheduler                              Successfully assigned kube-system/k8s-proxy-7wkt4 to tj1-staging-com-ocean007-201812.kscn</span></span>
-<span class="line"><span style="color:#f8f8f2">  Warning  FailedCreatePodSandBox  28m (x13 over 28m)      kubelet, tj1-staging-com-ocean007-201812.kscn  Failed create pod sandbox: rpc error: code = Unknown desc = failed to start sandbox container </span><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> pod </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">k8s-proxy-7wkt4</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: Error response from daemon: OCI runtime create failed: container_linux.go:345: starting container process caused </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">process_linux.go:297: getting the final child's pid from pipe caused </span><span style="color:#ff79c6">\"</span><span style="color:#f1fa8c">EOF</span><span style="color:#ff79c6">\"</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: unknown</span></span>
-<span class="line"><span style="color:#f8f8f2">  Normal   SandboxChanged          3m19s (x1364 over 28m)  kubelet, tj1-staging-com-ocean007-201812.kscn  Pod sandbox changed, it will be killed and re-created.</span></span></code></pre><h2 id="分析">分析</h2><p>sandbox 创建失败只是表象,是宿主机其他异常导致的,一般是(cpu,diskio,mem)导致的.</p><p>首先,上节点看 kubelet,docker 有无异常,日志没有明显错误,通过<code>top</code>看到 docker cpu 占用非常高</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">[root@tj1-staging-com-ocean007-201812 </span><span style="color:#ff79c6">~</span><span style="color:#f8f8f2">]</span><span style="color:#6272a4"># top</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">top - 17:55:00 up 265 days,  3:41,  1 user,  load average: 10.71, 11.34, 10.76</span></span>
-<span class="line"><span style="color:#f8f8f2">Tasks: 816 total,   5 running, 811 sleeping,   0 stopped,   0 zombie</span></span>
-<span class="line"><span style="color:#f8f8f2">%Cpu(s): 24.0 us, 34.5 sy,  0.0 ni, 41.4 id,  0.0 wa,  0.0 hi,  0.1 si,  0.0 st</span></span>
-<span class="line"><span style="color:#f8f8f2">KiB Mem </span><span style="color:#8be9fd">:</span><span style="color:#f8f8f2"> 65746380 total, 20407940 free, 11007040 used, 34331400 buff/cache</span></span>
-<span class="line"><span style="color:#f8f8f2">KiB Swap:        0 total,        0 free,        0 used. 49134416 avail Mem</span></span>
-<span class="line"></span>
-<span class="line"><span style="color:#f8f8f2">    PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND</span></span>
-<span class="line"><span style="color:#f8f8f2"> 115483 root      20   0 3965212 273188  34564 S 489.7  0.4 382260:40 dockerd</span></span>
-<span class="line"><span style="color:#f8f8f2">1367523 root      20   0   18376   2972   2716 R  66.9  0.0  20163:45 bash</span></span>
-<span class="line"><span style="color:#f8f8f2">1367487 root      20   0   11856   5616   4512 S  54.0  0.0  16748:26 containerd-shim</span></span>
-<span class="line"><span style="color:#f8f8f2">3200169 root      20   0    1300      4      0 R  53.3  0.0  14913:49 sh</span></span>
-<span class="line"><span style="color:#f8f8f2">2429952 root      20   0    1300      4      0 S  49.3  0.0   9620:56 sh</span></span>
-<span class="line"><span style="color:#f8f8f2">3200130 root      20   0    9392   4756   3884 S  47.7  0.0  13417:30 containerd-shim</span></span>
-<span class="line"><span style="color:#f8f8f2">3718475 root      20   0    1300      4      0 R  47.4  0.0   8600:20 sh</span></span>
-<span class="line"><span style="color:#f8f8f2">3718440 root      20   0   10736   5516   4512 S  42.1  0.0   7575:31 containerd-shim</span></span>
-<span class="line"><span style="color:#f8f8f2">2429917 root      20   0   11856   5556   4512 S  40.1  0.0   8313:22 containerd-shim</span></span>
-<span class="line"><span style="color:#f8f8f2">3205493 root      20   0 3775924 230996  66704 S  18.9  0.4   2559:07 kubelet</span></span>
-<span class="line"><span style="color:#f8f8f2">      1 root      20   0  195240 157000   3932 S   7.9  0.2   1417:46 systemd</span></span>
-<span class="line"><span style="color:#f8f8f2">    804 dbus      20   0   30308   6460   2464 S   1.7  0.0 462:18.84 dbus-daemon</span></span>
-<span class="line"><span style="color:#f8f8f2">1011737 root      20   0  277656 122788  18428 S   1.3  0.2 768:03.00 cadvisor</span></span>
-<span class="line"><span style="color:#f8f8f2"> 115508 root      20   0 7139200  32896  24288 S   1.0  0.1 662:25.27 containerd</span></span>
-<span class="line"><span style="color:#f8f8f2">    806 root      20   0   24572   3060   2480 S   0.7  0.0 171:22.52 systemd-logind</span></span>
-<span class="line"><span style="color:#f8f8f2"> 511080 root       0 -20 2751348  52552  15744 S   0.7  0.1 178:27.51 sagent</span></span>
-<span class="line"><span style="color:#f8f8f2">1102507 root      20   0   11792   7292   4512 S   0.7  0.0  23:36.37 containerd-shim</span></span>
-<span class="line"><span style="color:#f8f8f2">1272223 root      20   0  164800   5296   3824 R   0.7  0.0   0:00.38 top</span></span>
-<span class="line"><span style="color:#f8f8f2">2866292 root      20   0 5045000 1.983g   3080 S   0.7  3.2 230:09.47 redis</span></span></code></pre><p>同时, cpu system 异常高.</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">%Cpu(s): 24.0 us, 34.5 sy,  0.0 ni, 41.4 id,  0.0 wa,  0.0 hi,  0.1 si,  0.0 st</span></span></code></pre><p>按照以前的经验,一般是由某些容器引起的,通过<code>top</code>看到个别<code>sh</code>进程占用 cpu 较高.</p><p>通过<code>ps</code>看到进程居然是个死循环</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">[root@tj1-staging-com-ocean007-201812 </span><span style="color:#ff79c6">~</span><span style="color:#f8f8f2">]</span><span style="color:#6272a4"># ps -ef |grep 1367523</span></span>
-<span class="line"><span style="color:#f8f8f2">root     1287628 1247781  0 17:55 pts/1    00:00:00 grep --color=auto 1367523</span></span>
-<span class="line"><span style="color:#f8f8f2">root     1367523 1367504 72 Feb28 </span><span style="color:#ff79c6">?</span><span style="color:#f8f8f2">        14-00:04:17 /bin/bash -c </span><span style="color:#ff79c6">while</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">true</span><span style="color:#ff79c6">;</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">do</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">echo</span><span style="color:#f8f8f2"> hello</span><span style="color:#ff79c6">;</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">done</span></span></code></pre><p>通过<code>/proc/pid/cgroup</code>找到对应容器</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4"># cat /proc/1367523/cgroup</span></span>
-<span class="line"><span style="color:#f8f8f2">11:freezer:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">10:devices:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">9:hugetlb:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">8:blkio:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">7:memory:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">6:perf_event:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">5:cpuset:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">4:pids:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">3:net_cls,net_prio:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">2:cpu,cpuacct:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span>
-<span class="line"><span style="color:#f8f8f2">1:name=systemd:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd</span></span></code></pre><p>找到对应容器</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">docker ps </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2"> grep 29842d554</span></span></code></pre><p>清理完相关 pod 后,系统恢复正常</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">top - 18:25:57 up 265 days,  4:12,  1 user,  load average: 1.05, 1.24, 4.02</span></span>
-<span class="line"><span style="color:#f8f8f2">Tasks: 769 total,   1 running, 768 sleeping,   0 stopped,   0 zombie</span></span>
-<span class="line"><span style="color:#f8f8f2">%Cpu(s):  1.7 us,  0.9 sy,  0.0 ni, 97.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st</span></span>
-<span class="line"><span style="color:#f8f8f2">KiB Mem : 65746380 total, 22106960 free, 10759860 used, 32879560 buff/cache</span></span>
-<span class="line"><span style="color:#f8f8f2">KiB Swap:        0 total,        0 free,        0 used. 49401576 avail Mem</span></span>
-<span class="line"><span style="color:#f8f8f2"></span></span>
-<span class="line"><span style="color:#f8f8f2">    PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND</span></span>
-<span class="line"><span style="color:#f8f8f2">3205493 root      20   0 3775924 229844  66704 S   9.9  0.3   2563:18 kubelet</span></span>
-<span class="line"><span style="color:#f8f8f2"> 115483 root      20   0 3965468 249124  34564 S   7.9  0.4 382323:36 dockerd</span></span>
-<span class="line"><span style="color:#f8f8f2">      1 root      20   0  195240 157000   3932 S   6.3  0.2   1419:48 systemd</span></span>
-<span class="line"><span style="color:#f8f8f2">    804 dbus      20   0   30308   6460   2464 S   2.0  0.0 462:51.51 dbus-daemon</span></span>
-<span class="line"><span style="color:#f8f8f2">3085322 root      20   0 12.045g 1.578g  19028 S   1.3  2.5 767:51.19 java</span></span>
-<span class="line"><span style="color:#f8f8f2"> 115508 root      20   0 7139200  32264  24288 S   1.0  0.0 662:42.18 containerd</span></span>
-<span class="line"><span style="color:#f8f8f2"> 511080 root       0 -20 2751348  42116  15744 S   1.0  0.1 178:44.79 sagent</span></span>
-<span class="line"><span style="color:#f8f8f2">1011737 root      20   0  277656 111836  18428 S   1.0  0.2 768:49.01 cadvisor</span></span>
-<span class="line"><span style="color:#f8f8f2">1523167 root      20   0  164800   5436   4012 R   0.7  0.0   0:00.04 top</span></span>
-<span class="line"><span style="color:#f8f8f2">3199459 root      20   0 1554708  43668   9496 S   0.7  0.1  28:50.60 falcon-agent</span></span>
-<span class="line"><span style="color:#f8f8f2">      7 root      20   0       0      0      0 S   0.3  0.0 619:07.64 rcu_sched</span></span>
-<span class="line"><span style="color:#f8f8f2">    806 root      20   0   24572   3060   2480 S   0.3  0.0 171:33.69 systemd-logind</span></span>
-<span class="line"><span style="color:#f8f8f2">  11921 root      20   0   94820  20480   5840 S   0.3  0.0   1402:42 consul</span></span>
-<span class="line"><span style="color:#f8f8f2"> 575838 root      20   0  411464  17092   7364 S   0.3  0.0  15:16.25 python</span></span>
-<span class="line"><span style="color:#f8f8f2"> 856593 root      20   0 1562392  37912   9612 S   0.3  0.1  21:34.23 falcon-agent</span></span>
-<span class="line"><span style="color:#f8f8f2"> 931957 33        20   0   90728   3392   1976 S   0.3  0.0   0:51.23 nginx</span></span>
-<span class="line"><span style="color:#f8f8f2">1212186 root      20   0       0      0      0 S   0.3  0.0   0:01.12 kworker/14:1</span></span>
-<span class="line"><span style="color:#f8f8f2">1726228 root      20   0    9392   4496   3808 S   0.3  0.0   0:00.67 containerd-shim</span></span>
-<span class="line"><span style="color:#f8f8f2">1887128 root      20   0  273160   7932   3128 S   0.3  0.0  46:05.23 redis-server</span></span>
-<span class="line"><span style="color:#f8f8f2">2788111 root      20   0  273160   6300   3080 S   0.3  0.0  25:18.55 redis-server</span></span>
-<span class="line"><span style="color:#f8f8f2">3199297 root      20   0 1563160  44812   9624 S   0.3  0.1  31:13.73 falcon-agent</span></span></code></pre><h2 id="总结">总结</h2><p>sandox 创建失败的原因是各种各样的, 如[memory 设置错误触发的异常][1],[dockerd 异常][2].</p><p>针对此处问题是由于某些测试 pod 通过<code>while true; do echo hello; done</code>启动,死循环一直<code>echo hello</code>产生大量<code>read()</code>系统调用,所在 cpu 飙升.多个类似 pod 导致系统非常繁忙,无法正常处理其他请求.</p><p>此类问题不容易在 pod 创建时直接检测到,只能通过添加物理节点相关报警(dockerd cpu 使用率, node cpu.sys 使用率)及时发现问题.</p><h2 id="引用">引用</h2><ul><li><a href="https://github.com/kubernetes/kubernetes/issues/56996">https://github.com/kubernetes/kubernetes/issues/56996</a></li><li><a href="https://plugaru.org/2018/05/21/pod-sandbox-changed-it-will-be-killed-and-re-created/">https://plugaru.org/2018/05/21/pod-sandbox-changed-it-will-be-killed-and-re-created/</a></li></ul></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/docker" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#docker</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="/" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noodp" />
+    <title class="pjax-title">
+        pod sandbox 创建失败
+        
+    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="pod sandbox 创建失败" />
+<meta property="og:description" content="背景今天在k8s更新服务时,发现pod启动失败,报错failed to start sandbox container,如下所示: Events: Type Reason Age From Message ---- ------ ---- ---- ------- Normal Scheduled 28m default-scheduler Successfully assigned kube-system/k8s-proxy-7wkt4 to tj1-staging-com-ocean007-201812.kscn Warning FailedCreatePodSandBox 28m (x13 over 28m) kubelet, tj1-staging-com-ocean007-201812.kscn Failed create pod sandbox: rpc error: code = Unknown desc = failed to start sandbox container for pod &#34;k8s-proxy-7wkt4&#34;: Error response from" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://qingwave.github.io/pod-sandbox-recreated/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2020-03-18T18:22:05+00:00" />
+<meta property="article:modified_time" content="2021-12-12T04:54:36+00:00" /><meta property="og:site_name" content="Qingwave" />
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
+
+<meta name="twitter:title" content="pod sandbox 创建失败"/>
+<meta name="twitter:description" content="背景今天在k8s更新服务时,发现pod启动失败,报错failed to start sandbox container,如下所示: Events: Type Reason Age From Message ---- ------ ---- ---- ------- Normal Scheduled 28m default-scheduler Successfully assigned kube-system/k8s-proxy-7wkt4 to tj1-staging-com-ocean007-201812.kscn Warning FailedCreatePodSandBox 28m (x13 over 28m) kubelet, tj1-staging-com-ocean007-201812.kscn Failed create pod sandbox: rpc error: code = Unknown desc = failed to start sandbox container for pod &#34;k8s-proxy-7wkt4&#34;: Error response from"/>
+<meta name="application-name" content="Qingwave">
+<meta name="apple-mobile-web-app-title" content="Qingwave">
+
+<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/pod-sandbox-recreated/" /><link rel="prev" href="https://qingwave.github.io/wsl2-vscode/" /><link rel="next" href="https://qingwave.github.io/ingress-nginx-controller-admission-webhook/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
+        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
+    {
+        "@context": "http://schema.org",
+        "@type": "BlogPosting",
+        "headline": "pod sandbox 创建失败",
+        "inLanguage": "zh-CN",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https:\/\/qingwave.github.io\/pod-sandbox-recreated\/"
+        },"genre": "posts","keywords": "k8s, docker","wordcount":  1294 ,
+        "url": "https:\/\/qingwave.github.io\/pod-sandbox-recreated\/","datePublished": "2020-03-18T18:22:05+00:00","dateModified": "2021-12-12T04:54:36+00:00","publisher": {
+            "@type": "Organization",
+            "name": ""},"author": {
+                "@type": "Person",
+                "name": "qinng"
+            },"description": ""
+    }
+    </script></head>
+
+<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
+        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
+        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
+        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
+        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
+        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
+        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
+    </script>
+    <div id="back-to-top"></div>
+    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+        </div>
+    </div>
+</header><header class="mobile" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div>
+<main class="main">
+            <div class="container"><div class="toc" id="toc-auto">
+        <h2 class="toc-title">目录</h2>
+        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#背景">背景</a></li>
+    <li><a href="#分析">分析</a></li>
+    <li><a href="#总结">总结</a></li>
+    <li><a href="#引用">引用</a></li>
+  </ul>
+</nav></div>
+    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">pod sandbox 创建失败</h1><div class="post-meta">
+            <div class="post-meta-line"><time datetime="Mar 18, 2020">Mar 18, 2020</time>
+            </div>
+        </div><div class="details toc" id="toc-static"  kept="">
+                <div class="details-summary toc-title">
+                    <span>目录</span>
+                    <span><i class="details-icon fas fa-angle-right"></i></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#背景">背景</a></li>
+    <li><a href="#分析">分析</a></li>
+    <li><a href="#总结">总结</a></li>
+    <li><a href="#引用">引用</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content"><h2 id="背景" class="headerLink">
+    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>今天在k8s更新服务时,发现pod启动失败,报错<code>failed to start sandbox container</code>,如下所示:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">Events:
+</span></span><span class="line"><span class="cl">  Type     Reason                  Age                     From                                           Message
+</span></span><span class="line"><span class="cl">  ----     ------                  ----                    ----                                           -------
+</span></span><span class="line"><span class="cl">  Normal   Scheduled               28m                     default-scheduler                              Successfully assigned kube-system/k8s-proxy-7wkt4 to tj1-staging-com-ocean007-201812.kscn
+</span></span><span class="line"><span class="cl">  Warning  FailedCreatePodSandBox  28m <span class="o">(</span>x13 over 28m<span class="o">)</span>      kubelet, tj1-staging-com-ocean007-201812.kscn  Failed create pod sandbox: rpc error: <span class="nv">code</span> <span class="o">=</span> Unknown <span class="nv">desc</span> <span class="o">=</span> failed to start sandbox container <span class="k">for</span> pod <span class="s2">&#34;k8s-proxy-7wkt4&#34;</span>: Error response from daemon: OCI runtime create failed: container_linux.go:345: starting container process caused <span class="s2">&#34;process_linux.go:297: getting the final child&#39;s pid from pipe caused \&#34;EOF\&#34;&#34;</span>: unknown
+</span></span><span class="line"><span class="cl">  Normal   SandboxChanged          3m19s <span class="o">(</span>x1364 over 28m<span class="o">)</span>  kubelet, tj1-staging-com-ocean007-201812.kscn  Pod sandbox changed, it will be killed and re-created.
+</span></span></code></pre></div><h2 id="分析" class="headerLink">
+    <a href="#%e5%88%86%e6%9e%90" class="header-mark"></a>分析</h2><p>sandbox 创建失败只是表象,是宿主机其他异常导致的,一般是(cpu,diskio,mem)导致的.</p>
+<p>首先,上节点看kubelet,docker有无异常,日志没有明显错误,通过<code>top</code>看到docker cpu占用非常高</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="o">[</span>root@tj1-staging-com-ocean007-201812 ~<span class="o">]</span><span class="c1"># top</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">top - 17:55:00 up <span class="m">265</span> days,  3:41,  <span class="m">1</span> user,  load average: 10.71, 11.34, 10.76
+</span></span><span class="line"><span class="cl">Tasks: <span class="m">816</span> total,   <span class="m">5</span> running, <span class="m">811</span> sleeping,   <span class="m">0</span> stopped,   <span class="m">0</span> zombie
+</span></span><span class="line"><span class="cl">%Cpu<span class="o">(</span>s<span class="o">)</span>: 24.0 us, 34.5 sy,  0.0 ni, 41.4 id,  0.0 wa,  0.0 hi,  0.1 si,  0.0 st
+</span></span><span class="line"><span class="cl">KiB Mem : <span class="m">65746380</span> total, <span class="m">20407940</span> free, <span class="m">11007040</span> used, <span class="m">34331400</span> buff/cache
+</span></span><span class="line"><span class="cl">KiB Swap:        <span class="m">0</span> total,        <span class="m">0</span> free,        <span class="m">0</span> used. <span class="m">49134416</span> avail Mem 
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND                                                                                                                                      
+</span></span><span class="line"><span class="cl"> <span class="m">115483</span> root      <span class="m">20</span>   <span class="m">0</span> <span class="m">3965212</span> <span class="m">273188</span>  <span class="m">34564</span> S 489.7  0.4 382260:40 dockerd                                                                                                                                      
+</span></span><span class="line"><span class="cl"><span class="m">1367523</span> root      <span class="m">20</span>   <span class="m">0</span>   <span class="m">18376</span>   <span class="m">2972</span>   <span class="m">2716</span> R  66.9  0.0  20163:45 bash                                                                                                                                         
+</span></span><span class="line"><span class="cl"><span class="m">1367487</span> root      <span class="m">20</span>   <span class="m">0</span>   <span class="m">11856</span>   <span class="m">5616</span>   <span class="m">4512</span> S  54.0  0.0  16748:26 containerd-shim                                                                                                                              
+</span></span><span class="line"><span class="cl"><span class="m">3200169</span> root      <span class="m">20</span>   <span class="m">0</span>    <span class="m">1300</span>      <span class="m">4</span>      <span class="m">0</span> R  53.3  0.0  14913:49 sh                                                                                                                                           
+</span></span><span class="line"><span class="cl"><span class="m">2429952</span> root      <span class="m">20</span>   <span class="m">0</span>    <span class="m">1300</span>      <span class="m">4</span>      <span class="m">0</span> S  49.3  0.0   9620:56 sh                                                                                                                                           
+</span></span><span class="line"><span class="cl"><span class="m">3200130</span> root      <span class="m">20</span>   <span class="m">0</span>    <span class="m">9392</span>   <span class="m">4756</span>   <span class="m">3884</span> S  47.7  0.0  13417:30 containerd-shim                                                                                                                              
+</span></span><span class="line"><span class="cl"><span class="m">3718475</span> root      <span class="m">20</span>   <span class="m">0</span>    <span class="m">1300</span>      <span class="m">4</span>      <span class="m">0</span> R  47.4  0.0   8600:20 sh                                                                                                                                           
+</span></span><span class="line"><span class="cl"><span class="m">3718440</span> root      <span class="m">20</span>   <span class="m">0</span>   <span class="m">10736</span>   <span class="m">5516</span>   <span class="m">4512</span> S  42.1  0.0   7575:31 containerd-shim                                                                                                                              
+</span></span><span class="line"><span class="cl"><span class="m">2429917</span> root      <span class="m">20</span>   <span class="m">0</span>   <span class="m">11856</span>   <span class="m">5556</span>   <span class="m">4512</span> S  40.1  0.0   8313:22 containerd-shim                                                                                                                              
+</span></span><span class="line"><span class="cl"><span class="m">3205493</span> root      <span class="m">20</span>   <span class="m">0</span> <span class="m">3775924</span> <span class="m">230996</span>  <span class="m">66704</span> S  18.9  0.4   2559:07 kubelet                                                                                                                                      
+</span></span><span class="line"><span class="cl">      <span class="m">1</span> root      <span class="m">20</span>   <span class="m">0</span>  <span class="m">195240</span> <span class="m">157000</span>   <span class="m">3932</span> S   7.9  0.2   1417:46 systemd                                                                                                                                      
+</span></span><span class="line"><span class="cl">    <span class="m">804</span> dbus      <span class="m">20</span>   <span class="m">0</span>   <span class="m">30308</span>   <span class="m">6460</span>   <span class="m">2464</span> S   1.7  0.0 462:18.84 dbus-daemon                                                                                                                                  
+</span></span><span class="line"><span class="cl"><span class="m">1011737</span> root      <span class="m">20</span>   <span class="m">0</span>  <span class="m">277656</span> <span class="m">122788</span>  <span class="m">18428</span> S   1.3  0.2 768:03.00 cadvisor                                                                                                                                     
+</span></span><span class="line"><span class="cl"> <span class="m">115508</span> root      <span class="m">20</span>   <span class="m">0</span> <span class="m">7139200</span>  <span class="m">32896</span>  <span class="m">24288</span> S   1.0  0.1 662:25.27 containerd                                                                                                                                   
+</span></span><span class="line"><span class="cl">    <span class="m">806</span> root      <span class="m">20</span>   <span class="m">0</span>   <span class="m">24572</span>   <span class="m">3060</span>   <span class="m">2480</span> S   0.7  0.0 171:22.52 systemd-logind                                                                                                                               
+</span></span><span class="line"><span class="cl"> <span class="m">511080</span> root       <span class="m">0</span> -20 <span class="m">2751348</span>  <span class="m">52552</span>  <span class="m">15744</span> S   0.7  0.1 178:27.51 sagent                                                                                                                                       
+</span></span><span class="line"><span class="cl"><span class="m">1102507</span> root      <span class="m">20</span>   <span class="m">0</span>   <span class="m">11792</span>   <span class="m">7292</span>   <span class="m">4512</span> S   0.7  0.0  23:36.37 containerd-shim                                                                                                                              
+</span></span><span class="line"><span class="cl"><span class="m">1272223</span> root      <span class="m">20</span>   <span class="m">0</span>  <span class="m">164800</span>   <span class="m">5296</span>   <span class="m">3824</span> R   0.7  0.0   0:00.38 top                                                                                                                                          
+</span></span><span class="line"><span class="cl"><span class="m">2866292</span> root      <span class="m">20</span>   <span class="m">0</span> <span class="m">5045000</span> 1.983g   <span class="m">3080</span> S   0.7  3.2 230:09.47 redis
+</span></span></code></pre></div><p>同时, cpu system异常高.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">%Cpu<span class="o">(</span>s<span class="o">)</span>: 24.0 us, 34.5 sy,  0.0 ni, 41.4 id,  0.0 wa,  0.0 hi,  0.1 si,  0.0 st
+</span></span></code></pre></div><p>按照以前的经验,一般是由某些容器引起的,通过<code>top</code>看到个别<code>sh</code>进程占用cpu较高.</p>
+<p>通过<code>ps</code>看到进程居然是个死循环</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="o">[</span>root@tj1-staging-com-ocean007-201812 ~<span class="o">]</span><span class="c1"># ps -ef |grep 1367523</span>
+</span></span><span class="line"><span class="cl">root     <span class="m">1287628</span> <span class="m">1247781</span>  <span class="m">0</span> 17:55 pts/1    00:00:00 grep --color<span class="o">=</span>auto <span class="m">1367523</span>
+</span></span><span class="line"><span class="cl">root     <span class="m">1367523</span> <span class="m">1367504</span> <span class="m">72</span> Feb28 ?        14-00:04:17 /bin/bash -c <span class="k">while</span> true<span class="p">;</span> <span class="k">do</span> <span class="nb">echo</span> hello<span class="p">;</span> <span class="k">done</span>
+</span></span></code></pre></div><p>通过<code>/proc/pid/cgroup</code>找到对应容器</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># cat /proc/1367523/cgroup</span>
+</span></span><span class="line"><span class="cl">11:freezer:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">10:devices:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">9:hugetlb:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">8:blkio:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">7:memory:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">6:perf_event:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">5:cpuset:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">4:pids:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">3:net_cls,net_prio:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">2:cpu,cpuacct:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span><span class="line"><span class="cl">1:name<span class="o">=</span>systemd:/kubepods/besteffort/pod55d3adf2-67f7-11ea-93f2-246e968203b8/29842d5544b701dbb5ff647dba19bb4ebec821edc6ee1ffbd7aeee58fa5038fd
+</span></span></code></pre></div><p>找到对应容器</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">docker ps <span class="p">|</span> grep 29842d554
+</span></span></code></pre></div><p>清理完相关pod后,系统恢复正常</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">top - 18:25:57 up 265 days,  4:12,  1 user,  load average: 1.05, 1.24, 4.02
+</span></span><span class="line"><span class="cl">Tasks: 769 total,   1 running, 768 sleeping,   0 stopped,   0 zombie
+</span></span><span class="line"><span class="cl">%Cpu(s):  1.7 us,  0.9 sy,  0.0 ni, 97.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+</span></span><span class="line"><span class="cl">KiB Mem : 65746380 total, 22106960 free, 10759860 used, 32879560 buff/cache
+</span></span><span class="line"><span class="cl">KiB Swap:        0 total,        0 free,        0 used. 49401576 avail Mem 
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND                                                                                                                                      
+</span></span><span class="line"><span class="cl">3205493 root      20   0 3775924 229844  66704 S   9.9  0.3   2563:18 kubelet                                                                                                                                      
+</span></span><span class="line"><span class="cl"> 115483 root      20   0 3965468 249124  34564 S   7.9  0.4 382323:36 dockerd                                                                                                                                      
+</span></span><span class="line"><span class="cl">      1 root      20   0  195240 157000   3932 S   6.3  0.2   1419:48 systemd                                                                                                                                      
+</span></span><span class="line"><span class="cl">    804 dbus      20   0   30308   6460   2464 S   2.0  0.0 462:51.51 dbus-daemon                                                                                                                                  
+</span></span><span class="line"><span class="cl">3085322 root      20   0 12.045g 1.578g  19028 S   1.3  2.5 767:51.19 java                                                                                                                                         
+</span></span><span class="line"><span class="cl"> 115508 root      20   0 7139200  32264  24288 S   1.0  0.0 662:42.18 containerd                                                                                                                                   
+</span></span><span class="line"><span class="cl"> 511080 root       0 -20 2751348  42116  15744 S   1.0  0.1 178:44.79 sagent                                                                                                                                       
+</span></span><span class="line"><span class="cl">1011737 root      20   0  277656 111836  18428 S   1.0  0.2 768:49.01 cadvisor                                                                                                                                     
+</span></span><span class="line"><span class="cl">1523167 root      20   0  164800   5436   4012 R   0.7  0.0   0:00.04 top                                                                                                                                          
+</span></span><span class="line"><span class="cl">3199459 root      20   0 1554708  43668   9496 S   0.7  0.1  28:50.60 falcon-agent                                                                                                                                 
+</span></span><span class="line"><span class="cl">      7 root      20   0       0      0      0 S   0.3  0.0 619:07.64 rcu_sched                                                                                                                                    
+</span></span><span class="line"><span class="cl">    806 root      20   0   24572   3060   2480 S   0.3  0.0 171:33.69 systemd-logind                                                                                                                               
+</span></span><span class="line"><span class="cl">  11921 root      20   0   94820  20480   5840 S   0.3  0.0   1402:42 consul                                                                                                                                       
+</span></span><span class="line"><span class="cl"> 575838 root      20   0  411464  17092   7364 S   0.3  0.0  15:16.25 python                                                                                                                                       
+</span></span><span class="line"><span class="cl"> 856593 root      20   0 1562392  37912   9612 S   0.3  0.1  21:34.23 falcon-agent                                                                                                                                 
+</span></span><span class="line"><span class="cl"> 931957 33        20   0   90728   3392   1976 S   0.3  0.0   0:51.23 nginx                                                                                                                                        
+</span></span><span class="line"><span class="cl">1212186 root      20   0       0      0      0 S   0.3  0.0   0:01.12 kworker/14:1                                                                                                                                 
+</span></span><span class="line"><span class="cl">1726228 root      20   0    9392   4496   3808 S   0.3  0.0   0:00.67 containerd-shim                                                                                                                              
+</span></span><span class="line"><span class="cl">1887128 root      20   0  273160   7932   3128 S   0.3  0.0  46:05.23 redis-server                                                                                                                                 
+</span></span><span class="line"><span class="cl">2788111 root      20   0  273160   6300   3080 S   0.3  0.0  25:18.55 redis-server                                                                                                                                 
+</span></span><span class="line"><span class="cl">3199297 root      20   0 1563160  44812   9624 S   0.3  0.1  31:13.73 falcon-agent     
+</span></span></code></pre></div><h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>sandox创建失败的原因是各种各样的, 如[memory设置错误触发的异常][1],[dockerd异常][2].</p>
+<p>针对此处问题是由于某些测试pod通过<code>while true; do echo hello; done</code>启动,死循环一直<code>echo hello</code>产生大量<code>read()</code>系统调用,所在cpu飙升.多个类似pod导致系统非常繁忙,无法正常处理其他请求.</p>
+<p>此类问题不容易在pod创建时直接检测到,只能通过添加物理节点相关报警(dockerd cpu使用率, node cpu.sys使用率)及时发现问题.</p>
+<h2 id="引用" class="headerLink">
+    <a href="#%e5%bc%95%e7%94%a8" class="header-mark"></a>引用</h2><ul>
+<li><a href="https://github.com/kubernetes/kubernetes/issues/56996" target="_blank" rel="noopener noreffer">https://github.com/kubernetes/kubernetes/issues/56996</a></li>
+<li><a href="https://plugaru.org/2018/05/21/pod-sandbox-changed-it-will-be-killed-and-re-created/" target="_blank" rel="noopener noreffer">https://plugaru.org/2018/05/21/pod-sandbox-changed-it-will-be-killed-and-re-created/</a></li>
+</ul>
+</div>
+
+        
+        <div class="post-footer" id="post-footer">
+    <div class="post-meta-line"><span class="single-tag">
+                <a href='/tags/k8s/'>#k8s</a>
+                    <span class="separator"> </span>
+                <a href='/tags/docker/'>#docker</a></span></div>
+
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-link">
+                <a href='/about'>About Me</a>
+            </div>
+        </div>
+        <div class="post-info-line">
+            <div class="post-info-md"></div>
+        </div>
+    </div><div class="post-nav"><a href="/wsl2-vscode/" class="prev" rel="prev" title="WSL2&#43;VSCode&#43;Zsh打造Windows下Linux开发环境"><i class="fas fa-angle-left fa-fw"></i>WSL2&#43;VSCode&#43;Zsh打造Windows下Linux开发环境</a>
+            <a href="/ingress-nginx-controller-admission-webhook/" class="next" rel="next" title="nginx ingress controller 最后的倔强: admission webhook">nginx ingress controller 最后的倔强: admission webhook<i class="fas fa-angle-right fa-fw"></i></a></div></div>
+<div id="comments"><div id="giscus"></div><noscript>
+                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
+            </noscript></div></article></div>
+        </main><footer class="footer">
+        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
+            <div class="footer-line"></div>
+            <div class="footer-line">
+            </div>
+        </div></footer></div>
+
+    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
+            <i class="fas fa-arrow-up fa-fw"></i>
+        </a>
+    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
+            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
+            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
+        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
+
+<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
+</body>
+
+</html>

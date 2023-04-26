@@ -1,0 +1,48 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>wsl - 标签 - Qingwave</title>
+        <link>https://qingwave.github.io/tags/wsl/</link>
+        <description>wsl - 标签 - Qingwave</description>
+        <generator>Hugo -- gohugo.io</generator><language>zh-CN</language><managingEditor>isguory@gmail.com (Qingwave)</managingEditor>
+            <webMaster>isguory@gmail.com (Qingwave)</webMaster><lastBuildDate>Tue, 11 Feb 2020 23:51:51 &#43;0000</lastBuildDate><atom:link href="https://qingwave.github.io/tags/wsl/" rel="self" type="application/rss+xml" /><item>
+    <title>WSL2&#43;VSCode&#43;Zsh打造Windows下Linux开发环境</title>
+    <link>https://qingwave.github.io/wsl2-vscode/</link>
+    <pubDate>Tue, 11 Feb 2020 23:51:51 &#43;0000</pubDate><author>
+        <name>qinng</name>
+    </author><guid>https://qingwave.github.io/wsl2-vscode/</guid>
+    <description><![CDATA[<p>一直以来使用Ubuntu开发，前两天Ubuntu桌面环境崩了，一些工作软件在Ubuntu下很不好用，恰好WSL2(Windows Linux子系统)发布已经有一段日子，而且支持了Docker，上手看看可用性如何。</p>
+<h2 id="配置wsl2" class="headerLink">
+    <a href="#%e9%85%8d%e7%bd%aewsl2" class="header-mark"></a>配置WSL2</h2><h3 id="必要条件" class="headerLink">
+    <a href="#%e5%bf%85%e8%a6%81%e6%9d%a1%e4%bb%b6" class="header-mark"></a>必要条件</h3><ul>
+<li>Windows 10 Build 18917或更新版本</li>
+<li>启用虚拟化</li>
+</ul>
+<h3 id="安装步骤" class="headerLink">
+    <a href="#%e5%ae%89%e8%a3%85%e6%ad%a5%e9%aa%a4" class="header-mark"></a>安装步骤</h3><ul>
+<li>启用“虚拟机平台”可选组件，以管理员身份打开 PowerShell 并运行：
+<code>Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform</code></li>
+<li>启用安装子系统
+<code>Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux</code>
+启用这些更改后，你需要重新启动计算机。</li>
+<li>应用商店安装ubuntu，如<code>Ubuntu-18.04</code></li>
+<li>使用命令行设置要由 WSL 2 支持的发行版，在 PowerShell 中运行：
+<code>wsl --set-version &lt;Distro&gt; 2</code></li>
+</ul>
+<h3 id="配置ubuntu" class="headerLink">
+    <a href="#%e9%85%8d%e7%bd%aeubuntu" class="header-mark"></a>配置Ubuntu</h3><p>配置源，配置Sudo免密码，安装必要软件Python、Git、Docker等，终端美化可通过安装Zsh&hellip;</p>
+<h2 id="安装vscode-wsl插件" class="headerLink">
+    <a href="#%e5%ae%89%e8%a3%85vscode-wsl%e6%8f%92%e4%bb%b6" class="header-mark"></a>安装VSCode WSL插件</h2><p>VSCode已经支持了<a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-wsl" target="_blank" rel="noopener noreffer">WSL插件</a></p>
+<p>最终界面如下：
+
+
+</p>
+<h2 id="总结" class="headerLink">
+    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>可以愉快的使用VSCode开发，目前也发现了几点小问题：</p>
+<ul>
+<li>Vscode Terminal改为WSL后，启动会有1-2秒延时</li>
+<li>WSL2中的软件配置开机自启比较麻烦，网上有方案，我是通过快捷命令如启动 Docker <code>alias sds=&quot;sudo service docker start&quot;</code></li>
+<li>WSL2本质是个虚拟机，网络方式和本地有一定差异，对我来说影响不大</li>
+</ul>
+<p>目前在家办公已两周，此方案感觉良好。</p>]]></description>
+</item></channel>
+</rss>
