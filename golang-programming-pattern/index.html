@@ -1,383 +1,190 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>Golang优雅之道</title><meta content="index,follow" name="robots"/><meta content="Golang优雅之道" property="og:title"/><meta content="https://qingwave.github.io/golang-programming-pattern" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/golang-programming-pattern" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noodp" />
-    <title class="pjax-title">
-        Golang优雅之道
-        
-    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="Golang优雅之道" />
-<meta property="og:description" content="借助一些设计模式、流式编程、函数编程的方法可以让我们的Golang代码更清晰优雅，本文中描述了在错误处理、可选配置、并发控制等方面的优化手段。 链式错误处理很多人不喜欢Go的错误处理，需要写大量if err !=" />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://qingwave.github.io/golang-programming-pattern/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
-<meta property="article:published_time" content="2022-09-12T14:57:10+08:00" />
-<meta property="article:modified_time" content="2023-02-14T03:00:46+00:00" /><meta property="og:site_name" content="Qingwave" />
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
-
-<meta name="twitter:title" content="Golang优雅之道"/>
-<meta name="twitter:description" content="借助一些设计模式、流式编程、函数编程的方法可以让我们的Golang代码更清晰优雅，本文中描述了在错误处理、可选配置、并发控制等方面的优化手段。 链式错误处理很多人不喜欢Go的错误处理，需要写大量if err !="/>
-<meta name="application-name" content="Qingwave">
-<meta name="apple-mobile-web-app-title" content="Qingwave">
-
-<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/golang-programming-pattern/" /><link rel="prev" href="https://qingwave.github.io/wedding-invitation/" /><link rel="next" href="https://qingwave.github.io/config-reload/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
-    {
-        "@context": "http://schema.org",
-        "@type": "BlogPosting",
-        "headline": "Golang优雅之道",
-        "inLanguage": "zh-CN",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": "https:\/\/qingwave.github.io\/golang-programming-pattern\/"
-        },"genre": "posts","keywords": "golang","wordcount":  1694 ,
-        "url": "https:\/\/qingwave.github.io\/golang-programming-pattern\/","datePublished": "2022-09-12T14:57:10+08:00","dateModified": "2023-02-14T03:00:46+00:00","publisher": {
-            "@type": "Organization",
-            "name": ""},"author": {
-                "@type": "Person",
-                "name": "Qingwave"
-            },"description": ""
-    }
-    </script></head>
-
-<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
-        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
-        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
-        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
-        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
-        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
-        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
-    </script>
-    <div id="back-to-top"></div>
-    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
-    <div class="header-wrapper">
-        <div class="header-title">
-            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
-        </div>
-        <div class="menu">
-            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-        </div>
-    </div>
-</header><header class="mobile" id="header-mobile">
-    <div class="header-container">
-        <div class="header-wrapper">
-            <div class="header-title">
-                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
-            </div>
-            <div class="menu-toggle" id="menu-toggle-mobile">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-    </div>
-</header>
-<div class="search-dropdown desktop">
-    <div id="search-dropdown-desktop"></div>
-</div>
-<div class="search-dropdown mobile">
-    <div id="search-dropdown-mobile"></div>
-</div>
-<main class="main">
-            <div class="container"><div class="toc" id="toc-auto">
-        <h2 class="toc-title">目录</h2>
-        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#链式错误处理">链式错误处理</a></li>
-    <li><a href="#可选配置">可选配置</a></li>
-    <li><a href="#并发控制">并发控制</a>
-      <ul>
-        <li><a href="#errgroup">ErrGroup</a></li>
-        <li><a href="#控制并发数">控制并发数</a></li>
-        <li><a href="#mapreduce">MapReduce</a></li>
-      </ul>
-    </li>
-    <li><a href="#总结">总结</a></li>
-  </ul>
-</nav></div>
-    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">Golang优雅之道</h1><div class="post-meta">
-            <div class="post-meta-line"><time datetime="Sep 12, 2022">Sep 12, 2022</time>
-            </div>
-        </div><div class="details toc" id="toc-static"  kept="">
-                <div class="details-summary toc-title">
-                    <span>目录</span>
-                    <span><i class="details-icon fas fa-angle-right"></i></span>
-                </div>
-                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#链式错误处理">链式错误处理</a></li>
-    <li><a href="#可选配置">可选配置</a></li>
-    <li><a href="#并发控制">并发控制</a>
-      <ul>
-        <li><a href="#errgroup">ErrGroup</a></li>
-        <li><a href="#控制并发数">控制并发数</a></li>
-        <li><a href="#mapreduce">MapReduce</a></li>
-      </ul>
-    </li>
-    <li><a href="#总结">总结</a></li>
-  </ul>
-</nav></div>
-            </div><div class="content" id="content"><p>借助一些设计模式、流式编程、函数编程的方法可以让我们的Golang代码更清晰优雅，本文中描述了在错误处理、可选配置、并发控制等方面的优化手段。</p>
-<h2 id="链式错误处理" class="headerLink">
-    <a href="#%e9%93%be%e5%bc%8f%e9%94%99%e8%af%af%e5%a4%84%e7%90%86" class="header-mark"></a>链式错误处理</h2><p>很多人不喜欢Go的错误处理，需要写大量<code>if err != nil</code>的代码，特别是在一些复杂步骤场景中，每一步都要判断结果是否出错。在这种情况中，可以通过类似链式调用将错误封装在其中。</p>
-<p>比如在对象中附带一个error属性，在每一步调用中如果error不为空直接返回</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Handler</span> <span class="kd">struct</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">props</span> <span class="kd">interface</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="nx">err</span> <span class="kt">error</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">h</span> <span class="o">*</span><span class="nx">Handler</span><span class="p">)</span> <span class="nf">Err</span><span class="p">()</span> <span class="kt">error</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">h</span><span class="p">.</span><span class="nx">err</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">h</span> <span class="o">*</span><span class="nx">Handler</span><span class="p">)</span> <span class="nf">Step1</span><span class="p">()</span> <span class="o">*</span><span class="nx">Handler</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">h</span><span class="p">.</span><span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">h</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// do something for step2
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">return</span> <span class="nx">h</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">h</span> <span class="o">*</span><span class="nx">Handler</span><span class="p">)</span> <span class="nf">Step2</span><span class="p">()</span> <span class="o">*</span><span class="nx">Handler</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nx">h</span><span class="p">.</span><span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nx">h</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// do something fot step2
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">return</span> <span class="nx">h</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1">// ... StepN()
-</span></span></span></code></pre></div><p>调用时直接通过链式调用即可，最后再判断错误</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="nx">h</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">Handler</span><span class="p">{}</span>
-</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">h</span><span class="p">.</span><span class="nf">Step1</span><span class="p">().</span><span class="nf">Step2</span><span class="p">().</span><span class="nf">StepN</span><span class="p">().</span><span class="nf">Err</span><span class="p">();</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">// handle error
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
-</span></span></code></pre></div><p>这种方式在一些数据库包中有大量使用，比如<code>etcd</code>、<code>gorm</code>。</p>
-<h2 id="可选配置" class="headerLink">
-    <a href="#%e5%8f%af%e9%80%89%e9%85%8d%e7%bd%ae" class="header-mark"></a>可选配置</h2><p>在创建对象时，如果可配置的属性很多，通常会引入一个配置文件</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Config</span> <span class="kd">struct</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">Port</span> <span class="kt">string</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">Host</span> <span class="kt">string</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">Timeout</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">// ...
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">NewServer</span><span class="p">(</span><span class="nx">conf</span> <span class="o">*</span><span class="nx">Config</span><span class="p">)</span> <span class="o">*</span><span class="nx">Server</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>通常这些配置都有默认值，config也不是必须的，通过建造者模式可以轻松解决此类问题</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="nx">builder</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">Builder</span><span class="p">{}</span>
-</span></span><span class="line"><span class="cl"><span class="nx">server</span> <span class="o">:=</span> <span class="nx">builder</span><span class="p">.</span><span class="nf">WithPort</span><span class="p">(</span><span class="s">&#34;8080&#34;</span><span class="p">).</span><span class="nf">WithHost</span><span class="p">(</span><span class="s">&#34;0.0.0.0&#34;</span><span class="p">).</span><span class="nf">WithTimeOut</span><span class="p">(</span><span class="mi">10</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">).</span><span class="nf">Complete</span><span class="p">()</span>
-</span></span></code></pre></div><p>但建造者需要写一个建造类，配置对应的属性设置方法</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Builder</span> <span class="kd">struct</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">server</span> <span class="nx">Server</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">Builder</span><span class="p">)</span> <span class="nf">WithPort</span><span class="p">(</span><span class="nx">port</span> <span class="kt">string</span><span class="p">)</span> <span class="o">*</span><span class="nx">Builder</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">b</span><span class="p">.</span><span class="nx">server</span><span class="p">.</span><span class="nx">port</span> <span class="p">=</span> <span class="nx">port</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">b</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">b</span> <span class="o">*</span><span class="nx">Builder</span><span class="p">)</span> <span class="nf">WithHost</span><span class="p">(</span><span class="nx">host</span> <span class="kt">string</span><span class="p">)</span> <span class="o">*</span><span class="nx">Builder</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">b</span><span class="p">.</span><span class="nx">server</span><span class="p">.</span><span class="nx">host</span> <span class="p">=</span> <span class="nx">host</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">b</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>除了建造者模式，还可以通过可选配置，对调用者更友好，将配置项封装成Option，需要的时候注入对应的Option即可</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Option</span> <span class="kd">func</span><span class="p">(</span><span class="o">*</span><span class="nx">Server</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">type</span> <span class="nf">WithPort</span><span class="p">(</span><span class="nx">port</span> <span class="kt">int</span><span class="p">)</span> <span class="nx">Option</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="kd">func</span><span class="p">(</span><span class="nx">s</span> <span class="o">*</span><span class="nx">Server</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">s</span><span class="p">.</span><span class="nx">port</span> <span class="p">=</span> <span class="nx">port</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">type</span> <span class="nf">WithHost</span><span class="p">(</span><span class="nx">host</span> <span class="kt">int</span><span class="p">)</span> <span class="nx">Option</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="kd">func</span><span class="p">(</span><span class="nx">s</span> <span class="o">*</span><span class="nx">Server</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">s</span><span class="p">.</span><span class="nx">host</span> <span class="p">=</span> <span class="nx">host</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">type</span> <span class="nf">NewServer</span><span class="p">(</span><span class="nx">opts</span> <span class="o">...</span><span class="nx">Option</span><span class="p">)</span> <span class="o">*</span><span class="nx">Server</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">s</span> <span class="o">:=</span> <span class="nf">defaultServer</span><span class="p">()</span> <span class="c1">// 默认配置
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">opt</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">opts</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nf">opt</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span> <span class="c1">// 添加可选配置
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nx">s</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>调用时，只需在NewServer配置对应的Option即可</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="c1">// 默认配置
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">s</span> <span class="o">:=</span> <span class="nf">NewServer</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="c1">// 可选配置
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nx">s</span> <span class="o">:=</span> <span class="nf">NewServer</span><span class="p">(</span><span class="nf">WithPort</span><span class="p">(</span><span class="s">&#34;8080&#34;</span><span class="p">),</span> <span class="nf">WithHost</span><span class="p">(</span><span class="s">&#34;127.0.0.1&#34;</span><span class="p">))</span>
-</span></span></code></pre></div><p>可选配置相比直接使用配置和建造者模式，更加清晰，也非常容易扩展和维护，在kuberentes、etcd库中都有非常多的应用。</p>
-<h2 id="并发控制" class="headerLink">
-    <a href="#%e5%b9%b6%e5%8f%91%e6%8e%a7%e5%88%b6" class="header-mark"></a>并发控制</h2><p>Golang基础库中已经提供不少并发控制工具，比如Channel、WaitGroup、各种锁等等。</p>
-<h3 id="errgroup" class="headerLink">
-    <a href="#errgroup" class="header-mark"></a>ErrGroup</h3><p>WaitGroup可以等待多个Goroutine执行结束，但很多时候并发执行多个任务，如果其中一个任务出错那么整体失败，需要直接返回，这种情况下我们可以使用<a href="https://pkg.go.dev/golang.org/x/sync/errgroup" target="_blank" rel="noopener noreffer">ErrGroup</a></p>
-<p>ErrGroup借助封装了WaitGroup、Once以及Context，调用Wait时如果一个任务失败取消Context直接返回，核心逻辑如下</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">ErrGroup</span> <span class="kd">struct</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">ctx</span>    <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">cancel</span> <span class="kd">func</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="nx">wg</span> <span class="nx">sync</span><span class="p">.</span><span class="nx">WaitGroup</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="nx">errOnce</span> <span class="nx">sync</span><span class="p">.</span><span class="nx">Once</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">err</span>     <span class="kt">error</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">g</span> <span class="o">*</span><span class="nx">ErrGroup</span><span class="p">)</span> <span class="nf">Wait</span><span class="p">()</span> <span class="kt">error</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">g</span><span class="p">.</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">g</span><span class="p">.</span><span class="nx">cancel</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">		<span class="nx">g</span><span class="p">.</span><span class="nf">cancel</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">	<span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="nx">g</span><span class="p">.</span><span class="nx">err</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">g</span> <span class="o">*</span><span class="nx">ErrGroup</span><span class="p">)</span> <span class="nf">Go</span><span class="p">(</span><span class="nx">f</span> <span class="kd">func</span><span class="p">(</span><span class="nx">ctx</span> <span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">g</span><span class="p">.</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="k">go</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">		<span class="k">defer</span> <span class="nx">g</span><span class="p">.</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Done</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">		<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nf">f</span><span class="p">(</span><span class="nx">g</span><span class="p">.</span><span class="nx">ctx</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">            <span class="c1">// 执行失败则运行cancel
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="nx">g</span><span class="p">.</span><span class="nx">errOnce</span><span class="p">.</span><span class="nf">Do</span><span class="p">(</span><span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">				<span class="nx">g</span><span class="p">.</span><span class="nx">err</span> <span class="p">=</span> <span class="nx">err</span>
-</span></span><span class="line"><span class="cl">				<span class="k">if</span> <span class="nx">g</span><span class="p">.</span><span class="nx">cancel</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">					<span class="nx">g</span><span class="p">.</span><span class="nf">cancel</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">				<span class="p">}</span>
-</span></span><span class="line"><span class="cl">			<span class="p">})</span>
-</span></span><span class="line"><span class="cl">		<span class="p">}</span>
-</span></span><span class="line"><span class="cl">	<span class="p">}()</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><h3 id="控制并发数" class="headerLink">
-    <a href="#%e6%8e%a7%e5%88%b6%e5%b9%b6%e5%8f%91%e6%95%b0" class="header-mark"></a>控制并发数</h3><p>借助有缓冲的Channel，可以实现控制Goroutine并发数，逻辑如下：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">NewCtrlGroup</span><span class="p">(</span><span class="nx">number</span> <span class="kt">int</span><span class="p">)</span> <span class="o">*</span><span class="nx">CtrlGroup</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="k">return</span> <span class="o">&amp;</span><span class="nx">CtrlGroup</span><span class="p">{</span>
-</span></span><span class="line"><span class="cl">		<span class="nx">ch</span><span class="p">:</span> <span class="nb">make</span><span class="p">(</span><span class="kd">chan</span> <span class="kd">struct</span><span class="p">{},</span> <span class="nx">number</span><span class="p">),</span>
-</span></span><span class="line"><span class="cl">	<span class="p">}</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">CtrlGroup</span> <span class="kd">struct</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">ch</span> <span class="kd">chan</span> <span class="kd">struct</span><span class="p">{}</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">wg</span> <span class="nx">sync</span><span class="p">.</span><span class="nx">WaitGroup</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">g</span> <span class="o">*</span><span class="nx">CtrlGroup</span><span class="p">)</span> <span class="nf">Enter</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">g</span><span class="p">.</span><span class="nx">ch</span> <span class="o">&lt;-</span> <span class="kd">struct</span><span class="p">{}{}</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">g</span> <span class="o">*</span><span class="nx">CtrlGroup</span><span class="p">)</span> <span class="nf">Leave</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="o">&lt;-</span><span class="nx">g</span><span class="p">.</span><span class="nx">ch</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">g</span> <span class="o">*</span><span class="nx">CtrlGroup</span><span class="p">)</span> <span class="nf">Go</span><span class="p">(</span><span class="nx">f</span> <span class="kd">func</span><span class="p">())</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">g</span><span class="p">.</span><span class="nf">Enter</span><span class="p">()</span> <span class="c1">// 接收到新任务，发送到Channel，如果Channel满需要等待
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">g</span><span class="p">.</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="k">go</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">		<span class="k">defer</span> <span class="nx">g</span><span class="p">.</span><span class="nf">Leave</span><span class="p">()</span> <span class="c1">// 任务结束，取出一个元素
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="k">defer</span> <span class="nx">g</span><span class="p">.</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Done</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">		<span class="nf">f</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">	<span class="p">}()</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="p">(</span><span class="nx">g</span> <span class="o">*</span><span class="nx">CtrlGroup</span><span class="p">)</span> <span class="nf">Wait</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">g</span><span class="p">.</span><span class="nx">wg</span><span class="p">.</span><span class="nf">Wait</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><h3 id="mapreduce" class="headerLink">
-    <a href="#mapreduce" class="header-mark"></a>MapReduce</h3><p>除了WaitGroup、ErrGroup处理一些简单的并发任务，有时候我们需要执行类似MapReduce的操作，通过Map对数据源并行处理，然后通过Reduce合并结果。在Java、Python中提供了类似功能。</p>
-<p>比如实现一个实现一组数据的平方和，利用MapReduce在Golang中实现如下：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl">	<span class="nx">num</span> <span class="o">:=</span> <span class="mi">1000000</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="nx">res</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">mapreduce</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="nx">mapreduce</span><span class="p">.</span><span class="nf">WithWorkers</span><span class="p">(</span><span class="mi">16</span><span class="p">)).</span>
-</span></span><span class="line"><span class="cl">		<span class="nf">From</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">r</span> <span class="nx">mapreduce</span><span class="p">.</span><span class="nx">Writer</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span> <span class="c1">// 产生数据源
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="k">for</span> <span class="nx">i</span> <span class="o">:=</span> <span class="mi">1</span><span class="p">;</span> <span class="nx">i</span> <span class="p">&lt;</span> <span class="nx">num</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">				<span class="nx">r</span><span class="p">.</span><span class="nf">Write</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">			<span class="p">}</span>
-</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="kc">nil</span>
-</span></span><span class="line"><span class="cl">		<span class="p">}).</span>
-</span></span><span class="line"><span class="cl">		<span class="nf">Map</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">item</span> <span class="nx">any</span><span class="p">)</span> <span class="p">(</span><span class="nx">any</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// 处理数据
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="nx">v</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">item</span><span class="p">.(</span><span class="kt">int</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">				<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;invaild type&#34;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">			<span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">			<span class="nx">resp</span> <span class="o">:=</span> <span class="nx">v</span> <span class="o">*</span> <span class="nx">v</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">resp</span><span class="p">,</span> <span class="kc">nil</span>
-</span></span><span class="line"><span class="cl">		<span class="p">}).</span>
-</span></span><span class="line"><span class="cl">		<span class="nf">Reduce</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">r</span> <span class="nx">mapreduce</span><span class="p">.</span><span class="nx">Reader</span><span class="p">)</span> <span class="p">(</span><span class="nx">any</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// 合并结果
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>			<span class="nx">sum</span> <span class="o">:=</span> <span class="mi">0</span>
-</span></span><span class="line"><span class="cl">			<span class="k">for</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">				<span class="nx">item</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.</span><span class="nf">Read</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">				<span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">					<span class="k">break</span>
-</span></span><span class="line"><span class="cl">				<span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">				<span class="nx">v</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">item</span><span class="p">.(</span><span class="kt">int</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">				<span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">					<span class="k">return</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">fmt</span><span class="p">.</span><span class="nf">Errorf</span><span class="p">(</span><span class="s">&#34;invaild type&#34;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">				<span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">				<span class="nx">sum</span> <span class="o">+=</span> <span class="nx">v</span>
-</span></span><span class="line"><span class="cl">			<span class="p">}</span>
-</span></span><span class="line"><span class="cl">			<span class="k">return</span> <span class="nx">sum</span><span class="p">,</span> <span class="kc">nil</span>
-</span></span><span class="line"><span class="cl">		<span class="p">}).</span>
-</span></span><span class="line"><span class="cl">		<span class="nf">Do</span><span class="p">()</span>
-</span></span></code></pre></div><p>主要逻辑是利用Channel（或者线程安全的队列）将源数据发送到Map的执行Worker中，处理完后再转发到Reduce Goroutine中，通过ErrGroup等待所有Worker执行完成。源码见<a href="https://github.com/qingwave/gocorex/tree/main/syncx/mapreduce/mapreduce.go" target="_blank" rel="noopener noreffer">mapreduce.go</a>。</p>
-<p>类似的也可以实现Kubernetes中Controller模式，通过队列或者Channel将生产者与消费者解耦，并行处理提高运行速度。</p>
-<h2 id="总结" class="headerLink">
-    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>本文总结了Golang的一些有趣的编程模式，例如链式调用、可选配置、并发控制等，通过这些技巧或者手段，可以提高编码的质量，所有代码见<a href="https://github.com/qingwave/gocorex" target="_blank" rel="noopener noreffer">gocorex</a>。</p>
-<blockquote>
-<p>Explore more in <a href="https://qingwave.github.io" target="_blank" rel="noopener noreffer">https://qingwave.github.io</a></p>
-</blockquote>
-</div>
-
-        
-        <div class="post-footer" id="post-footer">
-    <div class="post-meta-line"><span class="single-tag">
-                <a href='/tags/golang/'>#golang</a></span></div>
-
-    <div class="post-info">
-        <div class="post-info-line">
-            <div class="post-info-link">
-                <a href='/about'>About Me</a>
-            </div>
-        </div>
-        <div class="post-info-line">
-            <div class="post-info-md"></div>
-        </div>
-    </div><div class="post-nav"><a href="/wedding-invitation/" class="prev" rel="prev" title="程序员的浪漫: 婚礼邀请函小程序"><i class="fas fa-angle-left fa-fw"></i>程序员的浪漫: 婚礼邀请函小程序</a>
-            <a href="/config-reload/" class="next" rel="next" title="如何实现零宕机的配置热加载">如何实现零宕机的配置热加载<i class="fas fa-angle-right fa-fw"></i></a></div></div>
-<div id="comments"><div id="giscus"></div><noscript>
-                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
-            </noscript></div></article></div>
-        </main><footer class="footer">
-        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
-            <div class="footer-line"></div>
-            <div class="footer-line">
-            </div>
-        </div></footer></div>
-
-    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
-            <i class="fas fa-arrow-up fa-fw"></i>
-        </a>
-    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
-            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
-            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
-        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
-
-<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
-</body>
-
-</html>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    window.dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+  gtag("config", id);
+})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.b8ddc4ce.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Mon Sep 12 2022 06:57:10 GMT+0000 (Coordinated Universal Time)">Sep 12, 2022</time> · <a href="/categories/code" class="capitalize hover:underline">code</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">Golang优雅之道</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><p>借助一些设计模式、流式编程、函数编程的方法可以让我们的 Golang 代码更清晰优雅，本文中描述了在错误处理、可选配置、并发控制等方面的优化手段。</p><h2 id="链式错误处理">链式错误处理</h2><p>很多人不喜欢 Go 的错误处理，需要写大量<code>if err != nil</code>的代码，特别是在一些复杂步骤场景中，每一步都要判断结果是否出错。在这种情况中，可以通过类似链式调用将错误封装在其中。</p><p>比如在对象中附带一个 error 属性，在每一步调用中如果 error 不为空直接返回</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">Handler</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">    props </span><span style="color:#ff79c6">interface</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">    err </span><span style="color:#8be9fd">error</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (h </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Handler) </span><span style="color:#50fa7b">Err</span><span style="color:#f8f8f2">() </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> h.err</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (h </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Handler) </span><span style="color:#50fa7b">Step1</span><span style="color:#f8f8f2">() </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Handler {</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> h.err </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> h</span></span>
+<span class="line"><span style="color:#f8f8f2">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// do something for step2</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> h</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (h </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Handler) </span><span style="color:#50fa7b">Step2</span><span style="color:#f8f8f2">() </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Handler {</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> h.err </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> h</span></span>
+<span class="line"><span style="color:#f8f8f2">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// do something fot step2</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> h</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6272a4">// ... StepN()</span></span></code></pre><p>调用时直接通过链式调用即可，最后再判断错误</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">h </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x26;</span><span style="color:#f8f8f2">Handler{}</span></span>
+<span class="line"><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> err </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> h.</span><span style="color:#8be9fd">Step1</span><span style="color:#f8f8f2">().</span><span style="color:#8be9fd">Step2</span><span style="color:#f8f8f2">().</span><span style="color:#8be9fd">StepN</span><span style="color:#f8f8f2">().</span><span style="color:#8be9fd">Err</span><span style="color:#f8f8f2">(); err </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// handle error</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>这种方式在一些数据库包中有大量使用，比如<code>etcd</code>、<code>gorm</code>。</p><h2 id="可选配置">可选配置</h2><p>在创建对象时，如果可配置的属性很多，通常会引入一个配置文件</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">Config</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">    Port </span><span style="color:#8be9fd">string</span></span>
+<span class="line"><span style="color:#f8f8f2">    Host </span><span style="color:#8be9fd">string</span></span>
+<span class="line"><span style="color:#f8f8f2">    Timeout time.Time</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// ...</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> </span><span style="color:#50fa7b">NewServer</span><span style="color:#f8f8f2">(conf </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Config) </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Server {</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>通常这些配置都有默认值，config 也不是必须的，通过建造者模式可以轻松解决此类问题</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">builder </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x26;</span><span style="color:#f8f8f2">Builder{}</span></span>
+<span class="line"><span style="color:#f8f8f2">server </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> builder.</span><span style="color:#8be9fd">WithPort</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">8080</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">).</span><span style="color:#8be9fd">WithHost</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">0.0.0.0</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">).</span><span style="color:#8be9fd">WithTimeOut</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">10</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">time.Second).</span><span style="color:#8be9fd">Complete</span><span style="color:#f8f8f2">()</span></span></code></pre><p>但建造者需要写一个建造类，配置对应的属性设置方法</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">Builder</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">    server Server</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (b </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Builder) </span><span style="color:#50fa7b">WithPort</span><span style="color:#f8f8f2">(port </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">) </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Builder {</span></span>
+<span class="line"><span style="color:#f8f8f2">    b.server.port </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> port</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> b</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (b </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Builder) </span><span style="color:#50fa7b">WithHost</span><span style="color:#f8f8f2">(host </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">) </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Builder {</span></span>
+<span class="line"><span style="color:#f8f8f2">    b.server.host </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> host</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> b</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span></code></pre><p>除了建造者模式，还可以通过可选配置，对调用者更友好，将配置项封装成 Option，需要的时候注入对应的 Option 即可</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">Option</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Server)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">WithPort</span><span style="color:#f8f8f2">(port </span><span style="color:#8be9fd">int</span><span style="color:#f8f8f2">) Option {</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(s </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Server) {</span></span>
+<span class="line"><span style="color:#f8f8f2">        s.port </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> port</span></span>
+<span class="line"><span style="color:#f8f8f2">    }</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">WithHost</span><span style="color:#f8f8f2">(host </span><span style="color:#8be9fd">int</span><span style="color:#f8f8f2">) Option {</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(s </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Server) {</span></span>
+<span class="line"><span style="color:#f8f8f2">        s.host </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> host</span></span>
+<span class="line"><span style="color:#f8f8f2">    }</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">NewServer</span><span style="color:#f8f8f2">(opts </span><span style="color:#ff79c6">...</span><span style="color:#f8f8f2">Option) </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Server {</span></span>
+<span class="line"><span style="color:#f8f8f2">    s </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">defaultServer</span><span style="color:#f8f8f2">() </span><span style="color:#6272a4">// 默认配置</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> _, opt </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">range</span><span style="color:#f8f8f2"> opts {</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#8be9fd">opt</span><span style="color:#f8f8f2">(s) </span><span style="color:#6272a4">// 添加可选配置</span></span>
+<span class="line"><span style="color:#f8f8f2">    }</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> s</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>调用时，只需在 NewServer 配置对应的 Option 即可</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4">// 默认配置</span></span>
+<span class="line"><span style="color:#f8f8f2">s </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">NewServer</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6272a4">// 可选配置</span></span>
+<span class="line"><span style="color:#f8f8f2">s </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">NewServer</span><span style="color:#f8f8f2">(</span><span style="color:#8be9fd">WithPort</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">8080</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">), </span><span style="color:#8be9fd">WithHost</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">127.0.0.1</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">))</span></span></code></pre><p>可选配置相比直接使用配置和建造者模式，更加清晰，也非常容易扩展和维护，在 kuberentes、etcd 库中都有非常多的应用。</p><h2 id="并发控制">并发控制</h2><p>Golang 基础库中已经提供不少并发控制工具，比如 Channel、WaitGroup、各种锁等等。</p><h3 id="errgroup">ErrGroup</h3><p>WaitGroup 可以等待多个 Goroutine 执行结束，但很多时候并发执行多个任务，如果其中一个任务出错那么整体失败，需要直接返回，这种情况下我们可以使用<a href="https://pkg.go.dev/golang.org/x/sync/errgroup">ErrGroup</a></p><p>ErrGroup 借助封装了 WaitGroup、Once 以及 Context，调用 Wait 时如果一个任务失败取消 Context 直接返回，核心逻辑如下</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">ErrGroup</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">	ctx    context.Context</span></span>
+<span class="line"><span style="color:#f8f8f2">	cancel </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	wg sync.WaitGroup</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	errOnce sync.Once</span></span>
+<span class="line"><span style="color:#f8f8f2">	err     </span><span style="color:#8be9fd">error</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (g </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">ErrGroup) </span><span style="color:#50fa7b">Wait</span><span style="color:#f8f8f2">() </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">	g.wg.</span><span style="color:#8be9fd">Wait</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> g.cancel </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">		g.</span><span style="color:#8be9fd">cancel</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"><span style="color:#f8f8f2">	}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> g.err</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (g </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">ErrGroup) </span><span style="color:#50fa7b">Go</span><span style="color:#f8f8f2">(f </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(ctx context.Context) </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2">) {</span></span>
+<span class="line"><span style="color:#f8f8f2">	g.wg.</span><span style="color:#8be9fd">Add</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">1</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">go</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() {</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> g.wg.</span><span style="color:#8be9fd">Done</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> err </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">f</span><span style="color:#f8f8f2">(g.ctx); err </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#6272a4">// 执行失败则运行cancel</span></span>
+<span class="line"><span style="color:#f8f8f2">			g.errOnce.</span><span style="color:#8be9fd">Do</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() {</span></span>
+<span class="line"><span style="color:#f8f8f2">				g.err </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> err</span></span>
+<span class="line"><span style="color:#f8f8f2">				</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> g.cancel </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">					g.</span><span style="color:#8be9fd">cancel</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"><span style="color:#f8f8f2">				}</span></span>
+<span class="line"><span style="color:#f8f8f2">			})</span></span>
+<span class="line"><span style="color:#f8f8f2">		}</span></span>
+<span class="line"><span style="color:#f8f8f2">	}()</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><h3 id="控制并发数">控制并发数</h3><p>借助有缓冲的 Channel，可以实现控制 Goroutine 并发数，逻辑如下：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> </span><span style="color:#50fa7b">NewCtrlGroup</span><span style="color:#f8f8f2">(number </span><span style="color:#8be9fd">int</span><span style="color:#f8f8f2">) </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">CtrlGroup {</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x26;</span><span style="color:#f8f8f2">CtrlGroup{</span></span>
+<span class="line"><span style="color:#f8f8f2">		ch: </span><span style="color:#8be9fd">make</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">chan</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2">{}, number),</span></span>
+<span class="line"><span style="color:#f8f8f2">	}</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">CtrlGroup</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">	ch </span><span style="color:#ff79c6">chan</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2">{}</span></span>
+<span class="line"><span style="color:#f8f8f2">	wg sync.WaitGroup</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (g </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">CtrlGroup) </span><span style="color:#50fa7b">Enter</span><span style="color:#f8f8f2">() {</span></span>
+<span class="line"><span style="color:#f8f8f2">	g.ch </span><span style="color:#ff79c6">&#x3C;-</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2">{}{}</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (g </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">CtrlGroup) </span><span style="color:#50fa7b">Leave</span><span style="color:#f8f8f2">() {</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">&#x3C;-</span><span style="color:#f8f8f2">g.ch</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (g </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">CtrlGroup) </span><span style="color:#50fa7b">Go</span><span style="color:#f8f8f2">(f </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">()) {</span></span>
+<span class="line"><span style="color:#f8f8f2">	g.</span><span style="color:#8be9fd">Enter</span><span style="color:#f8f8f2">() </span><span style="color:#6272a4">// 接收到新任务，发送到Channel，如果Channel满需要等待</span></span>
+<span class="line"><span style="color:#f8f8f2">	g.wg.</span><span style="color:#8be9fd">Add</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">1</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">go</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() {</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> g.</span><span style="color:#8be9fd">Leave</span><span style="color:#f8f8f2">() </span><span style="color:#6272a4">// 任务结束，取出一个元素</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> g.wg.</span><span style="color:#8be9fd">Done</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#8be9fd">f</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"><span style="color:#f8f8f2">	}()</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> (g </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">CtrlGroup) </span><span style="color:#50fa7b">Wait</span><span style="color:#f8f8f2">() {</span></span>
+<span class="line"><span style="color:#f8f8f2">	g.wg.</span><span style="color:#8be9fd">Wait</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><h3 id="mapreduce">MapReduce</h3><p>除了 WaitGroup、ErrGroup 处理一些简单的并发任务，有时候我们需要执行类似 MapReduce 的操作，通过 Map 对数据源并行处理，然后通过 Reduce 合并结果。在 Java、Python 中提供了类似功能。</p><p>比如实现一个实现一组数据的平方和，利用 MapReduce 在 Golang 中实现如下：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">	num </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">1000000</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	res, err </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> mapreduce.</span><span style="color:#8be9fd">New</span><span style="color:#f8f8f2">(mapreduce.</span><span style="color:#8be9fd">WithWorkers</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">16</span><span style="color:#f8f8f2">)).</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#8be9fd">From</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(r mapreduce.Writer) </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2"> { </span><span style="color:#6272a4">// 产生数据源</span></span>
+<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> i </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">1</span><span style="color:#f8f8f2">; i </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#f8f8f2"> num; i</span><span style="color:#ff79c6">++</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">				r.</span><span style="color:#8be9fd">Write</span><span style="color:#f8f8f2">(i)</span></span>
+<span class="line"><span style="color:#f8f8f2">			}</span></span>
+<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span></span>
+<span class="line"><span style="color:#f8f8f2">		}).</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#8be9fd">Map</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(item any) (any, </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2">) { </span><span style="color:#6272a4">// 处理数据</span></span>
+<span class="line"><span style="color:#f8f8f2">			v, ok </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> item.(</span><span style="color:#8be9fd">int</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">!</span><span style="color:#f8f8f2">ok {</span></span>
+<span class="line"><span style="color:#f8f8f2">				</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2">, fmt.</span><span style="color:#8be9fd">Errorf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">invaild type</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">			}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">			resp </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> v </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2"> v</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> resp, </span><span style="color:#bd93f9">nil</span></span>
+<span class="line"><span style="color:#f8f8f2">		}).</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#8be9fd">Reduce</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(r mapreduce.Reader) (any, </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2">) { </span><span style="color:#6272a4">// 合并结果</span></span>
+<span class="line"><span style="color:#f8f8f2">			sum </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">0</span></span>
+<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">				item, ok </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> r.</span><span style="color:#8be9fd">Read</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"><span style="color:#f8f8f2">				</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">!</span><span style="color:#f8f8f2">ok {</span></span>
+<span class="line"><span style="color:#f8f8f2">					</span><span style="color:#ff79c6">break</span></span>
+<span class="line"><span style="color:#f8f8f2">				}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">				v, ok </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> item.(</span><span style="color:#8be9fd">int</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">				</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">!</span><span style="color:#f8f8f2">ok {</span></span>
+<span class="line"><span style="color:#f8f8f2">					</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2">, fmt.</span><span style="color:#8be9fd">Errorf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">invaild type</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">				}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">				sum </span><span style="color:#ff79c6">+=</span><span style="color:#f8f8f2"> v</span></span>
+<span class="line"><span style="color:#f8f8f2">			}</span></span>
+<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> sum, </span><span style="color:#bd93f9">nil</span></span>
+<span class="line"><span style="color:#f8f8f2">		}).</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#8be9fd">Do</span><span style="color:#f8f8f2">()</span></span></code></pre><p>主要逻辑是利用 Channel（或者线程安全的队列）将源数据发送到 Map 的执行 Worker 中，处理完后再转发到 Reduce Goroutine 中，通过 ErrGroup 等待所有 Worker 执行完成。源码见<a href="https://github.com/qingwave/gocorex/tree/main/syncx/mapreduce/mapreduce.go">mapreduce.go</a>。</p><p>类似的也可以实现 Kubernetes 中 Controller 模式，通过队列或者 Channel 将生产者与消费者解耦，并行处理提高运行速度。</p><h2 id="总结">总结</h2><p>本文总结了 Golang 的一些有趣的编程模式，例如链式调用、可选配置、并发控制等，通过这些技巧或者手段，可以提高编码的质量，所有代码见<a href="https://github.com/qingwave/gocorex">gocorex</a>。</p><blockquote><p>Explore more in <a href="https://qingwave.github.io">https://qingwave.github.io</a></p></blockquote></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/golang" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#golang</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/程序设计" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#程序设计</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="https://qingwave.github.io" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>

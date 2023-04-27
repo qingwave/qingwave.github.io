@@ -1,365 +1,138 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>nginx ingress 启用 webhook</title><meta content="index,follow" name="robots"/><meta content="nginx ingress 启用 webhook" property="og:title"/><meta content="https://qingwave.github.io/ingress-nginx-controller-admission-webhook" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/ingress-nginx-controller-admission-webhook" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noodp" />
-    <title class="pjax-title">
-        nginx ingress controller 最后的倔强: admission webhook
-        
-    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="nginx ingress controller 最后的倔强: admission webhook" />
-<meta property="og:description" content="
-    背景k8s中大多使用nginx-ingress-controller来实现ingress, 但是脆弱的nginx-controller通过ingress解析出nginx配置, 对于某些annotation会reload nignx配置失败, 然后controller就卡死了, 不断重启, 除非删除对应的ingress." />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://qingwave.github.io/ingress-nginx-controller-admission-webhook/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
-<meta property="article:published_time" content="2020-04-03T18:48:04+00:00" />
-<meta property="article:modified_time" content="2021-11-20T10:59:07+00:00" /><meta property="og:site_name" content="Qingwave" />
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
-
-<meta name="twitter:title" content="nginx ingress controller 最后的倔强: admission webhook"/>
-<meta name="twitter:description" content="
-    背景k8s中大多使用nginx-ingress-controller来实现ingress, 但是脆弱的nginx-controller通过ingress解析出nginx配置, 对于某些annotation会reload nignx配置失败, 然后controller就卡死了, 不断重启, 除非删除对应的ingress."/>
-<meta name="application-name" content="Qingwave">
-<meta name="apple-mobile-web-app-title" content="Qingwave">
-
-<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/ingress-nginx-controller-admission-webhook/" /><link rel="prev" href="https://qingwave.github.io/pod-sandbox-recreated/" /><link rel="next" href="https://qingwave.github.io/pod-graceful-lifecycle/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
-    {
-        "@context": "http://schema.org",
-        "@type": "BlogPosting",
-        "headline": "nginx ingress controller 最后的倔强: admission webhook",
-        "inLanguage": "zh-CN",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": "https:\/\/qingwave.github.io\/ingress-nginx-controller-admission-webhook\/"
-        },"genre": "posts","keywords": "k8s, ingress","wordcount":  1477 ,
-        "url": "https:\/\/qingwave.github.io\/ingress-nginx-controller-admission-webhook\/","datePublished": "2020-04-03T18:48:04+00:00","dateModified": "2021-11-20T10:59:07+00:00","publisher": {
-            "@type": "Organization",
-            "name": ""},"author": {
-                "@type": "Person",
-                "name": "qinng"
-            },"description": ""
-    }
-    </script></head>
-
-<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
-        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
-        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
-        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
-        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
-        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
-        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
-    </script>
-    <div id="back-to-top"></div>
-    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
-    <div class="header-wrapper">
-        <div class="header-title">
-            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
-        </div>
-        <div class="menu">
-            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-        </div>
-    </div>
-</header><header class="mobile" id="header-mobile">
-    <div class="header-container">
-        <div class="header-wrapper">
-            <div class="header-title">
-                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
-            </div>
-            <div class="menu-toggle" id="menu-toggle-mobile">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-    </div>
-</header>
-<div class="search-dropdown desktop">
-    <div id="search-dropdown-desktop"></div>
-</div>
-<div class="search-dropdown mobile">
-    <div id="search-dropdown-mobile"></div>
-</div>
-<main class="main">
-            <div class="container"><div class="toc" id="toc-auto">
-        <h2 class="toc-title">目录</h2>
-        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#背景">背景</a>
-      <ul>
-        <li><a href="#问题复现">问题复现</a></li>
-      </ul>
-    </li>
-    <li><a href="#解决方案">解决方案</a>
-      <ul>
-        <li><a href="#apiserver配置">ApiServer配置</a></li>
-        <li><a href="#创建webhook相关配置">创建webhook相关配置</a></li>
-        <li><a href="#配置ingress-controller">配置ingress controller</a></li>
-      </ul>
-    </li>
-    <li><a href="#验证">验证</a></li>
-    <li><a href="#引用">引用</a></li>
-  </ul>
-</nav></div>
-    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">nginx ingress controller 最后的倔强: admission webhook</h1><div class="post-meta">
-            <div class="post-meta-line"><time datetime="Apr 03, 2020">Apr 03, 2020</time>
-            </div>
-        </div><div class="details toc" id="toc-static"  kept="">
-                <div class="details-summary toc-title">
-                    <span>目录</span>
-                    <span><i class="details-icon fas fa-angle-right"></i></span>
-                </div>
-                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#背景">背景</a>
-      <ul>
-        <li><a href="#问题复现">问题复现</a></li>
-      </ul>
-    </li>
-    <li><a href="#解决方案">解决方案</a>
-      <ul>
-        <li><a href="#apiserver配置">ApiServer配置</a></li>
-        <li><a href="#创建webhook相关配置">创建webhook相关配置</a></li>
-        <li><a href="#配置ingress-controller">配置ingress controller</a></li>
-      </ul>
-    </li>
-    <li><a href="#验证">验证</a></li>
-    <li><a href="#引用">引用</a></li>
-  </ul>
-</nav></div>
-            </div><div class="content" id="content"><h2 id="背景" class="headerLink">
-    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>k8s中大多使用nginx-ingress-controller来实现ingress, 但是脆弱的nginx-controller通过ingress解析出nginx配置, 对于某些annotation会reload nignx配置失败, 然后controller就卡死了, 不断重启, 除非删除对应的ingress.</p>
-<h3 id="问题复现" class="headerLink">
-    <a href="#%e9%97%ae%e9%a2%98%e5%a4%8d%e7%8e%b0" class="header-mark"></a>问题复现</h3><p>创建有问题的<code>ingress</code></p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">extensions/v1beta1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Ingress</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;false&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/auth-tls-verify-client</span><span class="p">:</span><span class="w"> </span><span class="l">optional</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/auth-tls-verify-depth</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;1&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/configuration-snippet</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
-</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header Host $targethost;
-</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_buffering     off;
-</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_pass          http://$targetbackend;
-</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
-</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_redirect      off;
-</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header    X-SSL-Client-Verify $ssl_client_verify;
-</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header    X-SSL-Client-DN $ssl_client_s_dn;
-</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header    X-Real-IP       $remote_addr;
-</span></span></span><span class="line"><span class="cl"><span class="sd">      proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;</span><span class="w">      
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">creationTimestamp</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;2020-03-23T04:57:22Z&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">generation</span><span class="p">:</span><span class="w"> </span><span class="m">1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">example-ingress</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">kube-system</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">resourceVersion</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;57681168&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">selfLink</span><span class="p">:</span><span class="w"> </span><span class="l">/apis/extensions/v1beta1/namespaces/kube-system/ingresses/example-ingress</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">uid</span><span class="p">:</span><span class="w"> </span><span class="l">c7f66385-6cc2-11ea-b6a8-246e96d4b538</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">rules</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l">example.com</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">http</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">paths</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">backend</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l">example-svc</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="m">8008</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">tls</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">hosts</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">example.com</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">secretName</span><span class="p">:</span><span class="w"> </span><span class="l">example-tls</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">status</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">loadBalancer</span><span class="p">:</span><span class="w"> </span>{}<span class="w">
-</span></span></span></code></pre></div><p>查看<code>nginx-ingress-controller</code>状态全部为<code>CrashLoopBackOff</code></p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># kubectl get po -n kube-system -owide |grep ingress</span>
-</span></span><span class="line"><span class="cl">nginx-ingress-controller-ftfbg                        1/2     CrashLoopBackOff   <span class="m">6</span>          8m27s
-</span></span><span class="line"><span class="cl">nginx-ingress-controller-hp4pf                        1/2     CrashLoopBackOff   <span class="m">11</span>         24m  
-</span></span><span class="line"><span class="cl">nginx-ingress-controller-qlb4l                        1/2     CrashLoopBackOff   <span class="m">11</span>         24m   
-</span></span></code></pre></div><p>查看<code>nginx-ingress-controller</code>日志, 显示reload失败<code>&quot;proxy_pass&quot; directive is duplicate in /tmp/nginx-cfg911768424:822</code></p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">-------------------------------------------------------------------------------
-</span></span><span class="line"><span class="cl">W0403 10:26:14.716246       <span class="m">1</span> queue.go:130<span class="o">]</span> requeuing kube-system/nginx-ingress-controller-4txfk, err 
-</span></span><span class="line"><span class="cl">-------------------------------------------------------------------------------
-</span></span><span class="line"><span class="cl">Error: <span class="nb">exit</span> status <span class="m">1</span>
-</span></span><span class="line"><span class="cl">2020/04/03 10:26:14 <span class="o">[</span>notice<span class="o">]</span> 137#137: ModSecurity-nginx v1.0.0
-</span></span><span class="line"><span class="cl">2020/04/03 10:26:14 <span class="o">[</span>warn<span class="o">]</span> 137#137: duplicate value <span class="s2">&#34;error&#34;</span> in /tmp/nginx-cfg911768424:815
-</span></span><span class="line"><span class="cl">nginx: <span class="o">[</span>warn<span class="o">]</span> duplicate value <span class="s2">&#34;error&#34;</span> in /tmp/nginx-cfg911768424:815
-</span></span><span class="line"><span class="cl">2020/04/03 10:26:14 <span class="o">[</span>warn<span class="o">]</span> 137#137: duplicate value <span class="s2">&#34;timeout&#34;</span> in /tmp/nginx-cfg911768424:815
-</span></span><span class="line"><span class="cl">nginx: <span class="o">[</span>warn<span class="o">]</span> duplicate value <span class="s2">&#34;timeout&#34;</span> in /tmp/nginx-cfg911768424:815
-</span></span><span class="line"><span class="cl">2020/04/03 10:26:14 <span class="o">[</span>emerg<span class="o">]</span> 137#137: <span class="s2">&#34;proxy_pass&#34;</span> directive is duplicate in /tmp/nginx-cfg911768424:822
-</span></span><span class="line"><span class="cl">nginx: <span class="o">[</span>emerg<span class="o">]</span> <span class="s2">&#34;proxy_pass&#34;</span> directive is duplicate in /tmp/nginx-cfg911768424:822
-</span></span><span class="line"><span class="cl">nginx: configuration file /tmp/nginx-cfg911768424 <span class="nb">test</span> failed
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">-------------------------------------------------------------------------------
-</span></span><span class="line"><span class="cl">W0403 10:26:16.998897       <span class="m">1</span> nginx_status.go:207<span class="o">]</span> unexpected error obtaining nginx status info: unexpected error scraping nginx status page: unexpected error scraping nginx : Get http://0.0.0.0:18080/nginx_status: dial tcp 0.0.0.0:18080: connect: connection refused
-</span></span><span class="line"><span class="cl">I0403 10:26:17.526801       <span class="m">1</span> main.go:167<span class="o">]</span> Received SIGTERM, shutting down
-</span></span><span class="line"><span class="cl">I0403 10:26:17.526827       <span class="m">1</span> nginx.go:364<span class="o">]</span> Shutting down controller queues
-</span></span><span class="line"><span class="cl">I0403 10:26:17.526845       <span class="m">1</span> status.go:200<span class="o">]</span> updating status of Ingress rules <span class="o">(</span>remove<span class="o">)</span>
-</span></span><span class="line"><span class="cl">I0403 10:26:17.537511       <span class="m">1</span> status.go:219<span class="o">]</span> removing address from ingress status <span class="o">([])</span>
-</span></span><span class="line"><span class="cl">I0403 10:26:17.537593       <span class="m">1</span> nginx.go:372<span class="o">]</span> Stopping NGINX process
-</span></span><span class="line"><span class="cl">2020/04/03 10:26:17 <span class="o">[</span>notice<span class="o">]</span> 141#141: signal process started
-</span></span><span class="line"><span class="cl">I0403 10:26:20.547669       <span class="m">1</span> nginx.go:385<span class="o">]</span> NGINX process has stopped
-</span></span><span class="line"><span class="cl">I0403 10:26:20.547692       <span class="m">1</span> main.go:175<span class="o">]</span> Handled quit, awaiting Pod deletion
-</span></span><span class="line"><span class="cl">I0403 10:26:30.547824       <span class="m">1</span> main.go:178<span class="o">]</span> Exiting with <span class="m">0</span>
-</span></span></code></pre></div><h2 id="解决方案" class="headerLink">
-    <a href="#%e8%a7%a3%e5%86%b3%e6%96%b9%e6%a1%88" class="header-mark"></a>解决方案</h2><p>创建一个有问题的ingress, 会影响所有新创建的ingress规则, 又一个集群级别的Bug诞生了.那么有没有办法, 提前检验ingress配置, 有问题就不去reload. 那验证步骤肯定要在请求到达nginx-controller之前来做, 是不是想到了<a href="https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/" target="_blank" rel="noopener noreffer">k8s-admission-webhook</a>, 可以在apiserver持久化对象前拦截请求, 去实现自定义的验证规则. 好在新版本的nginx-ingress-controller(v0.25.0+)已经实现了相关的功能, 只需开启对应配置就行.</p>
-<h3 id="apiserver配置" class="headerLink">
-    <a href="#apiserver%e9%85%8d%e7%bd%ae" class="header-mark"></a>ApiServer配置</h3><p>Apiserver开启webhook相关配置, 必须包含<code>MutatingAdmissionWebhook</code>与<code>ValidatingAdmissionWebhook</code></p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">--admission-control=MutatingAdmissionWebhook,ValidatingAdmissionWebhook
-</span></span></code></pre></div><h3 id="创建webhook相关配置" class="headerLink">
-    <a href="#%e5%88%9b%e5%bb%bawebhook%e7%9b%b8%e5%85%b3%e9%85%8d%e7%bd%ae" class="header-mark"></a>创建webhook相关配置</h3><p>启用ValidatingAdmissionWebhook必须使用https, 需要配置对应证书</p>
-<ul>
-<li>手动生成:
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">openssl req -x509 -newkey rsa:2048 -keyout certificate.pem -out key.pem -days <span class="m">365</span> -nodes -subj <span class="s2">&#34;/CN=ingress-validation-webhook.ingress-nginx.svc&#34;</span>
-</span></span></code></pre></div></li>
-<li>CertificateSigningRequest
-通过k8s <code>CertificateSigningRequest</code>来创建(controller-manager需要开启<code>--cluster-signing-cert-file</code>与<code>--cluster-signing-key-file</code>)
-可通过如下脚本创建, namespace与service替换成自己的
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nv">SERVICE_NAME</span><span class="o">=</span>ingress-nginx
-</span></span><span class="line"><span class="cl"><span class="nv">NAMESPACE</span><span class="o">=</span>ingress-nginx
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="nv">TEMP_DIRECTORY</span><span class="o">=</span><span class="k">$(</span>mktemp -d<span class="k">)</span>
-</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;creating certs in directory </span><span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span><span class="s2">&#34;</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">cat <span class="s">&lt;&lt;EOF &gt;&gt; ${TEMP_DIRECTORY}/csr.conf
-</span></span></span><span class="line"><span class="cl"><span class="s">[req]
-</span></span></span><span class="line"><span class="cl"><span class="s">req_extensions = v3_req
-</span></span></span><span class="line"><span class="cl"><span class="s">distinguished_name = req_distinguished_name
-</span></span></span><span class="line"><span class="cl"><span class="s">[req_distinguished_name]
-</span></span></span><span class="line"><span class="cl"><span class="s">[ v3_req ]
-</span></span></span><span class="line"><span class="cl"><span class="s">basicConstraints = CA:FALSE
-</span></span></span><span class="line"><span class="cl"><span class="s">keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-</span></span></span><span class="line"><span class="cl"><span class="s">extendedKeyUsage = serverAuth
-</span></span></span><span class="line"><span class="cl"><span class="s">subjectAltName = @alt_names
-</span></span></span><span class="line"><span class="cl"><span class="s">[alt_names]
-</span></span></span><span class="line"><span class="cl"><span class="s">DNS.1 = ${SERVICE_NAME}
-</span></span></span><span class="line"><span class="cl"><span class="s">DNS.2 = ${SERVICE_NAME}.${NAMESPACE}
-</span></span></span><span class="line"><span class="cl"><span class="s">DNS.3 = ${SERVICE_NAME}.${NAMESPACE}.svc
-</span></span></span><span class="line"><span class="cl"><span class="s">EOF</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">openssl genrsa -out <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-key.pem <span class="m">2048</span>
-</span></span><span class="line"><span class="cl">openssl req -new -key <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-key.pem <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    -subj <span class="s2">&#34;/CN=</span><span class="si">${</span><span class="nv">SERVICE_NAME</span><span class="si">}</span><span class="s2">.</span><span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span><span class="s2">.svc&#34;</span> <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    -out <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server.csr <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    -config <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/csr.conf
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">cat <span class="s">&lt;&lt;EOF | kubectl create -f -
-</span></span></span><span class="line"><span class="cl"><span class="s">apiVersion: certificates.k8s.io/v1beta1
-</span></span></span><span class="line"><span class="cl"><span class="s">kind: CertificateSigningRequest
-</span></span></span><span class="line"><span class="cl"><span class="s">metadata:
-</span></span></span><span class="line"><span class="cl"><span class="s">  name: ${SERVICE_NAME}.${NAMESPACE}.svc
-</span></span></span><span class="line"><span class="cl"><span class="s">spec:
-</span></span></span><span class="line"><span class="cl"><span class="s">  request: $(cat ${TEMP_DIRECTORY}/server.csr | base64 | tr -d &#39;\n&#39;)
-</span></span></span><span class="line"><span class="cl"><span class="s">  usages:
-</span></span></span><span class="line"><span class="cl"><span class="s">  - digital signature
-</span></span></span><span class="line"><span class="cl"><span class="s">  - key encipherment
-</span></span></span><span class="line"><span class="cl"><span class="s">  - server auth
-</span></span></span><span class="line"><span class="cl"><span class="s">EOF</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">kubectl certificate approve <span class="si">${</span><span class="nv">SERVICE_NAME</span><span class="si">}</span>.<span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span>.svc
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="k">for</span> x in <span class="k">$(</span>seq 10<span class="k">)</span><span class="p">;</span> <span class="k">do</span>
-</span></span><span class="line"><span class="cl">    <span class="nv">SERVER_CERT</span><span class="o">=</span><span class="k">$(</span>kubectl get csr <span class="si">${</span><span class="nv">SERVICE_NAME</span><span class="si">}</span>.<span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span>.svc -o <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.certificate}&#39;</span><span class="k">)</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="o">[[</span> <span class="si">${</span><span class="nv">SERVER_CERT</span><span class="si">}</span> !<span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="o">]]</span><span class="p">;</span> <span class="k">then</span>
-</span></span><span class="line"><span class="cl">        <span class="nb">break</span>
-</span></span><span class="line"><span class="cl">    <span class="k">fi</span>
-</span></span><span class="line"><span class="cl">    sleep <span class="m">1</span>
-</span></span><span class="line"><span class="cl"><span class="k">done</span>
-</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="o">[[</span> <span class="si">${</span><span class="nv">SERVER_CERT</span><span class="si">}</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span> <span class="o">]]</span><span class="p">;</span> <span class="k">then</span>
-</span></span><span class="line"><span class="cl">    <span class="nb">echo</span> <span class="s2">&#34;ERROR: After approving csr </span><span class="si">${</span><span class="nv">SERVICE_NAME</span><span class="si">}</span><span class="s2">.</span><span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span><span class="s2">.svc, the signed certificate did not appear on the resource. Giving up after 10 attempts.&#34;</span> &gt;<span class="p">&amp;</span><span class="m">2</span>
-</span></span><span class="line"><span class="cl">    <span class="nb">exit</span> <span class="m">1</span>
-</span></span><span class="line"><span class="cl"><span class="k">fi</span>
-</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="si">${</span><span class="nv">SERVER_CERT</span><span class="si">}</span> <span class="p">|</span> openssl base64 -d -A -out <span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-cert.pem
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">kubectl create secret generic ingress-nginx.svc <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --from-file<span class="o">=</span>key.pem<span class="o">=</span><span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-key.pem <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    --from-file<span class="o">=</span>cert.pem<span class="o">=</span><span class="si">${</span><span class="nv">TEMP_DIRECTORY</span><span class="si">}</span>/server-cert.pem <span class="se">\
-</span></span></span><span class="line"><span class="cl"><span class="se"></span>    -n <span class="si">${</span><span class="nv">NAMESPACE</span><span class="si">}</span>
-</span></span></code></pre></div></li>
-</ul>
-<h3 id="配置ingress-controller" class="headerLink">
-    <a href="#%e9%85%8d%e7%bd%aeingress-controller" class="header-mark"></a>配置ingress controller</h3><p>ingress controller需要启用如下参数, 挂载需要的tls证书</p>
-<table>
-<thead>
-<tr>
-<th>flag</th>
-<th>description</th>
-<th>example usage</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--validating-webhook</code></td>
-<td>admission webhook的地址</td>
-<td><code>:8080</code></td>
-</tr>
-<tr>
-<td><code>--validating-webhook-certificate</code></td>
-<td>webhook证书</td>
-<td><code>/usr/local/certificates/validating-webhook.pem</code></td>
-</tr>
-<tr>
-<td><code>--validating-webhook-key</code></td>
-<td>webhook私钥</td>
-<td><code>/usr/local/certificates/validating-webhook-key.pem</code></td>
-</tr>
-</tbody>
-</table>
-<h2 id="验证" class="headerLink">
-    <a href="#%e9%aa%8c%e8%af%81" class="header-mark"></a>验证</h2><p>更新后, 创建有问题的ingress则会拦截, 符合预期</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># kubectl apply -f ing.yaml</span>
-</span></span><span class="line"><span class="cl">Error from server: error when creating <span class="s2">&#34;ing.yaml&#34;</span>: admission webhook <span class="s2">&#34;validate.nginx.ingress.kubernetes.io&#34;</span> denied the request: 
-</span></span><span class="line"><span class="cl">-------------------------------------------------------------------------------
-</span></span><span class="line"><span class="cl">Error: <span class="nb">exit</span> status <span class="m">1</span>
-</span></span><span class="line"><span class="cl">2020/04/02 10:26:04 <span class="o">[</span>emerg<span class="o">]</span> 331#331: directive <span class="s2">&#34;proxy_pass&#34;</span> is not terminated by <span class="s2">&#34;;&#34;</span> in /tmp/nginx-cfg461116913:2165
-</span></span><span class="line"><span class="cl">nginx: <span class="o">[</span>emerg<span class="o">]</span> directive <span class="s2">&#34;proxy_pass&#34;</span> is not terminated by <span class="s2">&#34;;&#34;</span> in /tmp/nginx-cfg461116913:2165
-</span></span><span class="line"><span class="cl">nginx: configuration file /tmp/nginx-cfg461116913 <span class="nb">test</span> failed
-</span></span></code></pre></div><h2 id="引用" class="headerLink">
-    <a href="#%e5%bc%95%e7%94%a8" class="header-mark"></a>引用</h2><ul>
-<li><a href="https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/" target="_blank" rel="noopener noreffer">https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/</a></li>
-<li><a href="https://kubernetes.github.io/ingress-nginx/deploy/validating-webhook/" target="_blank" rel="noopener noreffer">https://kubernetes.github.io/ingress-nginx/deploy/validating-webhook/</a></li>
-</ul></div>
-
-        
-        <div class="post-footer" id="post-footer">
-    <div class="post-meta-line"><span class="single-tag">
-                <a href='/tags/k8s/'>#k8s</a>
-                    <span class="separator"> </span>
-                <a href='/tags/ingress/'>#ingress</a></span></div>
-
-    <div class="post-info">
-        <div class="post-info-line">
-            <div class="post-info-link">
-                <a href='/about'>About Me</a>
-            </div>
-        </div>
-        <div class="post-info-line">
-            <div class="post-info-md"></div>
-        </div>
-    </div><div class="post-nav"><a href="/pod-sandbox-recreated/" class="prev" rel="prev" title="pod sandbox 创建失败"><i class="fas fa-angle-left fa-fw"></i>pod sandbox 创建失败</a>
-            <a href="/pod-graceful-lifecycle/" class="next" rel="next" title="如何做一个优雅的Pod">如何做一个优雅的Pod<i class="fas fa-angle-right fa-fw"></i></a></div></div>
-<div id="comments"><div id="giscus"></div><noscript>
-                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
-            </noscript></div></article></div>
-        </main><footer class="footer">
-        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
-            <div class="footer-line"></div>
-            <div class="footer-line">
-            </div>
-        </div></footer></div>
-
-    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
-            <i class="fas fa-arrow-up fa-fw"></i>
-        </a>
-    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
-            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
-            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
-        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
-
-<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
-</body>
-
-</html>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    window.dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+  gtag("config", id);
+})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.b8ddc4ce.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Fri Apr 03 2020 18:48:04 GMT+0000 (Coordinated Universal Time)">Apr 3, 2020</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">nginx ingress 启用 webhook</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="背景">背景</h2><p>k8s 中大多使用 nginx-ingress-controller 来实现 ingress, 但是脆弱的 nginx-controller 通过 ingress 解析出 nginx 配置, 对于某些 annotation 会 reload nignx 配置失败, 然后 controller 就卡死了, 不断重启, 除非删除对应的 ingress.</p><h3 id="问题复现">问题复现</h3><p>创建有问题的<code>ingress</code></p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#8be9fd">apiVersion</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">extensions/v1beta1</span></span>
+<span class="line"><span style="color:#8be9fd">kind</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">Ingress</span></span>
+<span class="line"><span style="color:#8be9fd">metadata</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">annotations</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">false</span><span style="color:#e9f284">'</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">nginx.ingress.kubernetes.io/auth-tls-verify-client</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">optional</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">nginx.ingress.kubernetes.io/auth-tls-verify-depth</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">1</span><span style="color:#e9f284">'</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">nginx.ingress.kubernetes.io/configuration-snippet</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">|</span></span>
+<span class="line"><span style="color:#f1fa8c">      proxy_set_header Host $targethost;</span></span>
+<span class="line"><span style="color:#f1fa8c">      proxy_buffering     off;</span></span>
+<span class="line"><span style="color:#f1fa8c">      proxy_pass          http://$targetbackend;</span></span>
+<span class="line"><span style="color:#f1fa8c">      proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;</span></span>
+<span class="line"><span style="color:#f1fa8c">      proxy_redirect      off;</span></span>
+<span class="line"><span style="color:#f1fa8c">      proxy_set_header    X-SSL-Client-Verify $ssl_client_verify;</span></span>
+<span class="line"><span style="color:#f1fa8c">      proxy_set_header    X-SSL-Client-DN $ssl_client_s_dn;</span></span>
+<span class="line"><span style="color:#f1fa8c">      proxy_set_header    X-Real-IP       $remote_addr;</span></span>
+<span class="line"><span style="color:#f1fa8c">      proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">creationTimestamp</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">2020-03-23T04:57:22Z</span><span style="color:#e9f284">'</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">generation</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">1</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">example-ingress</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">namespace</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">kube-system</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">resourceVersion</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">57681168</span><span style="color:#e9f284">'</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">selfLink</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">/apis/extensions/v1beta1/namespaces/kube-system/ingresses/example-ingress</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">uid</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">c7f66385-6cc2-11ea-b6a8-246e96d4b538</span></span>
+<span class="line"><span style="color:#8be9fd">spec</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">rules</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">host</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">example.com</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">http</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#8be9fd">paths</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">backend</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">serviceName</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">example-svc</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">servicePort</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">8008</span></span>
+<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#8be9fd">path</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">/</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">tls</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">hosts</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">example.com</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">secretName</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">example-tls</span></span>
+<span class="line"><span style="color:#8be9fd">status</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">loadBalancer</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> {}</span></span></code></pre><p>查看<code>nginx-ingress-controller</code>状态全部为<code>CrashLoopBackOff</code></p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4"># kubectl get po -n kube-system -owide |grep ingress</span></span>
+<span class="line"><span style="color:#f8f8f2">nginx-ingress-controller-ftfbg                        1/2     CrashLoopBackOff   6          8m27s</span></span>
+<span class="line"><span style="color:#f8f8f2">nginx-ingress-controller-hp4pf                        1/2     CrashLoopBackOff   11         24m</span></span>
+<span class="line"><span style="color:#f8f8f2">nginx-ingress-controller-qlb4l                        1/2     CrashLoopBackOff   11         24m</span></span></code></pre><p>查看<code>nginx-ingress-controller</code>日志, 显示 reload 失败<code>"proxy_pass" directive is duplicate in /tmp/nginx-cfg911768424:822</code></p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">-------------------------------------------------------------------------------</span></span>
+<span class="line"><span style="color:#f8f8f2">W0403 10:26:14.716246       1 queue.go:130] requeuing kube-system/nginx-ingress-controller-4txfk, err</span></span>
+<span class="line"><span style="color:#f8f8f2">-------------------------------------------------------------------------------</span></span>
+<span class="line"><span style="color:#f8f8f2">Error: </span><span style="color:#8be9fd">exit</span><span style="color:#f8f8f2"> status 1</span></span>
+<span class="line"><span style="color:#f8f8f2">2020/04/03 10:26:14 [notice] 137#137: ModSecurity-nginx v1.0.0</span></span>
+<span class="line"><span style="color:#f8f8f2">2020/04/03 10:26:14 [warn] 137#137: duplicate value </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">error</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> /tmp/nginx-cfg911768424:815</span></span>
+<span class="line"><span style="color:#f8f8f2">nginx: [warn] duplicate value </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">error</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> /tmp/nginx-cfg911768424:815</span></span>
+<span class="line"><span style="color:#f8f8f2">2020/04/03 10:26:14 [warn] 137#137: duplicate value </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">timeout</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> /tmp/nginx-cfg911768424:815</span></span>
+<span class="line"><span style="color:#f8f8f2">nginx: [warn] duplicate value </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">timeout</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> /tmp/nginx-cfg911768424:815</span></span>
+<span class="line"><span style="color:#f8f8f2">2020/04/03 10:26:14 [emerg] 137#137: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">proxy_pass</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> directive is duplicate </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> /tmp/nginx-cfg911768424:822</span></span>
+<span class="line"><span style="color:#f8f8f2">nginx: [emerg] </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">proxy_pass</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> directive is duplicate </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> /tmp/nginx-cfg911768424:822</span></span>
+<span class="line"><span style="color:#f8f8f2">nginx: configuration file /tmp/nginx-cfg911768424 </span><span style="color:#8be9fd">test</span><span style="color:#f8f8f2"> failed</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">-------------------------------------------------------------------------------</span></span>
+<span class="line"><span style="color:#f8f8f2">W0403 10:26:16.998897       1 nginx_status.go:207] unexpected error obtaining nginx status info: unexpected error scraping nginx status page: unexpected error scraping nginx </span><span style="color:#8be9fd">:</span><span style="color:#f8f8f2"> Get http://0.0.0.0:18080/nginx_status: dial tcp 0.0.0.0:18080: connect: connection refused</span></span>
+<span class="line"><span style="color:#f8f8f2">I0403 10:26:17.526801       1 main.go:167] Received SIGTERM, shutting down</span></span>
+<span class="line"><span style="color:#f8f8f2">I0403 10:26:17.526827       1 nginx.go:364] Shutting down controller queues</span></span>
+<span class="line"><span style="color:#f8f8f2">I0403 10:26:17.526845       1 status.go:200] updating status of Ingress rules (remove)</span></span>
+<span class="line"><span style="color:#f8f8f2">I0403 10:26:17.537511       1 status.go:219] removing address from ingress status ([])</span></span>
+<span class="line"><span style="color:#f8f8f2">I0403 10:26:17.537593       1 nginx.go:372] Stopping NGINX process</span></span>
+<span class="line"><span style="color:#f8f8f2">2020/04/03 10:26:17 [notice] 141#141: signal process started</span></span>
+<span class="line"><span style="color:#f8f8f2">I0403 10:26:20.547669       1 nginx.go:385] NGINX process has stopped</span></span>
+<span class="line"><span style="color:#f8f8f2">I0403 10:26:20.547692       1 main.go:175] Handled quit, awaiting Pod deletion</span></span>
+<span class="line"><span style="color:#f8f8f2">I0403 10:26:30.547824       1 main.go:178] Exiting with 0</span></span></code></pre><h2 id="解决方案">解决方案</h2><p>创建一个有问题的 ingress, 会影响所有新创建的 ingress 规则, 又一个集群级别的 Bug 诞生了.那么有没有办法, 提前检验 ingress 配置, 有问题就不去 reload. 那验证步骤肯定要在请求到达 nginx-controller 之前来做, 是不是想到了<a href="https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/">k8s-admission-webhook</a>, 可以在 apiserver 持久化对象前拦截请求, 去实现自定义的验证规则. 好在新版本的 nginx-ingress-controller(v0.25.0+)已经实现了相关的功能, 只需开启对应配置就行.</p><h3 id="apiserver-配置">ApiServer 配置</h3><p>Apiserver 开启 webhook 相关配置, 必须包含<code>MutatingAdmissionWebhook</code>与<code>ValidatingAdmissionWebhook</code></p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">--admission-control=MutatingAdmissionWebhook,ValidatingAdmissionWebhook</span></span></code></pre><h3 id="创建-webhook-相关配置">创建 webhook 相关配置</h3><p>启用 ValidatingAdmissionWebhook 必须使用 https, 需要配置对应证书</p><ul><li><p>手动生成:</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">openssl req -x509 -newkey rsa:2048 -keyout certificate.pem -out key.pem -days 365 -nodes -subj </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">/CN=ingress-validation-webhook.ingress-nginx.svc</span><span style="color:#e9f284">"</span></span></code></pre></li><li><p>CertificateSigningRequest 通过 k8s <code>CertificateSigningRequest</code>来创建(controller-manager 需要开启<code>--cluster-signing-cert-file</code>与<code>--cluster-signing-key-file</code>) 可通过如下脚本创建, namespace 与 service 替换成自己的</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">SERVICE_NAME=ingress-nginx</span></span>
+<span class="line"><span style="color:#f8f8f2">NAMESPACE=ingress-nginx</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">TEMP_DIRECTORY=</span><span style="color:#e9f284">$(</span><span style="color:#f1fa8c">mktemp -d</span><span style="color:#e9f284">)</span></span>
+<span class="line"><span style="color:#8be9fd">echo</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">creating certs in directory </span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#e9f284">"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">cat </span><span style="color:#ff79c6">&#x3C;&#x3C;EOF</span><span style="color:#f1fa8c"> >> </span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#f1fa8c">/csr.conf</span></span>
+<span class="line"><span style="color:#f1fa8c">[req]</span></span>
+<span class="line"><span style="color:#f1fa8c">req_extensions = v3_req</span></span>
+<span class="line"><span style="color:#f1fa8c">distinguished_name = req_distinguished_name</span></span>
+<span class="line"><span style="color:#f1fa8c">[req_distinguished_name]</span></span>
+<span class="line"><span style="color:#f1fa8c">[ v3_req ]</span></span>
+<span class="line"><span style="color:#f1fa8c">basicConstraints = CA:FALSE</span></span>
+<span class="line"><span style="color:#f1fa8c">keyUsage = nonRepudiation, digitalSignature, keyEncipherment</span></span>
+<span class="line"><span style="color:#f1fa8c">extendedKeyUsage = serverAuth</span></span>
+<span class="line"><span style="color:#f1fa8c">subjectAltName = @alt_names</span></span>
+<span class="line"><span style="color:#f1fa8c">[alt_names]</span></span>
+<span class="line"><span style="color:#f1fa8c">DNS.1 = </span><span style="color:#bd93f9">${SERVICE_NAME}</span></span>
+<span class="line"><span style="color:#f1fa8c">DNS.2 = </span><span style="color:#bd93f9">${SERVICE_NAME}</span><span style="color:#f1fa8c">.</span><span style="color:#bd93f9">${NAMESPACE}</span></span>
+<span class="line"><span style="color:#f1fa8c">DNS.3 = </span><span style="color:#bd93f9">${SERVICE_NAME}</span><span style="color:#f1fa8c">.</span><span style="color:#bd93f9">${NAMESPACE}</span><span style="color:#f1fa8c">.svc</span></span>
+<span class="line"><span style="color:#ff79c6">EOF</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">openssl genrsa -out </span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#f8f8f2">/server-key.pem 2048</span></span>
+<span class="line"><span style="color:#f8f8f2">openssl req -new -key </span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#f8f8f2">/server-key.pem \</span></span>
+<span class="line"><span style="color:#f8f8f2">    -subj </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">/CN=</span><span style="color:#bd93f9">${SERVICE_NAME}</span><span style="color:#f1fa8c">.</span><span style="color:#bd93f9">${NAMESPACE}</span><span style="color:#f1fa8c">.svc</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> \</span></span>
+<span class="line"><span style="color:#f8f8f2">    -out </span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#f8f8f2">/server.csr \</span></span>
+<span class="line"><span style="color:#f8f8f2">    -config </span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#f8f8f2">/csr.conf</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">cat </span><span style="color:#ff79c6">&#x3C;&#x3C;EOF</span><span style="color:#f1fa8c"> | kubectl create -f -</span></span>
+<span class="line"><span style="color:#f1fa8c">apiVersion: certificates.k8s.io/v1beta1</span></span>
+<span class="line"><span style="color:#f1fa8c">kind: CertificateSigningRequest</span></span>
+<span class="line"><span style="color:#f1fa8c">metadata:</span></span>
+<span class="line"><span style="color:#f1fa8c">  name: </span><span style="color:#bd93f9">${SERVICE_NAME}</span><span style="color:#f1fa8c">.</span><span style="color:#bd93f9">${NAMESPACE}</span><span style="color:#f1fa8c">.svc</span></span>
+<span class="line"><span style="color:#f1fa8c">spec:</span></span>
+<span class="line"><span style="color:#f1fa8c">  request: </span><span style="color:#e9f284">$(</span><span style="color:#f1fa8c">cat </span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#f1fa8c">/server.csr </span><span style="color:#ff79c6">|</span><span style="color:#f1fa8c"> base64 </span><span style="color:#ff79c6">|</span><span style="color:#f1fa8c"> tr -d </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">\n</span><span style="color:#e9f284">')</span></span>
+<span class="line"><span style="color:#f1fa8c">  usages:</span></span>
+<span class="line"><span style="color:#f1fa8c">  - digital signature</span></span>
+<span class="line"><span style="color:#f1fa8c">  - key encipherment</span></span>
+<span class="line"><span style="color:#f1fa8c">  - server auth</span></span>
+<span class="line"><span style="color:#ff79c6">EOF</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">kubectl certificate approve </span><span style="color:#bd93f9">${SERVICE_NAME}</span><span style="color:#f8f8f2">.</span><span style="color:#bd93f9">${NAMESPACE}</span><span style="color:#f8f8f2">.svc</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">x</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">$(</span><span style="color:#f1fa8c">seq 10</span><span style="color:#e9f284">)</span><span style="color:#ff79c6">;</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">do</span></span>
+<span class="line"><span style="color:#f8f8f2">    SERVER_CERT=</span><span style="color:#e9f284">$(</span><span style="color:#f1fa8c">kubectl get csr </span><span style="color:#bd93f9">${SERVICE_NAME}</span><span style="color:#f1fa8c">.</span><span style="color:#bd93f9">${NAMESPACE}</span><span style="color:#f1fa8c">.svc -o jsonpath=</span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">{.status.certificate}</span><span style="color:#e9f284">')</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> [[ </span><span style="color:#bd93f9">${SERVER_CERT}</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">''</span><span style="color:#f8f8f2"> ]]</span><span style="color:#ff79c6">;</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">then</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#8be9fd">break</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">fi</span></span>
+<span class="line"><span style="color:#f8f8f2">    sleep 1</span></span>
+<span class="line"><span style="color:#ff79c6">done</span></span>
+<span class="line"><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> [[ </span><span style="color:#bd93f9">${SERVER_CERT}</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">==</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">''</span><span style="color:#f8f8f2"> ]]</span><span style="color:#ff79c6">;</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">then</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">echo</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">ERROR: After approving csr </span><span style="color:#bd93f9">${SERVICE_NAME}</span><span style="color:#f1fa8c">.</span><span style="color:#bd93f9">${NAMESPACE}</span><span style="color:#f1fa8c">.svc, the signed certificate did not appear on the resource. Giving up after 10 attempts.</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">>&#x26;2</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">exit</span><span style="color:#f8f8f2"> 1</span></span>
+<span class="line"><span style="color:#ff79c6">fi</span></span>
+<span class="line"><span style="color:#8be9fd">echo</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">${SERVER_CERT}</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2"> openssl base64 -d -A -out </span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#f8f8f2">/server-cert.pem</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">kubectl create secret generic ingress-nginx.svc \</span></span>
+<span class="line"><span style="color:#f8f8f2">    --from-file=key.pem=</span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#f8f8f2">/server-key.pem \</span></span>
+<span class="line"><span style="color:#f8f8f2">    --from-file=cert.pem=</span><span style="color:#bd93f9">${TEMP_DIRECTORY}</span><span style="color:#f8f8f2">/server-cert.pem \</span></span>
+<span class="line"><span style="color:#f8f8f2">    -n </span><span style="color:#bd93f9">${NAMESPACE}</span></span></code></pre></li></ul><h3 id="配置-ingress-controller">配置 ingress controller</h3><p>ingress controller 需要启用如下参数, 挂载需要的 tls 证书</p><table><thead><tr><th>flag</th><th>description</th><th>example usage</th></tr></thead><tbody><tr><td><code>--validating-webhook</code></td><td>admission webhook 的地址</td><td><code>:8080</code></td></tr><tr><td><code>--validating-webhook-certificate</code></td><td>webhook 证书</td><td><code>/usr/local/certificates/validating-webhook.pem</code></td></tr><tr><td><code>--validating-webhook-key</code></td><td>webhook 私钥</td><td><code>/usr/local/certificates/validating-webhook-key.pem</code></td></tr></tbody></table><h2 id="验证">验证</h2><p>更新后, 创建有问题的 ingress 则会拦截, 符合预期</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4"># kubectl apply -f ing.yaml</span></span>
+<span class="line"><span style="color:#f8f8f2">Error from server: error when creating </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">ing.yaml</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: admission webhook </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">validate.nginx.ingress.kubernetes.io</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> denied the request:</span></span>
+<span class="line"><span style="color:#f8f8f2">-------------------------------------------------------------------------------</span></span>
+<span class="line"><span style="color:#f8f8f2">Error: </span><span style="color:#8be9fd">exit</span><span style="color:#f8f8f2"> status 1</span></span>
+<span class="line"><span style="color:#f8f8f2">2020/04/02 10:26:04 [emerg] 331#331: directive </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">proxy_pass</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> is not terminated by </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">;</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> /tmp/nginx-cfg461116913:2165</span></span>
+<span class="line"><span style="color:#f8f8f2">nginx: [emerg] directive </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">proxy_pass</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> is not terminated by </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">;</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> /tmp/nginx-cfg461116913:2165</span></span>
+<span class="line"><span style="color:#f8f8f2">nginx: configuration file /tmp/nginx-cfg461116913 </span><span style="color:#8be9fd">test</span><span style="color:#f8f8f2"> failed</span></span></code></pre><h2 id="引用">引用</h2><ul><li><a href="https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/">https://kubernetes.io/zh/docs/reference/access-authn-authz/extensible-admission-controllers/</a></li><li><a href="https://kubernetes.github.io/ingress-nginx/deploy/validating-webhook/">https://kubernetes.github.io/ingress-nginx/deploy/validating-webhook/</a></li></ul></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/ingress" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#ingress</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="https://qingwave.github.io" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>

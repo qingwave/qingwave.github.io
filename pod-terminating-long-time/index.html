@@ -1,204 +1,33 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>Pod一直显示Terminating</title><meta content="index,follow" name="robots"/><meta content="Pod一直显示Terminating" property="og:title"/><meta content="https://qingwave.github.io/pod-terminating-long-time" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/pod-terminating-long-time" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noodp" />
-    <title class="pjax-title">
-        Pod一直显示Terminating
-        
-    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="Pod一直显示Terminating" />
-<meta property="og:description" content="问题集群中有一个pod一直显示Terminating eventNormal Scheduled 1h default-scheduler Successfully assigned feed-426565da19777e5d325f-5994dc5cff-znqmh to node01 Normal SuccessfulMountVolume 1h kubelet, node01 (combined from similar events): MountVolume.SetUp succeeded for volume &#34;lvm&#34; Normal Pulled 1h kubelet, node01 Container image already present on machine Normal Created 1h kubelet, node01 Created container Normal Started 1h kubelet, node01 Started container Warning Unhealthy 9m (x44 over 1h) kubelet, node01 Liveness probe failed: Get http://*:65318/state.json: dial tcp *.*.*.*:65318: getsockopt: connection refused Warning Unhealthy 9m (x45 over 1h) kubelet," />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://qingwave.github.io/pod-terminating-long-time/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
-<meta property="article:published_time" content="2018-10-26T10:41:03+00:00" />
-<meta property="article:modified_time" content="2021-11-20T10:59:07+00:00" /><meta property="og:site_name" content="Qingwave" />
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
-
-<meta name="twitter:title" content="Pod一直显示Terminating"/>
-<meta name="twitter:description" content="问题集群中有一个pod一直显示Terminating eventNormal Scheduled 1h default-scheduler Successfully assigned feed-426565da19777e5d325f-5994dc5cff-znqmh to node01 Normal SuccessfulMountVolume 1h kubelet, node01 (combined from similar events): MountVolume.SetUp succeeded for volume &#34;lvm&#34; Normal Pulled 1h kubelet, node01 Container image already present on machine Normal Created 1h kubelet, node01 Created container Normal Started 1h kubelet, node01 Started container Warning Unhealthy 9m (x44 over 1h) kubelet, node01 Liveness probe failed: Get http://*:65318/state.json: dial tcp *.*.*.*:65318: getsockopt: connection refused Warning Unhealthy 9m (x45 over 1h) kubelet,"/>
-<meta name="application-name" content="Qingwave">
-<meta name="apple-mobile-web-app-title" content="Qingwave">
-
-<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/pod-terminating-long-time/" /><link rel="prev" href="https://qingwave.github.io/pod-timezone/" /><link rel="next" href="https://qingwave.github.io/pod-memory-usage-in-k8s/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
-    {
-        "@context": "http://schema.org",
-        "@type": "BlogPosting",
-        "headline": "Pod一直显示Terminating",
-        "inLanguage": "zh-CN",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": "https:\/\/qingwave.github.io\/pod-terminating-long-time\/"
-        },"genre": "posts","keywords": "k8s","wordcount":  358 ,
-        "url": "https:\/\/qingwave.github.io\/pod-terminating-long-time\/","datePublished": "2018-10-26T10:41:03+00:00","dateModified": "2021-11-20T10:59:07+00:00","publisher": {
-            "@type": "Organization",
-            "name": ""},"author": {
-                "@type": "Person",
-                "name": "Qingwave"
-            },"description": ""
-    }
-    </script></head>
-
-<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
-        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
-        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
-        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
-        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
-        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
-        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
-    </script>
-    <div id="back-to-top"></div>
-    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
-    <div class="header-wrapper">
-        <div class="header-title">
-            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
-        </div>
-        <div class="menu">
-            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-        </div>
-    </div>
-</header><header class="mobile" id="header-mobile">
-    <div class="header-container">
-        <div class="header-wrapper">
-            <div class="header-title">
-                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
-            </div>
-            <div class="menu-toggle" id="menu-toggle-mobile">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-    </div>
-</header>
-<div class="search-dropdown desktop">
-    <div id="search-dropdown-desktop"></div>
-</div>
-<div class="search-dropdown mobile">
-    <div id="search-dropdown-mobile"></div>
-</div>
-<main class="main">
-            <div class="container"><div class="toc" id="toc-auto">
-        <h2 class="toc-title">目录</h2>
-        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#问题">问题</a>
-      <ul>
-        <li><a href="#event">event</a></li>
-        <li><a href="#日志">日志</a></li>
-      </ul>
-    </li>
-    <li><a href="#探究">探究</a>
-      <ul>
-        <li><a href="#查看进程">查看进程</a></li>
-        <li><a href="#可能原因">可能原因</a></li>
-      </ul>
-    </li>
-  </ul>
-</nav></div>
-    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">Pod一直显示Terminating</h1><div class="post-meta">
-            <div class="post-meta-line"><time datetime="Oct 26, 2018">Oct 26, 2018</time>
-            </div>
-        </div><div class="details toc" id="toc-static"  kept="">
-                <div class="details-summary toc-title">
-                    <span>目录</span>
-                    <span><i class="details-icon fas fa-angle-right"></i></span>
-                </div>
-                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#问题">问题</a>
-      <ul>
-        <li><a href="#event">event</a></li>
-        <li><a href="#日志">日志</a></li>
-      </ul>
-    </li>
-    <li><a href="#探究">探究</a>
-      <ul>
-        <li><a href="#查看进程">查看进程</a></li>
-        <li><a href="#可能原因">可能原因</a></li>
-      </ul>
-    </li>
-  </ul>
-</nav></div>
-            </div><div class="content" id="content"><h2 id="问题" class="headerLink">
-    <a href="#%e9%97%ae%e9%a2%98" class="header-mark"></a>问题</h2><p>集群中有一个pod一直显示Terminating</p>
-<h3 id="event" class="headerLink">
-    <a href="#event" class="header-mark"></a>event</h3><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">Normal Scheduled 1h default-scheduler Successfully assigned feed-426565da19777e5d325f-5994dc5cff-znqmh to node01
-</span></span><span class="line"><span class="cl">Normal SuccessfulMountVolume 1h kubelet, node01 <span class="o">(</span>combined from similar events<span class="o">)</span>: MountVolume.SetUp succeeded <span class="k">for</span> volume <span class="s2">&#34;lvm&#34;</span>
-</span></span><span class="line"><span class="cl">Normal Pulled 1h kubelet, node01 Container image  already present on machine
-</span></span><span class="line"><span class="cl">Normal Created 1h kubelet, node01 Created container
-</span></span><span class="line"><span class="cl">Normal Started 1h kubelet, node01 Started container
-</span></span><span class="line"><span class="cl">Warning Unhealthy 9m <span class="o">(</span>x44 over 1h<span class="o">)</span> kubelet, node01 Liveness probe failed: Get http://*:65318/state.json: dial tcp *.*.*.*:65318: getsockopt: connection refused
-</span></span><span class="line"><span class="cl">Warning Unhealthy 9m <span class="o">(</span>x45 over 1h<span class="o">)</span> kubelet, node01 Readiness probe failed: Get http://*:65318/state.json: dial tcp *.*.*.*:65318: getsockopt: connection refused
-</span></span><span class="line"><span class="cl">Normal Killing 9m kubelet, node01 Killing container with id docker://main:Need to <span class="nb">kill</span> Pod
-</span></span><span class="line"><span class="cl">Warning FailedKillPod 5m <span class="o">(</span>x2 over 7m<span class="o">)</span> kubelet, node01 error killing pod: failed to <span class="s2">&#34;KillPodSandbox&#34;</span> <span class="k">for</span> <span class="s2">&#34;163f99a9-1aec-11e9-a7cd-246e96ab9970&#34;</span> with KillPodSandboxError: <span class="s2">&#34;rpc error: code = DeadlineExceeded desc = context deadline exceeded&#34;</span>
-</span></span></code></pre></div><h3 id="日志" class="headerLink">
-    <a href="#%e6%97%a5%e5%bf%97" class="header-mark"></a>日志</h3><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">kubelet: error killing pod: failed to <span class="s2">&#34;KillPodSandbox&#34;</span> <span class="k">for</span> <span class="s2">&#34;163f99a9-1aec-11e9-a7cd-246e96ab9970&#34;</span> with KillPodSandboxError: <span class="s2">&#34;rpc error: code = DeadlineExceeded desc = context deadline exceeded&#34;</span>
-</span></span></code></pre></div><h2 id="探究" class="headerLink">
-    <a href="#%e6%8e%a2%e7%a9%b6" class="header-mark"></a>探究</h2><h3 id="查看进程" class="headerLink">
-    <a href="#%e6%9f%a5%e7%9c%8b%e8%bf%9b%e7%a8%8b" class="header-mark"></a>查看进程</h3><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">ps aux <span class="p">|</span>grep D <span class="c1">#查看无法终止的进程（stat D）</span>
-</span></span><span class="line"><span class="cl">root <span class="m">2626</span> 0.0 0.0 <span class="m">0</span> <span class="m">0</span> ? Ds 14:42 0:00 <span class="o">[</span>pause<span class="o">]</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">ps afx <span class="p">|</span>grep -C <span class="m">10</span> <span class="m">2626</span> <span class="c1">#显示父进程</span>
-</span></span><span class="line"><span class="cl">root <span class="m">2626</span> <span class="m">2603</span> <span class="m">0</span> 14:42 ? 00:00:00 <span class="o">[</span>pause<span class="o">]</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">ps -ef <span class="p">|</span>grep <span class="m">2603</span> <span class="c1">#查看父进程</span>
-</span></span><span class="line"><span class="cl">root <span class="m">2603</span> <span class="m">27573</span> <span class="m">0</span> 14:42 ? 00:00:00 docker-containerd-shim -namespace moby -workdir /home/docker/containerd/daemon/io.containerd.runtime.v1.linux/moby/ba519a9f1a1102a922bcc74ced7a7fc9fd3f963feea4b8de
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">ps -ef <span class="p">|</span>grep <span class="m">27573</span>
-</span></span><span class="line"><span class="cl">root <span class="m">27573</span> <span class="m">27553</span> <span class="m">0</span> <span class="m">2018</span> ? 17:02:40 docker-containerd --config /var/run/docker/containerd/containerd.toml
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">ps -ef <span class="p">|</span>grep <span class="m">27553</span>
-</span></span><span class="line"><span class="cl">root <span class="m">27553</span> <span class="m">1</span> <span class="m">3</span> <span class="m">2018</span> ? 3-16:03:11 /usr/bin/dockerd --bip<span class="o">=</span>10.126.64.193/26 --mtu<span class="o">=</span><span class="m">1500</span> -g /home/docker -D -H tcp://127.0.0.1:1983 -H unix:///var/run/docker.sock --tlsverify --iptables<span class="o">=</span><span class="nb">false</span> --storage-driver<span class="o">=</span>devicemapper --storage-opt dm.override_udev_sync_check<span class="o">=</span><span class="nb">true</span> --storage-opt dm.datadev<span class="o">=</span>/dev/vg_root/dmdata --storage-opt dm.metadatadev<span class="o">=</span>/dev/vg_root/dmmeta --exec-opt native.cgroupdriver<span class="o">=</span>cgroupfs
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">docker ps <span class="p">|</span>grep ba519a9f1a1 <span class="c1">#查看docker</span>
-</span></span><span class="line"><span class="cl">ba519a9f1a11 k8s.gcr.io/pause-amd64:3.1 <span class="s2">&#34;/pause&#34;</span> <span class="m">2</span> hours ago Up <span class="m">2</span> hours k8s_POD_feed-426565da19777e5d325f-5994dc5cff-znqmh_ocean-feed_163f99a9-1aec-11e9-a7cd-246e96ab9970_0
-</span></span></code></pre></div><h3 id="可能原因" class="headerLink">
-    <a href="#%e5%8f%af%e8%83%bd%e5%8e%9f%e5%9b%a0" class="header-mark"></a>可能原因</h3><p>可能是内核原因
-<a href="https://stackoverflow.com/questions/34552232/cant-kill-processes-originating-in-a-docker-container" target="_blank" rel="noopener noreffer">https://stackoverflow.com/questions/34552232/cant-kill-processes-originating-in-a-docker-container</a>
-目前只有重启物理机才能解决</p>
-</div>
-
-        
-        <div class="post-footer" id="post-footer">
-    <div class="post-meta-line"><span class="single-tag">
-                <a href='/tags/k8s/'>#k8s</a></span></div>
-
-    <div class="post-info">
-        <div class="post-info-line">
-            <div class="post-info-link">
-                <a href='/about'>About Me</a>
-            </div>
-        </div>
-        <div class="post-info-line">
-            <div class="post-info-md"></div>
-        </div>
-    </div><div class="post-nav"><a href="/pod-timezone/" class="prev" rel="prev" title="Pod中时区设置"><i class="fas fa-angle-left fa-fw"></i>Pod中时区设置</a>
-            <a href="/pod-memory-usage-in-k8s/" class="next" rel="next" title="Pod memory usage in k8s">Pod memory usage in k8s<i class="fas fa-angle-right fa-fw"></i></a></div></div>
-<div id="comments"><div id="giscus"></div><noscript>
-                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
-            </noscript></div></article></div>
-        </main><footer class="footer">
-        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
-            <div class="footer-line"></div>
-            <div class="footer-line">
-            </div>
-        </div></footer></div>
-
-    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
-            <i class="fas fa-arrow-up fa-fw"></i>
-        </a>
-    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
-            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
-            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
-        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
-
-<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
-</body>
-
-</html>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    window.dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+  gtag("config", id);
+})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.b8ddc4ce.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Fri Oct 26 2018 10:41:03 GMT+0000 (Coordinated Universal Time)">Oct 26, 2018</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">Pod一直显示Terminating</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="问题">问题</h2><p>集群中有一个 pod 一直显示 Terminating</p><h3 id="event">event</h3><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">Normal Scheduled 1h default-scheduler Successfully assigned feed-426565da19777e5d325f-5994dc5cff-znqmh to node01</span></span>
+<span class="line"><span style="color:#f8f8f2">Normal SuccessfulMountVolume 1h kubelet, node01 (combined from similar events): MountVolume.SetUp succeeded </span><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> volume </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">lvm</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">Normal Pulled 1h kubelet, node01 Container image  already present on machine</span></span>
+<span class="line"><span style="color:#f8f8f2">Normal Created 1h kubelet, node01 Created container</span></span>
+<span class="line"><span style="color:#f8f8f2">Normal Started 1h kubelet, node01 Started container</span></span>
+<span class="line"><span style="color:#f8f8f2">Warning Unhealthy 9m (x44 over 1h) kubelet, node01 Liveness probe failed: Get http://</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">:65318/state.json: dial tcp </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">.</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">.</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">.</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">:65318: getsockopt: connection refused</span></span>
+<span class="line"><span style="color:#f8f8f2">Warning Unhealthy 9m (x45 over 1h) kubelet, node01 Readiness probe failed: Get http://</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">:65318/state.json: dial tcp </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">.</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">.</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">.</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">:65318: getsockopt: connection refused</span></span>
+<span class="line"><span style="color:#f8f8f2">Normal Killing 9m kubelet, node01 Killing container with id docker://main:Need to </span><span style="color:#8be9fd">kill</span><span style="color:#f8f8f2"> Pod</span></span>
+<span class="line"><span style="color:#f8f8f2">Warning FailedKillPod 5m (x2 over 7m) kubelet, node01 error killing pod: failed to </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">KillPodSandbox</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">163f99a9-1aec-11e9-a7cd-246e96ab9970</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> with KillPodSandboxError: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">rpc error: code = DeadlineExceeded desc = context deadline exceeded</span><span style="color:#e9f284">"</span></span></code></pre><h3 id="日志">日志</h3><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">kubelet: error killing pod: failed to </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">KillPodSandbox</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">163f99a9-1aec-11e9-a7cd-246e96ab9970</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> with KillPodSandboxError: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">rpc error: code = DeadlineExceeded desc = context deadline exceeded</span><span style="color:#e9f284">"</span></span></code></pre><h2 id="探究">探究</h2><h3 id="查看进程">查看进程</h3><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">ps aux </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2">grep D </span><span style="color:#6272a4">#查看无法终止的进程（stat D）</span></span>
+<span class="line"><span style="color:#f8f8f2">root 2626 0.0 0.0 0 0 </span><span style="color:#ff79c6">?</span><span style="color:#f8f8f2"> Ds 14:42 0:00 [pause]</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">ps afx </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2">grep -C 10 2626 </span><span style="color:#6272a4">#显示父进程</span></span>
+<span class="line"><span style="color:#f8f8f2">root 2626 2603 0 14:42 </span><span style="color:#ff79c6">?</span><span style="color:#f8f8f2"> 00:00:00 [pause]</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">ps -ef </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2">grep 2603 </span><span style="color:#6272a4">#查看父进程</span></span>
+<span class="line"><span style="color:#f8f8f2">root 2603 27573 0 14:42 </span><span style="color:#ff79c6">?</span><span style="color:#f8f8f2"> 00:00:00 docker-containerd-shim -namespace moby -workdir /home/docker/containerd/daemon/io.containerd.runtime.v1.linux/moby/ba519a9f1a1102a922bcc74ced7a7fc9fd3f963feea4b8de</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">ps -ef </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2">grep 27573</span></span>
+<span class="line"><span style="color:#f8f8f2">root 27573 27553 0 2018 </span><span style="color:#ff79c6">?</span><span style="color:#f8f8f2"> 17:02:40 docker-containerd --config /var/run/docker/containerd/containerd.toml</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">ps -ef </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2">grep 27553</span></span>
+<span class="line"><span style="color:#f8f8f2">root 27553 1 3 2018 </span><span style="color:#ff79c6">?</span><span style="color:#f8f8f2"> 3-16:03:11 /usr/bin/dockerd --bip=10.126.64.193/26 --mtu=1500 -g /home/docker -D -H tcp://127.0.0.1:1983 -H unix:///var/run/docker.sock --tlsverify --iptables=false --storage-driver=devicemapper --storage-opt dm.override_udev_sync_check=true --storage-opt dm.datadev=/dev/vg_root/dmdata --storage-opt dm.metadatadev=/dev/vg_root/dmmeta --exec-opt native.cgroupdriver=cgroupfs</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">docker ps </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2">grep ba519a9f1a1 </span><span style="color:#6272a4">#查看docker</span></span>
+<span class="line"><span style="color:#f8f8f2">ba519a9f1a11 k8s.gcr.io/pause-amd64:3.1 </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">/pause</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2"> 2 hours ago Up 2 hours k8s_POD_feed-426565da19777e5d325f-5994dc5cff-znqmh_ocean-feed_163f99a9-1aec-11e9-a7cd-246e96ab9970_0</span></span></code></pre><h3 id="可能原因">可能原因</h3><p>可能是内核原因 <a href="https://stackoverflow.com/questions/34552232/cant-kill-processes-originating-in-a-docker-container">https://stackoverflow.com/questions/34552232/cant-kill-processes-originating-in-a-docker-container</a> 目前只有重启物理机才能解决</p></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1 rounded-lg"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="https://qingwave.github.io" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>

@@ -1,192 +1,33 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>k8s节点资源不足时OutOfcpu错误</title><meta content="index,follow" name="robots"/><meta content="k8s节点资源不足时OutOfcpu错误" property="og:title"/><meta content="https://qingwave.github.io/pod-outofcpu-error" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/pod-outofcpu-error" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noodp" />
-    <title class="pjax-title">
-        k8s节点资源不足时OutOfcpu错误
-        
-    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="k8s节点资源不足时OutOfcpu错误" />
-<meta property="og:description" content="环境k8s: 1.10.2 docker: 17.03 问题当指定nodeName并且节点资源不足时，会创建大量pod，并显示outofcpu/outofmem 类似下面: prometheus-slave01-68bd9bc854-slw92 0/2 OutOfcpu 0 1m prometheus-slave01-68bd9bc854-svxbq 0/2 OutOfcpu 0 20s prometheus-slave01-68bd9bc854-sw25t 0/2 OutOfcpu 0 1m 相关issuehttps://gith" />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://qingwave.github.io/pod-outofcpu-error/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
-<meta property="article:published_time" content="2019-01-18T11:06:10+00:00" />
-<meta property="article:modified_time" content="2021-12-16T14:28:26+00:00" /><meta property="og:site_name" content="Qingwave" />
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
-
-<meta name="twitter:title" content="k8s节点资源不足时OutOfcpu错误"/>
-<meta name="twitter:description" content="环境k8s: 1.10.2 docker: 17.03 问题当指定nodeName并且节点资源不足时，会创建大量pod，并显示outofcpu/outofmem 类似下面: prometheus-slave01-68bd9bc854-slw92 0/2 OutOfcpu 0 1m prometheus-slave01-68bd9bc854-svxbq 0/2 OutOfcpu 0 20s prometheus-slave01-68bd9bc854-sw25t 0/2 OutOfcpu 0 1m 相关issuehttps://gith"/>
-<meta name="application-name" content="Qingwave">
-<meta name="apple-mobile-web-app-title" content="Qingwave">
-
-<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/pod-outofcpu-error/" /><link rel="prev" href="https://qingwave.github.io/understanding-resource-limits-in-kubernetes/" /><link rel="next" href="https://qingwave.github.io/prometheus-federation/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
-    {
-        "@context": "http://schema.org",
-        "@type": "BlogPosting",
-        "headline": "k8s节点资源不足时OutOfcpu错误",
-        "inLanguage": "zh-CN",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": "https:\/\/qingwave.github.io\/pod-outofcpu-error\/"
-        },"genre": "posts","keywords": "k8s","wordcount":  308 ,
-        "url": "https:\/\/qingwave.github.io\/pod-outofcpu-error\/","datePublished": "2019-01-18T11:06:10+00:00","dateModified": "2021-12-16T14:28:26+00:00","publisher": {
-            "@type": "Organization",
-            "name": ""},"author": {
-                "@type": "Person",
-                "name": "Qingwave"
-            },"description": ""
-    }
-    </script></head>
-
-<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
-        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
-        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
-        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
-        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
-        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
-        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
-    </script>
-    <div id="back-to-top"></div>
-    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
-    <div class="header-wrapper">
-        <div class="header-title">
-            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
-        </div>
-        <div class="menu">
-            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-        </div>
-    </div>
-</header><header class="mobile" id="header-mobile">
-    <div class="header-container">
-        <div class="header-wrapper">
-            <div class="header-title">
-                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
-            </div>
-            <div class="menu-toggle" id="menu-toggle-mobile">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-    </div>
-</header>
-<div class="search-dropdown desktop">
-    <div id="search-dropdown-desktop"></div>
-</div>
-<div class="search-dropdown mobile">
-    <div id="search-dropdown-mobile"></div>
-</div>
-<main class="main">
-            <div class="container"><div class="toc" id="toc-auto">
-        <h2 class="toc-title">目录</h2>
-        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#环境">环境</a></li>
-    <li><a href="#问题">问题</a></li>
-    <li><a href="#相关issue">相关issue</a></li>
-    <li><a href="#解析">解析</a></li>
-    <li><a href="#附件">附件</a></li>
-  </ul>
-</nav></div>
-    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">k8s节点资源不足时OutOfcpu错误</h1><div class="post-meta">
-            <div class="post-meta-line"><time datetime="Jan 18, 2019">Jan 18, 2019</time>
-            </div>
-        </div><div class="details toc" id="toc-static"  kept="">
-                <div class="details-summary toc-title">
-                    <span>目录</span>
-                    <span><i class="details-icon fas fa-angle-right"></i></span>
-                </div>
-                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#环境">环境</a></li>
-    <li><a href="#问题">问题</a></li>
-    <li><a href="#相关issue">相关issue</a></li>
-    <li><a href="#解析">解析</a></li>
-    <li><a href="#附件">附件</a></li>
-  </ul>
-</nav></div>
-            </div><div class="content" id="content"><h2 id="环境" class="headerLink">
-    <a href="#%e7%8e%af%e5%a2%83" class="header-mark"></a>环境</h2><p>k8s: 1.10.2
-docker: 17.03</p>
-<h2 id="问题" class="headerLink">
-    <a href="#%e9%97%ae%e9%a2%98" class="header-mark"></a>问题</h2><p>当指定nodeName并且节点资源不足时，会创建大量pod，并显示<code>outofcpu/outofmem</code>
-类似下面:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">prometheus-slave01-68bd9bc854-slw92 0/2 OutOfcpu <span class="m">0</span> 1m
-</span></span><span class="line"><span class="cl">prometheus-slave01-68bd9bc854-svxbq 0/2 OutOfcpu <span class="m">0</span> 20s
-</span></span><span class="line"><span class="cl">prometheus-slave01-68bd9bc854-sw25t 0/2 OutOfcpu <span class="m">0</span> 1m
-</span></span></code></pre></div><h2 id="相关issue" class="headerLink">
-    <a href="#%e7%9b%b8%e5%85%b3issue" class="header-mark"></a>相关issue</h2><p><a href="https://github.com/kubernetes/kubernetes/issues/38806" target="_blank" rel="noopener noreffer">https://github.com/kubernetes/kubernetes/issues/38806</a></p>
-<h2 id="解析" class="headerLink">
-    <a href="#%e8%a7%a3%e6%9e%90" class="header-mark"></a>解析</h2><p>设置nodeName会跳过调度，没有对容量做检测
-分配到节点上显示资源不足，状态变为outofcpu/outofmem，k8s判断replicaset没有检测到期望pod的状态，会重新再起一个pod，而原pod不会主动删除，致使创建大量pod</p>
-<h2 id="附件" class="headerLink">
-    <a href="#%e9%99%84%e4%bb%b6" class="header-mark"></a>附件</h2><p>测试yaml</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">extensions/v1beta1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Deployment</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">my-nginx</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l">kube-system</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">replicas</span><span class="p">:</span><span class="w"> </span><span class="m">1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">metadata</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">labels</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">my-nginx</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">nodeName</span><span class="p">:</span><span class="w"> </span><span class="l">tj1-jm-cc-stag05.kscn</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">my-nginx</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">nginx</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">ports</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span>- <span class="nt">containerPort</span><span class="p">:</span><span class="w"> </span><span class="m">80</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">resources</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">limits</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="m">200</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">requests</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nt">cpu</span><span class="p">:</span><span class="w"> </span><span class="m">100</span><span class="w">
-</span></span></span></code></pre></div></div>
-
-        
-        <div class="post-footer" id="post-footer">
-    <div class="post-meta-line"><span class="single-tag">
-                <a href='/tags/k8s/'>#k8s</a></span></div>
-
-    <div class="post-info">
-        <div class="post-info-line">
-            <div class="post-info-link">
-                <a href='/about'>About Me</a>
-            </div>
-        </div>
-        <div class="post-info-line">
-            <div class="post-info-md"></div>
-        </div>
-    </div><div class="post-nav"><a href="/understanding-resource-limits-in-kubernetes/" class="prev" rel="prev" title="深入理解K8s资源限制"><i class="fas fa-angle-left fa-fw"></i>深入理解K8s资源限制</a>
-            <a href="/prometheus-federation/" class="next" rel="next" title="Prometheus分区实践">Prometheus分区实践<i class="fas fa-angle-right fa-fw"></i></a></div></div>
-<div id="comments"><div id="giscus"></div><noscript>
-                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
-            </noscript></div></article></div>
-        </main><footer class="footer">
-        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
-            <div class="footer-line"></div>
-            <div class="footer-line">
-            </div>
-        </div></footer></div>
-
-    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
-            <i class="fas fa-arrow-up fa-fw"></i>
-        </a>
-    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
-            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
-            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
-        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
-
-<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
-</body>
-
-</html>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    window.dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+  gtag("config", id);
+})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.b8ddc4ce.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Fri Jan 18 2019 11:06:10 GMT+0000 (Coordinated Universal Time)">Jan 18, 2019</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">k8s节点资源不足时OutOfcpu错误</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="环境">环境</h2><p>k8s: 1.10.2 docker: 17.03</p><h2 id="问题">问题</h2><p>当指定 nodeName 并且节点资源不足时，会创建大量 pod，并显示<code>outofcpu/outofmem</code> 类似下面:</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">prometheus-slave01-68bd9bc854-slw92 0/2 OutOfcpu 0 1m</span></span>
+<span class="line"><span style="color:#f8f8f2">prometheus-slave01-68bd9bc854-svxbq 0/2 OutOfcpu 0 20s</span></span>
+<span class="line"><span style="color:#f8f8f2">prometheus-slave01-68bd9bc854-sw25t 0/2 OutOfcpu 0 1m</span></span></code></pre><h2 id="相关-issue">相关 issue</h2><p><a href="https://github.com/kubernetes/kubernetes/issues/38806">https://github.com/kubernetes/kubernetes/issues/38806</a></p><h2 id="解析">解析</h2><p>设置 nodeName 会跳过调度，没有对容量做检测 分配到节点上显示资源不足，状态变为 outofcpu/outofmem，k8s 判断 replicaset 没有检测到期望 pod 的状态，会重新再起一个 pod，而原 pod 不会主动删除，致使创建大量 pod</p><h2 id="附件">附件</h2><p>测试 yaml</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#8be9fd">apiVersion</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">extensions/v1beta1</span></span>
+<span class="line"><span style="color:#8be9fd">kind</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">Deployment</span></span>
+<span class="line"><span style="color:#8be9fd">metadata</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">my-nginx</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">namespace</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">kube-system</span></span>
+<span class="line"><span style="color:#8be9fd">spec</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">replicas</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">1</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">template</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">metadata</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">labels</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#8be9fd">app</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">my-nginx</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">spec</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">nodeName</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">tj1-jm-cc-stag05.kscn</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">containers</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">my-nginx</span></span>
+<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#8be9fd">image</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">nginx</span></span>
+<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#8be9fd">ports</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">containerPort</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">80</span></span>
+<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#8be9fd">resources</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#8be9fd">limits</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">cpu</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">200</span></span>
+<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#8be9fd">requests</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">cpu</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">100</span></span></code></pre></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1 rounded-lg"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="https://qingwave.github.io" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>

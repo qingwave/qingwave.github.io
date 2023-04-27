@@ -1,247 +1,59 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>开启shareProcessNamespace后容器异常</title><meta content="index,follow" name="robots"/><meta content="开启shareProcessNamespace后容器异常" property="og:title"/><meta content="https://qingwave.github.io/cotainer-init" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/cotainer-init" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noodp" />
-    <title class="pjax-title">
-        开启shareProcessNamespace后容器异常
-        
-    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="开启shareProcessNamespace后容器异常" />
-<meta property="og:description" content="
-    背景目前k8s不支持容器启动顺序，部分业务通过开启shareProcessNamespace监控某些进程状态。当开启共享pid后，有用户反馈某个容器主进程退出，但是容器并没有重启，执行exec会卡住，现象参考issue" />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://qingwave.github.io/cotainer-init/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
-<meta property="article:published_time" content="2020-07-28T17:35:49+00:00" />
-<meta property="article:modified_time" content="2021-12-12T04:54:36+00:00" /><meta property="og:site_name" content="Qingwave" />
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
-
-<meta name="twitter:title" content="开启shareProcessNamespace后容器异常"/>
-<meta name="twitter:description" content="
-    背景目前k8s不支持容器启动顺序，部分业务通过开启shareProcessNamespace监控某些进程状态。当开启共享pid后，有用户反馈某个容器主进程退出，但是容器并没有重启，执行exec会卡住，现象参考issue"/>
-<meta name="application-name" content="Qingwave">
-<meta name="apple-mobile-web-app-title" content="Qingwave">
-
-<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/cotainer-init/" /><link rel="prev" href="https://qingwave.github.io/prometheus-best-practice-operation/" /><link rel="next" href="https://qingwave.github.io/k8s-sideccar-lifecycle/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
-    {
-        "@context": "http://schema.org",
-        "@type": "BlogPosting",
-        "headline": "开启shareProcessNamespace后容器异常",
-        "inLanguage": "zh-CN",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": "https:\/\/qingwave.github.io\/cotainer-init\/"
-        },"genre": "posts","keywords": "k8s, docker","wordcount":  1098 ,
-        "url": "https:\/\/qingwave.github.io\/cotainer-init\/","datePublished": "2020-07-28T17:35:49+00:00","dateModified": "2021-12-12T04:54:36+00:00","publisher": {
-            "@type": "Organization",
-            "name": ""},"author": {
-                "@type": "Person",
-                "name": "qinng"
-            },"description": ""
-    }
-    </script></head>
-
-<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
-        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
-        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
-        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
-        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
-        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
-        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
-    </script>
-    <div id="back-to-top"></div>
-    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
-    <div class="header-wrapper">
-        <div class="header-title">
-            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
-        </div>
-        <div class="menu">
-            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-        </div>
-    </div>
-</header><header class="mobile" id="header-mobile">
-    <div class="header-container">
-        <div class="header-wrapper">
-            <div class="header-title">
-                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
-            </div>
-            <div class="menu-toggle" id="menu-toggle-mobile">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-    </div>
-</header>
-<div class="search-dropdown desktop">
-    <div id="search-dropdown-desktop"></div>
-</div>
-<div class="search-dropdown mobile">
-    <div id="search-dropdown-mobile"></div>
-</div>
-<main class="main">
-            <div class="container"><div class="toc" id="toc-auto">
-        <h2 class="toc-title">目录</h2>
-        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#背景">背景</a></li>
-    <li><a href="#复现">复现</a></li>
-    <li><a href="#分析">分析</a></li>
-    <li><a href="#方案">方案</a></li>
-    <li><a href="#参考">参考</a></li>
-  </ul>
-</nav></div>
-    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">开启shareProcessNamespace后容器异常</h1><div class="post-meta">
-            <div class="post-meta-line"><time datetime="Jul 28, 2020">Jul 28, 2020</time>
-            </div>
-        </div><div class="details toc" id="toc-static"  kept="">
-                <div class="details-summary toc-title">
-                    <span>目录</span>
-                    <span><i class="details-icon fas fa-angle-right"></i></span>
-                </div>
-                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#背景">背景</a></li>
-    <li><a href="#复现">复现</a></li>
-    <li><a href="#分析">分析</a></li>
-    <li><a href="#方案">方案</a></li>
-    <li><a href="#参考">参考</a></li>
-  </ul>
-</nav></div>
-            </div><div class="content" id="content"><h2 id="背景" class="headerLink">
-    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>目前k8s不支持容器启动顺序，部分业务通过开启<code>shareProcessNamespace</code>监控某些进程状态。当开启共享pid后，有用户反馈某个容器主进程退出，但是容器并没有重启，执行<code>exec</code>会卡住，现象参考<a href="3" rel="">issue</a></p>
-<h2 id="复现" class="headerLink">
-    <a href="#%e5%a4%8d%e7%8e%b0" class="header-mark"></a>复现</h2><ol>
-<li>创建deployment</li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">apps/v1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Deployment</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">labels</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">nginx</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">nginx</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">selector</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">nginx</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">template</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">metadata</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">labels</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l">nginx</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">nginx</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">shareProcessNamespace</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">containers</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">nginx:alpine</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">nginx</span><span class="w">
-</span></span></span></code></pre></div><ol start="2">
-<li>查看进程信息
-由于开启了<code>shareProcessNamespace</code>, <code>pause</code>变为<code>pid 1</code>, <code>nginx daemon</code>pid为<code>6</code>, ppid为<code>containerd-shim</code></li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># 查看容器内进程</span>
-</span></span><span class="line"><span class="cl">/ <span class="c1"># ps -efo &#34;pid,ppid,comm,args&#34;</span>
-</span></span><span class="line"><span class="cl">PID   PPID  COMMAND          COMMAND
-</span></span><span class="line"><span class="cl">    <span class="m">1</span>     <span class="m">0</span> pause            /pause
-</span></span><span class="line"><span class="cl">    <span class="m">6</span>     <span class="m">0</span> nginx            nginx: master process nginx -g daemon off<span class="p">;</span>
-</span></span><span class="line"><span class="cl">   <span class="m">11</span>     <span class="m">6</span> nginx            nginx: worker process
-</span></span><span class="line"><span class="cl">   <span class="m">12</span>     <span class="m">6</span> nginx            nginx: worker process
-</span></span><span class="line"><span class="cl">   <span class="m">13</span>     <span class="m">6</span> nginx            nginx: worker process
-</span></span><span class="line"><span class="cl">   <span class="m">14</span>     <span class="m">6</span> nginx            nginx: worker process
-</span></span><span class="line"><span class="cl">   <span class="m">15</span>     <span class="m">0</span> sh               sh
-</span></span><span class="line"><span class="cl">   <span class="m">47</span>    <span class="m">15</span> ps               ps -efo pid,ppid,comm,args
-</span></span></code></pre></div><ol start="3">
-<li>删除主进程
-子进程被<code>pid 1</code>回收, 有时也会被<code>containerd-shim</code>回收</li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/ <span class="c1"># kill -9 6</span>
-</span></span><span class="line"><span class="cl">/ <span class="c1"># </span>
-</span></span><span class="line"><span class="cl">/ <span class="c1"># ps -efo &#34;pid,ppid,comm,args&#34;</span>
-</span></span><span class="line"><span class="cl">PID   PPID  COMMAND          COMMAND
-</span></span><span class="line"><span class="cl">    <span class="m">1</span>     <span class="m">0</span> pause            /pause
-</span></span><span class="line"><span class="cl">   <span class="m">11</span>     <span class="m">1</span> nginx            nginx: worker process
-</span></span><span class="line"><span class="cl">   <span class="m">12</span>     <span class="m">1</span> nginx            nginx: worker process
-</span></span><span class="line"><span class="cl">   <span class="m">13</span>     <span class="m">1</span> nginx            nginx: worker process
-</span></span><span class="line"><span class="cl">   <span class="m">14</span>     <span class="m">1</span> nginx            nginx: worker process
-</span></span><span class="line"><span class="cl">   <span class="m">15</span>     <span class="m">0</span> sh               sh
-</span></span><span class="line"><span class="cl">   <span class="m">48</span>    <span class="m">15</span> ps               ps -efo pid,ppid,comm,args
-</span></span></code></pre></div><ol start="4">
-<li>docker hang
-此时对此容器执行docker命令(<code>inspect, logs, exec</code>)将卡住， 同样通过<code>kubectl</code>执行会超时。</li>
-</ol>
-<h2 id="分析" class="headerLink">
-    <a href="#%e5%88%86%e6%9e%90" class="header-mark"></a>分析</h2><p>在未开启<code>shareProcessNamespace</code>的容器中，主进程退出<code>pid 1</code>, 此pid namespace销毁，系统会<code>kill</code>其下的所有进程。开启后，<code>pid 1</code>为<code>pause</code>进程，容器主进程退出，由于共享pid namespace，其他进程没有退出变成孤儿进程。此时调用docker相关接口去操作容器，docker首先去找主进程，但主进程已经不存在了，导致异常(待确认)。</p>
-<p>清理掉这些孤儿进程容器便会正常退出，可以<code>kill</code>掉这些进程或者<code>kill</code>pause进程，即可恢复。</p>
-<h2 id="方案" class="headerLink">
-    <a href="#%e6%96%b9%e6%a1%88" class="header-mark"></a>方案</h2><p>有没有优雅的方式解决此种问题，如果主进程退出子进程也一起退出便符合预期，这就需要进程管理工具来实现，在宿主机中有<code>systemd</code>、<code>god</code>，容器中也有类似的工具即<code>init进程</code>(传递信息，回收子进程)，常见的有</p>
-<ol>
-<li><code>docker init</code>, docker自带的init进程(即<code>tini</code>)</li>
-<li><a href="https://github.com/krallin/tini" target="_blank" rel="noopener noreffer"><code>tini</code></a>, 可回收孤儿进程/僵尸进程，<code>kill</code>进程组等</li>
-<li><a href="https://github.com/Yelp/dumb-init" target="_blank" rel="noopener noreffer"><code>dumb-init</code></a>, 可管理进程，重写信号等</li>
-</ol>
-<p>经过测试，<code>tini</code>进程只能回收前台程序，对于后台程序则无能为力(例如<code>nohup</code>, <code>&amp;</code>启动的程序)，<code>dumb-init</code>在主进程退出时，会传递信号给子进程，符合预期。</p>
-<p>开启<code>dumb-init</code>进程的<code>dockerfile</code>如下，<code>tini</code>也类似</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Dockerfile" data-lang="Dockerfile"><span class="line"><span class="cl"><span class="k">FROM</span><span class="s"> nginx:alpine</span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># tini</span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># RUN apk add --no-cache tini</span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># ENTRYPOINT [&#34;/sbin/tini&#34;, &#34;-s&#34;, &#34;-g&#34;, &#34;--&#34;]</span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="c"># dumb-init</span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">RUN</span> wget -O /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64<span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">RUN</span> chmod +x /usr/bin/dumb-init<span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">ENTRYPOINT</span> <span class="p">[</span><span class="s2">&#34;/usr/bin/dumb-init&#34;</span><span class="p">,</span> <span class="s2">&#34;-v&#34;</span><span class="p">,</span> <span class="s2">&#34;--&#34;</span><span class="p">]</span><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="cl"><span class="err"></span><span class="k">CMD</span> <span class="p">[</span><span class="s2">&#34;nginx&#34;</span><span class="p">,</span> <span class="s2">&#34;-g&#34;</span><span class="p">,</span> <span class="s2">&#34;daemon off;&#34;</span><span class="p">]</span><span class="err">
-</span></span></span></code></pre></div><p>init方式对于此问题是一种临时的解决方案，需要docker从根本上解决此种情况。容器推荐单进程运行，但某些情况必须要运行多进程，如果不想处理处理传递回收进程等，可以通过<code>init</code>进程，无需更改代码即可实现。</p>
-<h2 id="参考" class="headerLink">
-    <a href="#%e5%8f%82%e8%80%83" class="header-mark"></a>参考</h2><ul>
-<li><a href="https://github.com/Yelp/dumb-init" target="_blank" rel="noopener noreffer">https://github.com/Yelp/dumb-init</a></li>
-<li><a href="https://github.com/krallin/tini" target="_blank" rel="noopener noreffer">https://github.com/krallin/tini</a></li>
-<li><a href="https://github.com/kubernetes/kubernetes/issues/92214" target="_blank" rel="noopener noreffer">https://github.com/kubernetes/kubernetes/issues/92214</a></li>
-</ul></div>
-
-        
-        <div class="post-footer" id="post-footer">
-    <div class="post-meta-line"><span class="single-tag">
-                <a href='/tags/k8s/'>#k8s</a>
-                    <span class="separator"> </span>
-                <a href='/tags/docker/'>#docker</a></span></div>
-
-    <div class="post-info">
-        <div class="post-info-line">
-            <div class="post-info-link">
-                <a href='/about'>About Me</a>
-            </div>
-        </div>
-        <div class="post-info-line">
-            <div class="post-info-md"></div>
-        </div>
-    </div><div class="post-nav"><a href="/prometheus-best-practice-operation/" class="prev" rel="prev" title="Prometheus最佳实践-聚合函数"><i class="fas fa-angle-left fa-fw"></i>Prometheus最佳实践-聚合函数</a>
-            <a href="/k8s-sideccar-lifecycle/" class="next" rel="next" title="Kubernetes中Sidecar生命周期管理">Kubernetes中Sidecar生命周期管理<i class="fas fa-angle-right fa-fw"></i></a></div></div>
-<div id="comments"><div id="giscus"></div><noscript>
-                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
-            </noscript></div></article></div>
-        </main><footer class="footer">
-        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
-            <div class="footer-line"></div>
-            <div class="footer-line">
-            </div>
-        </div></footer></div>
-
-    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
-            <i class="fas fa-arrow-up fa-fw"></i>
-        </a>
-    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
-            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
-            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
-        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
-
-<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
-</body>
-
-</html>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    window.dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+  gtag("config", id);
+})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.b8ddc4ce.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Tue Jul 28 2020 17:35:49 GMT+0000 (Coordinated Universal Time)">Jul 28, 2020</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">开启shareProcessNamespace后容器异常</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="背景">背景</h2><p>目前 k8s 不支持容器启动顺序，部分业务通过开启<code>shareProcessNamespace</code>监控某些进程状态。当开启共享 pid 后，有用户反馈某个容器主进程退出，但是容器并没有重启，执行<code>exec</code>会卡住，现象参考<a href="3">issue</a></p><h2 id="复现">复现</h2><ol><li>创建 deployment</li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#8be9fd">apiVersion</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">apps/v1</span></span>
+<span class="line"><span style="color:#8be9fd">kind</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">Deployment</span></span>
+<span class="line"><span style="color:#8be9fd">metadata</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">labels</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">app</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">nginx</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">nginx</span></span>
+<span class="line"><span style="color:#8be9fd">spec</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">selector</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">matchLabels</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">app</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">nginx</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">template</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">metadata</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">labels</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#8be9fd">app</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">nginx</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">nginx</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">spec</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">shareProcessNamespace</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">true</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">containers</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">image</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">nginx:alpine</span></span>
+<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">nginx</span></span></code></pre><ol start="2"><li>查看进程信息 由于开启了<code>shareProcessNamespace</code>, <code>pause</code>变为<code>pid 1</code>, <code>nginx daemon</code>pid 为<code>6</code>, ppid 为<code>containerd-shim</code></li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#6272a4"># 查看容器内进程</span></span>
+<span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4"># ps -efo "pid,ppid,comm,args"</span></span>
+<span class="line"><span style="color:#f8f8f2">PID   PPID  COMMAND          COMMAND</span></span>
+<span class="line"><span style="color:#f8f8f2">    1     0 pause            /pause</span></span>
+<span class="line"><span style="color:#f8f8f2">    6     0 nginx            nginx: master process nginx -g daemon off</span><span style="color:#ff79c6">;</span></span>
+<span class="line"><span style="color:#f8f8f2">   11     6 nginx            nginx: worker process</span></span>
+<span class="line"><span style="color:#f8f8f2">   12     6 nginx            nginx: worker process</span></span>
+<span class="line"><span style="color:#f8f8f2">   13     6 nginx            nginx: worker process</span></span>
+<span class="line"><span style="color:#f8f8f2">   14     6 nginx            nginx: worker process</span></span>
+<span class="line"><span style="color:#f8f8f2">   15     0 sh               sh</span></span>
+<span class="line"><span style="color:#f8f8f2">   47    15 ps               ps -efo pid,ppid,comm,args</span></span></code></pre><ol start="3"><li>删除主进程 子进程被<code>pid 1</code>回收, 有时也会被<code>containerd-shim</code>回收</li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4"># kill -9 6</span></span>
+<span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4">#</span></span>
+<span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4"># ps -efo "pid,ppid,comm,args"</span></span>
+<span class="line"><span style="color:#f8f8f2">PID   PPID  COMMAND          COMMAND</span></span>
+<span class="line"><span style="color:#f8f8f2">    1     0 pause            /pause</span></span>
+<span class="line"><span style="color:#f8f8f2">   11     1 nginx            nginx: worker process</span></span>
+<span class="line"><span style="color:#f8f8f2">   12     1 nginx            nginx: worker process</span></span>
+<span class="line"><span style="color:#f8f8f2">   13     1 nginx            nginx: worker process</span></span>
+<span class="line"><span style="color:#f8f8f2">   14     1 nginx            nginx: worker process</span></span>
+<span class="line"><span style="color:#f8f8f2">   15     0 sh               sh</span></span>
+<span class="line"><span style="color:#f8f8f2">   48    15 ps               ps -efo pid,ppid,comm,args</span></span></code></pre><ol start="4"><li>docker hang 此时对此容器执行 docker 命令(<code>inspect, logs, exec</code>)将卡住， 同样通过<code>kubectl</code>执行会超时。</li></ol><h2 id="分析">分析</h2><p>在未开启<code>shareProcessNamespace</code>的容器中，主进程退出<code>pid 1</code>, 此 pid namespace 销毁，系统会<code>kill</code>其下的所有进程。开启后，<code>pid 1</code>为<code>pause</code>进程，容器主进程退出，由于共享 pid namespace，其他进程没有退出变成孤儿进程。此时调用 docker 相关接口去操作容器，docker 首先去找主进程，但主进程已经不存在了，导致异常(待确认)。</p><p>清理掉这些孤儿进程容器便会正常退出，可以<code>kill</code>掉这些进程或者<code>kill</code>pause 进程，即可恢复。</p><h2 id="方案">方案</h2><p>有没有优雅的方式解决此种问题，如果主进程退出子进程也一起退出便符合预期，这就需要进程管理工具来实现，在宿主机中有<code>systemd</code>、<code>god</code>，容器中也有类似的工具即<code>init进程</code>(传递信息，回收子进程)，常见的有</p><ol><li><code>docker init</code>, docker 自带的 init 进程(即<code>tini</code>)</li><li><a href="https://github.com/krallin/tini"><code>tini</code></a>, 可回收孤儿进程/僵尸进程，<code>kill</code>进程组等</li><li><a href="https://github.com/Yelp/dumb-init"><code>dumb-init</code></a>, 可管理进程，重写信号等</li></ol><p>经过测试，<code>tini</code>进程只能回收前台程序，对于后台程序则无能为力(例如<code>nohup</code>, <code>&#x26;</code>启动的程序)，<code>dumb-init</code>在主进程退出时，会传递信号给子进程，符合预期。</p><p>开启<code>dumb-init</code>进程的<code>dockerfile</code>如下，<code>tini</code>也类似</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">FROM nginx:alpine</span></span>
+<span class="line"><span style="color:#f8f8f2"></span></span>
+<span class="line"><span style="color:#f8f8f2"># tini</span></span>
+<span class="line"><span style="color:#f8f8f2"># RUN apk add --no-cache tini</span></span>
+<span class="line"><span style="color:#f8f8f2"># ENTRYPOINT ["/sbin/tini", "-s", "-g", "--"]</span></span>
+<span class="line"><span style="color:#f8f8f2"></span></span>
+<span class="line"><span style="color:#f8f8f2"># dumb-init</span></span>
+<span class="line"><span style="color:#f8f8f2">RUN wget -O /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64</span></span>
+<span class="line"><span style="color:#f8f8f2">RUN chmod +x /usr/bin/dumb-init</span></span>
+<span class="line"><span style="color:#f8f8f2">ENTRYPOINT ["/usr/bin/dumb-init", "-v", "--"]</span></span>
+<span class="line"><span style="color:#f8f8f2"></span></span>
+<span class="line"><span style="color:#f8f8f2">CMD ["nginx", "-g", "daemon off;"]</span></span></code></pre><p>init 方式对于此问题是一种临时的解决方案，需要 docker 从根本上解决此种情况。容器推荐单进程运行，但某些情况必须要运行多进程，如果不想处理处理传递回收进程等，可以通过<code>init</code>进程，无需更改代码即可实现。</p><h2 id="参考">参考</h2><ul><li><a href="https://github.com/Yelp/dumb-init">https://github.com/Yelp/dumb-init</a></li><li><a href="https://github.com/krallin/tini">https://github.com/krallin/tini</a></li><li><a href="https://github.com/kubernetes/kubernetes/issues/92214">https://github.com/kubernetes/kubernetes/issues/92214</a></li></ul></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/docker" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#docker</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="https://qingwave.github.io" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>

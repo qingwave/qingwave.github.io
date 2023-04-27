@@ -1,363 +1,108 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>Golang实现一个事务型内存数据库</title><meta content="index,follow" name="robots"/><meta content="Golang实现一个事务型内存数据库" property="og:title"/><meta content="https://qingwave.github.io/golang-in-memory-database" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/golang-in-memory-database" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noodp" />
-    <title class="pjax-title">
-        Golang实现一个事务型内存数据库
-        
-    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="Golang实现一个事务型内存数据库" />
-<meta property="og:description" content="内存数据库经我们经常用到，例如Redis，那么如何从零实现一个内存数据库呢，本文旨在介绍如何使用Golang编写一个KV内存数据库MossDB。 特性MossDB是一个纯Golang编写、可嵌入的、键值" />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://qingwave.github.io/golang-in-memory-database/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
-<meta property="article:published_time" content="2023-03-01T08:01:22+00:00" />
-<meta property="article:modified_time" content="2023-03-02T09:54:53+00:00" /><meta property="og:site_name" content="Qingwave" />
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
-
-<meta name="twitter:title" content="Golang实现一个事务型内存数据库"/>
-<meta name="twitter:description" content="内存数据库经我们经常用到，例如Redis，那么如何从零实现一个内存数据库呢，本文旨在介绍如何使用Golang编写一个KV内存数据库MossDB。 特性MossDB是一个纯Golang编写、可嵌入的、键值"/>
-<meta name="application-name" content="Qingwave">
-<meta name="apple-mobile-web-app-title" content="Qingwave">
-
-<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/golang-in-memory-database/" /><link rel="prev" href="https://qingwave.github.io/rust-ping/" /><link rel="next" href="https://qingwave.github.io/xian-flower-blooming/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
-    {
-        "@context": "http://schema.org",
-        "@type": "BlogPosting",
-        "headline": "Golang实现一个事务型内存数据库",
-        "inLanguage": "zh-CN",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": "https:\/\/qingwave.github.io\/golang-in-memory-database\/"
-        },"genre": "posts","keywords": "golang, database, etcd","wordcount":  2725 ,
-        "url": "https:\/\/qingwave.github.io\/golang-in-memory-database\/","datePublished": "2023-03-01T08:01:22+00:00","dateModified": "2023-03-02T09:54:53+00:00","publisher": {
-            "@type": "Organization",
-            "name": ""},"author": {
-                "@type": "Person",
-                "name": "Qingwave"
-            },"description": ""
-    }
-    </script></head>
-
-<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
-        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
-        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
-        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
-        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
-        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
-        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
-    </script>
-    <div id="back-to-top"></div>
-    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
-    <div class="header-wrapper">
-        <div class="header-title">
-            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
-        </div>
-        <div class="menu">
-            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-        </div>
-    </div>
-</header><header class="mobile" id="header-mobile">
-    <div class="header-container">
-        <div class="header-wrapper">
-            <div class="header-title">
-                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
-            </div>
-            <div class="menu-toggle" id="menu-toggle-mobile">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-    </div>
-</header>
-<div class="search-dropdown desktop">
-    <div id="search-dropdown-desktop"></div>
-</div>
-<div class="search-dropdown mobile">
-    <div id="search-dropdown-mobile"></div>
-</div>
-<main class="main">
-            <div class="container"><div class="toc" id="toc-auto">
-        <h2 class="toc-title">目录</h2>
-        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#特性">特性</a></li>
-    <li><a href="#命名由来">命名由来</a></li>
-    <li><a href="#架构">架构</a>
-      <ul>
-        <li><a href="#快速开始">快速开始</a></li>
-      </ul>
-    </li>
-    <li><a href="#具体实现">具体实现</a>
-      <ul>
-        <li><a href="#aof持久化">AOF持久化</a></li>
-        <li><a href="#存储引擎">存储引擎</a></li>
-        <li><a href="#事务实现">事务实现</a></li>
-        <li><a href="#watch">Watch</a></li>
-        <li><a href="#ttl">TTL</a></li>
-      </ul>
-    </li>
-    <li><a href="#总结">总结</a></li>
-  </ul>
-</nav></div>
-    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">Golang实现一个事务型内存数据库</h1><div class="post-meta">
-            <div class="post-meta-line"><time datetime="Mar 01, 2023">Mar 01, 2023</time>
-            </div>
-        </div><div class="details toc" id="toc-static"  kept="">
-                <div class="details-summary toc-title">
-                    <span>目录</span>
-                    <span><i class="details-icon fas fa-angle-right"></i></span>
-                </div>
-                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#特性">特性</a></li>
-    <li><a href="#命名由来">命名由来</a></li>
-    <li><a href="#架构">架构</a>
-      <ul>
-        <li><a href="#快速开始">快速开始</a></li>
-      </ul>
-    </li>
-    <li><a href="#具体实现">具体实现</a>
-      <ul>
-        <li><a href="#aof持久化">AOF持久化</a></li>
-        <li><a href="#存储引擎">存储引擎</a></li>
-        <li><a href="#事务实现">事务实现</a></li>
-        <li><a href="#watch">Watch</a></li>
-        <li><a href="#ttl">TTL</a></li>
-      </ul>
-    </li>
-    <li><a href="#总结">总结</a></li>
-  </ul>
-</nav></div>
-            </div><div class="content" id="content"><p>内存数据库经我们经常用到，例如Redis，那么如何从零实现一个内存数据库呢，本文旨在介绍如何使用Golang编写一个KV内存数据库<a href="https://github.com/qingwave/mossdb" target="_blank" rel="noopener noreffer">MossDB</a>。</p>
-<h2 id="特性" class="headerLink">
-    <a href="#%e7%89%b9%e6%80%a7" class="header-mark"></a>特性</h2><p>MossDB是一个纯Golang编写、可嵌入的、键值型内存数据库，包含以下特性</p>
-<ul>
-<li>可持久化，类似Redis AOF(Append only Log)</li>
-<li>支持事务</li>
-<li>支持近实时的TTL(Time to Live), 可以实现毫秒级的过期删除</li>
-<li>前缀搜索</li>
-<li>Watch接口，可以监听某个键值的内容变化，类似etcd的Watch</li>
-<li>多后端存储，目前支持HashMap和RadixTree</li>
-</ul>
-<h2 id="命名由来" class="headerLink">
-    <a href="#%e5%91%bd%e5%90%8d%e7%94%b1%e6%9d%a5" class="header-mark"></a>命名由来</h2><p><code>Moss</code>有苔、苔花的含义，MossDB的名字来源于清代袁牧的一句诗:</p>
-<blockquote>
-<p>苔花如米小，也学牡丹开</p>
-</blockquote>
-<p>MossDB虽小，但五脏俱全，也支持了很多重要功能。另外，巧合的是《流浪地球2》中的超级计算机550W名字就是Moss。</p>
-<h2 id="架构" class="headerLink">
-    <a href="#%e6%9e%b6%e6%9e%84" class="header-mark"></a>架构</h2><p>内存数据库虽然使用简单，实现起来却有很多细节，Golang目前也存在不少优秀的开源内存数据库，比如<a href="https://github.com/tidwall/buntdb" target="_blank" rel="noopener noreffer">buntdb</a>、<a href="https://github.com/hashicorp/go-memdb" target="_blank" rel="noopener noreffer">go-memdb</a>，在编写MossDB过程中也借鉴了一些它们的特性。</p>
-<p>MossDB的架构如图：
-<img
-        class="lazyload"
-        data-src="https://github.com/qingwave/mossdb/raw/main/doc/mossdb.png"
-        data-srcset="https://github.com/qingwave/mossdb/raw/main/doc/mossdb.png, https://github.com/qingwave/mossdb/raw/main/doc/mossdb.png 1.5x, https://github.com/qingwave/mossdb/raw/main/doc/mossdb.png 2x"
-        data-sizes="auto"
-        alt="https://github.com/qingwave/mossdb/raw/main/doc/mossdb.png"
-        title="MossDB">
-
-</p>
-<p>自上往下分为：</p>
-<ol>
-<li>接口层，提供API接受用户请求</li>
-<li>核心层，实现事务、过期删除、Watch等功能</li>
-<li>存储层，提供KV的后端存储以及增删改查</li>
-<li>持久化层，使用AOL持久化即每次修改操作都会持久化到磁盘Log中</li>
-</ol>
-<h3 id="快速开始" class="headerLink">
-    <a href="#%e5%bf%ab%e9%80%9f%e5%bc%80%e5%a7%8b" class="header-mark"></a>快速开始</h3><p>MossDB可嵌入到Go程序中，可以通过<code>go get</code>获取</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">go get github.com/qingwave/mossdb
-</span></span></code></pre></div><p>MossDB提供了易用的API，可以方便地进行数据处理，下面的示例代码展示了如何使用MossDB：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="p">(</span>
-</span></span><span class="line"><span class="cl">	<span class="s">&#34;log&#34;</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="s">&#34;github.com/qingwave/mossdb&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">// create db instance
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">db</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">mossdb</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">mossdb</span><span class="p">.</span><span class="nx">Config</span><span class="p">{})</span>
-</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">		<span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">	<span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// set, get data
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">db</span><span class="p">.</span><span class="nf">Set</span><span class="p">(</span><span class="s">&#34;key1&#34;</span><span class="p">,</span> <span class="p">[]</span><span class="nb">byte</span><span class="p">(</span><span class="s">&#34;val1&#34;</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">    <span class="nx">log</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;get key1: %s&#34;</span><span class="p">,</span> <span class="nx">db</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="s">&#34;key1&#34;</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// transaction
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nx">db</span><span class="p">.</span><span class="nf">Tx</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">tx</span> <span class="o">*</span><span class="nx">mossdb</span><span class="p">.</span><span class="nx">Tx</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">        <span class="nx">val1</span> <span class="o">:=</span> <span class="nx">tx</span><span class="p">.</span><span class="nf">Get</span><span class="p">(</span><span class="s">&#34;key1&#34;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">        <span class="nx">tx</span><span class="p">.</span><span class="nf">Set</span><span class="p">(</span><span class="s">&#34;key2&#34;</span><span class="p">,</span> <span class="nx">val1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="kc">nil</span>
-</span></span><span class="line"><span class="cl">    <span class="p">})</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>更多示例见<a href="https://github.com/qingwave/mossdb" target="_blank" rel="noopener noreffer">源码</a></p>
-<h2 id="具体实现" class="headerLink">
-    <a href="#%e5%85%b7%e4%bd%93%e5%ae%9e%e7%8e%b0" class="header-mark"></a>具体实现</h2><p>从下往上分别介绍下MossDB如何设计与实现，以及相关的细节。</p>
-<h3 id="aof持久化" class="headerLink">
-    <a href="#aof%e6%8c%81%e4%b9%85%e5%8c%96" class="header-mark"></a>AOF持久化</h3><p>AOF源于Redis提供两种持久化技术，另外一种是RDB，AOF是指在每次写操作后，将该操作序列化后追加到文件中，重启时重放文件中的对应操作，从而达到持久化的目的。其实现简单，用在MossDB是一个不错的选择，但需要注意的是AOF缺点同样明显，如果文件较大，每次重启会花费较多时间。</p>
-<p>Redis的AOF是一种后写式日志，先写内存直接返回给用户，再写磁盘文件持久化，可以保证其高性能，但如果中途宕机会丢失数据。MossDB中的AOF采用了WAL(预写式日志)实现，先写Log再写内存，用来保证数据不会丢失，从而可以进一步实现事务。</p>
-<p>那么采用WAL会不会影响其性能？每次必须等到落盘后才进行其他操作，WAL的每次写入会先写到内核缓冲区，这个调用很快就返回了，内核再将数据落盘。我们也可以使用<code>fsync</code>调用强制内核执行直接将数据写入磁盘。在MossDB中普通写操作之会不会直接调用<code>fsync</code>，事务写中强制开启<code>fsync</code>，从而平衡数据一致性与性能。</p>
-<p>WAL的实现引用了<a href="https://github.com/tidwall/wal" target="_blank" rel="noopener noreffer">tiwall/wal</a>，其中封装了对Log文件的操作，可以支持批量写入。由于WAL是二进制的，必须将数据进行编码，通过<code>varint</code>编码实现，将数据长度插入到数据本体之前，读取时可以读取定长的数据长度，然后按长度读取数据本体。MossDB中数据格式如下：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Record</span> <span class="kd">struct</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">Op</span>        <span class="kt">uint16</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">KeySize</span>   <span class="kt">uint32</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">ValSize</span>   <span class="kt">uint32</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">Timestamp</span> <span class="kt">uint64</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">TTL</span>       <span class="kt">uint64</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">Key</span>       <span class="p">[]</span><span class="kt">byte</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">Val</span>       <span class="p">[]</span><span class="kt">byte</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>对应编码后的二进制格式为:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">|------------------------------------------------------------|
-</span></span><span class="line"><span class="cl">| Op | KeySize | ValSize | Timestamp | TTL | Key    | Val    |
-</span></span><span class="line"><span class="cl">|------------------------------------------------------------|
-</span></span><span class="line"><span class="cl">| 2  | 4       | 4       | 8         | 8   | []byte | []byte |
-</span></span><span class="line"><span class="cl">|------------------------------------------------------------|
-</span></span></code></pre></div><p>使用<code>binary.BigEndian.PutUint16</code>进行编码，解码时通过<code>binary.BigEndian.Uint16</code>，从而依次取得生成完整的数据。</p>
-<h3 id="存储引擎" class="headerLink">
-    <a href="#%e5%ad%98%e5%82%a8%e5%bc%95%e6%93%8e" class="header-mark"></a>存储引擎</h3><p>MossDB提供了存储接口，只要实现了此接口都可以作为其后端存储</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Store</span> <span class="kd">interface</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nf">Get</span><span class="p">(</span><span class="nx">key</span> <span class="kt">string</span><span class="p">)</span> <span class="p">([]</span><span class="kt">byte</span><span class="p">,</span> <span class="kt">bool</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">	<span class="nf">Set</span><span class="p">(</span><span class="nx">key</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">val</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">	<span class="nf">Delete</span><span class="p">(</span><span class="nx">key</span> <span class="kt">string</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">	<span class="nf">Prefix</span><span class="p">(</span><span class="nx">key</span> <span class="kt">string</span><span class="p">)</span> <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">][]</span><span class="kt">byte</span>
-</span></span><span class="line"><span class="cl">	<span class="nf">Dump</span><span class="p">()</span> <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">][]</span><span class="kt">byte</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="nf">Len</span><span class="p">()</span> <span class="kt">int</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>内置提供了HashMap与RadixTree两种方式，HashMap实现简单通过简单封装<code>map</code>可以快速进行查询与插入，但范围搜索性能差。RadixTree即前缀树，查询插入的时间复杂度只与Key的长度相关，而且支持范围搜索，MossDB采用<a href="https://github.com/arriqaaq/art" target="_blank" rel="noopener noreffer">Adaptive Radix Tree</a>可以避免原生的前准树空间浪费。</p>
-<p>由于RadixTree的特性，MossDB可以方便的进行前缀搜索，目前支持<code>List</code>与<code>Watch</code>操作。</p>
-<h3 id="事务实现" class="headerLink">
-    <a href="#%e4%ba%8b%e5%8a%a1%e5%ae%9e%e7%8e%b0" class="header-mark"></a>事务实现</h3><p>要实现事务必须要保证其ACID特性，MossDB的事务定义如下：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Tx</span> <span class="kd">struct</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">db</span>      <span class="o">*</span><span class="nx">DB</span> <span class="c1">// DB实例
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">commits</span> <span class="p">[]</span><span class="o">*</span><span class="nx">Record</span> <span class="c1">// 对于写操作生成 Record, 用来做持久化
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">undos</span>   <span class="p">[]</span><span class="o">*</span><span class="nx">Record</span> <span class="c1">// 对于写操作生成 Undo Record，用于回滚
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
-</span></span></code></pre></div><p>MossDB中一次事务的流程主要包含以下几个步骤：</p>
-<ol>
-<li>首先加锁，保证其数据一致性</li>
-<li>对于写操作，生成Commits和Undo Records，然后写入内存；读操作则直接执行</li>
-<li>提交阶段，将Commits持久化到WAL中；若写入失败，则删除已写入数据；成功则设置数据的其他属性(TTL, Watch等)</li>
-<li>若中间发生错误，执行回滚操作，将Undo Records的记录执行</li>
-<li>事务完成，释放锁</li>
-</ol>
-<h3 id="watch" class="headerLink">
-    <a href="#watch" class="header-mark"></a>Watch</h3><p>由于工作中经常使用Kubernetes，对于其Watch接口印象深刻，通过Watch来充当其事件总线，保证其声明式对象的管理。Kubernetes的Watch底层由etcd实现，MossDB也实现了类似的功能。</p>
-<p>Watch的定义如下：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">type</span> <span class="nx">Watcher</span> <span class="kd">struct</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">mu</span>       <span class="nx">sync</span><span class="p">.</span><span class="nx">RWMutex</span> <span class="c1">// 锁
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">watchers</span> <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="o">*</span><span class="nx">SubWatcher</span> <span class="c1">// watchId与具体Watcher直接的映射
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">keys</span>     <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="nx">containerx</span><span class="p">.</span><span class="nx">Set</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span> <span class="c1">// Watch单个key
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">ranges</span>   <span class="o">*</span><span class="nx">art</span><span class="p">.</span><span class="nx">Tree</span> <span class="c1">// 前缀Watch
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">queue</span>    <span class="nx">workqueue</span><span class="p">.</span><span class="nx">WorkQueue</span> <span class="c1">// 工作队列，存放所有事件
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">stop</span>     <span class="kd">chan</span> <span class="kd">struct</span><span class="p">{}</span> <span class="c1">// 是否中止
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
-</span></span></code></pre></div><p>通过<a href="https://github.com/qingwave/gocorex/blob/main/syncx/workqueue/workqueue.go" target="_blank" rel="noopener noreffer">工作队列</a>模式，任何写操作都会同步追加到队列中，如果存在单个key的监听者，则通过<code>watchers</code> map获取到对应列表，依次发送事件。对于前缀Watch，我们不可能记录此前缀的所有Key，这里借鉴了etcd，通过RadixTree保存<code>前缀Key</code>，当有新事件时，匹配Key所在的路径，如果有监听者，则进行事件通知。</p>
-<p>调用Watch会返回一个Channel，用户只需要监听Channel即可</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-golang" data-lang="golang"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">Watch</span><span class="p">(</span><span class="nx">db</span> <span class="o">*</span><span class="nx">mossdb</span><span class="p">.</span><span class="nx">DB</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">key</span> <span class="o">:=</span> <span class="s">&#34;watch-key&#34;</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="nx">ctx</span><span class="p">,</span> <span class="nx">cancel</span> <span class="o">:=</span> <span class="nx">context</span><span class="p">.</span><span class="nf">WithTimeout</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nf">Background</span><span class="p">(),</span> <span class="mi">1000</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Millisecond</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">	<span class="k">defer</span> <span class="nf">cancel</span><span class="p">()</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="c1">// start watch key
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">ch</span> <span class="o">:=</span> <span class="nx">db</span><span class="p">.</span><span class="nf">Watch</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span> <span class="nx">key</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">	<span class="nx">log</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;start watch key %s&#34;</span><span class="p">,</span> <span class="nx">key</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="k">go</span> <span class="kd">func</span><span class="p">()</span> <span class="p">{</span> <span class="c1">// 模拟发送event
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>		<span class="nx">db</span><span class="p">.</span><span class="nf">Set</span><span class="p">(</span><span class="nx">key</span><span class="p">,</span> <span class="nx">mossdb</span><span class="p">.</span><span class="nf">Val</span><span class="p">(</span><span class="s">&#34;val1&#34;</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">		<span class="nx">db</span><span class="p">.</span><span class="nf">Set</span><span class="p">(</span><span class="nx">key</span><span class="p">,</span> <span class="nx">mossdb</span><span class="p">.</span><span class="nf">Val</span><span class="p">(</span><span class="s">&#34;val2&#34;</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">		<span class="nx">db</span><span class="p">.</span><span class="nf">Delete</span><span class="p">(</span><span class="nx">key</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">		<span class="nx">time</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="mi">100</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">		<span class="nx">db</span><span class="p">.</span><span class="nf">Set</span><span class="p">(</span><span class="nx">key</span><span class="p">,</span> <span class="nx">mossdb</span><span class="p">.</span><span class="nf">Val</span><span class="p">(</span><span class="s">&#34;val3&#34;</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">	<span class="p">}()</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">	<span class="k">for</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">		<span class="k">select</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">		<span class="k">case</span> <span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nf">Done</span><span class="p">():</span>
-</span></span><span class="line"><span class="cl">			<span class="nx">log</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;context done&#34;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">			<span class="k">return</span>
-</span></span><span class="line"><span class="cl">		<span class="k">case</span> <span class="nx">resp</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">			<span class="k">if</span> <span class="p">!</span><span class="nx">ok</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">				<span class="nx">log</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;watch done&#34;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">				<span class="k">return</span>
-</span></span><span class="line"><span class="cl">			<span class="p">}</span>
-</span></span><span class="line"><span class="cl">			<span class="nx">log</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;receive event: %s, key: %s, new val: %s&#34;</span><span class="p">,</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Event</span><span class="p">.</span><span class="nx">Op</span><span class="p">,</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Event</span><span class="p">.</span><span class="nx">Key</span><span class="p">,</span> <span class="nx">resp</span><span class="p">.</span><span class="nx">Event</span><span class="p">.</span><span class="nx">Val</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">		<span class="p">}</span>
-</span></span><span class="line"><span class="cl">	<span class="p">}</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// Output
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 2023/02/23 09:48:50 start watch key watch-key
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// 2023/02/23 09:34:19 receive event: MODIFY, key: watch-key, new val: val1
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// 2023/02/23 09:34:19 receive event: MODIFY, key: watch-key, new val: val2
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// 2023/02/23 09:34:19 receive event: DELETE, key: watch-key, new val:
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// 2023/02/23 09:34:19 context done
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
-</span></span></code></pre></div><h3 id="ttl" class="headerLink">
-    <a href="#ttl" class="header-mark"></a>TTL</h3><p>过期删除再很多场景很有用，比如验证码过期、订单未支付关闭等。MossDB采用时间堆来实现精确的Key过期策略，具体原理可以参考之前的文章<a href="/golang-distributed-system-x-cron" rel="">Golang分布式应用之定时任务</a>，在查询操作时也会检查Key是否过期，如果过期则直接返回空数据。配合Watch操作可以精确管理数据的生命周期。</p>
-<h2 id="总结" class="headerLink">
-    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h2><p>至此，MossDB的实现细节已经分析完成，支持了事务、持久化、Watch与过期删除等特性，后续可能会支持HTTP API、存储快照等功能。</p>
-<p>所有代码见<a href="https://github.com/qingwave/mossdb" target="_blank" rel="noopener noreffer">https://github.com/qingwave/mossdb</a>，欢迎批评指正以及Star。</p>
-<blockquote>
-<p>Explore more in <a href="https://qingwave.github.io" target="_blank" rel="noopener noreffer">https://qingwave.github.io</a></p>
-</blockquote>
-</div>
-
-        
-        <div class="post-footer" id="post-footer">
-    <div class="post-meta-line"><span class="single-tag">
-                <a href='/tags/golang/'>#golang</a>
-                    <span class="separator"> </span>
-                <a href='/tags/database/'>#database</a>
-                    <span class="separator"> </span>
-                <a href='/tags/etcd/'>#etcd</a></span></div>
-
-    <div class="post-info">
-        <div class="post-info-line">
-            <div class="post-info-link">
-                <a href='/about'>About Me</a>
-            </div>
-        </div>
-        <div class="post-info-line">
-            <div class="post-info-md"></div>
-        </div>
-    </div><div class="post-nav"><a href="/rust-ping/" class="prev" rel="prev" title="Rust初探: 实现一个Ping"><i class="fas fa-angle-left fa-fw"></i>Rust初探: 实现一个Ping</a>
-            <a href="/xian-flower-blooming/" class="next" rel="next" title="长安花事">长安花事<i class="fas fa-angle-right fa-fw"></i></a></div></div>
-<div id="comments"><div id="giscus"></div><noscript>
-                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
-            </noscript></div></article></div>
-        </main><footer class="footer">
-        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
-            <div class="footer-line"></div>
-            <div class="footer-line">
-            </div>
-        </div></footer></div>
-
-    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
-            <i class="fas fa-arrow-up fa-fw"></i>
-        </a>
-    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
-            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
-            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
-        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
-
-<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
-</body>
-
-</html>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    window.dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+  gtag("config", id);
+})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.b8ddc4ce.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img src="/favicon.svg" class="h-6 w-6 dark:invert invert-0"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Wed Mar 01 2023 08:01:22 GMT+0000 (Coordinated Universal Time)">Mar 1, 2023</time> · <a href="/categories/code" class="capitalize hover:underline">code</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">Golang实现一个事务型内存数据库</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><p>内存数据库经我们经常用到，例如 Redis，那么如何从零实现一个内存数据库呢，本文旨在介绍如何使用 Golang 编写一个 KV 内存数据库<a href="https://github.com/qingwave/mossdb">MossDB</a>。</p><h2 id="特性">特性</h2><p>MossDB 是一个纯 Golang 编写、可嵌入的、键值型内存数据库，包含以下特性</p><ul><li>可持久化，类似 Redis AOF(Append only Log)</li><li>支持事务</li><li>支持近实时的 TTL(Time to Live), 可以实现毫秒级的过期删除</li><li>前缀搜索</li><li>Watch 接口，可以监听某个键值的内容变化，类似 etcd 的 Watch</li><li>多后端存储，目前支持 HashMap 和 RadixTree</li></ul><h2 id="命名由来">命名由来</h2><p><code>Moss</code>有苔、苔花的含义，MossDB 的名字来源于清代袁牧的一句诗:</p><blockquote><p>苔花如米小，也学牡丹开</p></blockquote><p>MossDB 虽小，但五脏俱全，也支持了很多重要功能。另外，巧合的是《流浪地球 2》中的超级计算机 550W 名字就是 Moss。</p><h2 id="架构">架构</h2><p>内存数据库虽然使用简单，实现起来却有很多细节，Golang 目前也存在不少优秀的开源内存数据库，比如<a href="https://github.com/tidwall/buntdb">buntdb</a>、<a href="https://github.com/hashicorp/go-memdb">go-memdb</a>，在编写 MossDB 过程中也借鉴了一些它们的特性。</p><p>MossDB 的架构如图： <img src="https://github.com/qingwave/mossdb/raw/main/doc/mossdb.png" alt="MossDB"></p><p>自上往下分为：</p><ol><li>接口层，提供 API 接受用户请求</li><li>核心层，实现事务、过期删除、Watch 等功能</li><li>存储层，提供 KV 的后端存储以及增删改查</li><li>持久化层，使用 AOL 持久化即每次修改操作都会持久化到磁盘 Log 中</li></ol><h3 id="快速开始">快速开始</h3><p>MossDB 可嵌入到 Go 程序中，可以通过<code>go get</code>获取</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">go get github.com/qingwave/mossdb</span></span></code></pre><p>MossDB 提供了易用的 API，可以方便地进行数据处理，下面的示例代码展示了如何使用 MossDB：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">package</span><span style="color:#f8f8f2"> main</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">import</span><span style="color:#f8f8f2"> (</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">log</span><span style="color:#e9f284">"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">github.com/qingwave/mossdb</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> </span><span style="color:#50fa7b">main</span><span style="color:#f8f8f2">() {</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// create db instance</span></span>
+<span class="line"><span style="color:#f8f8f2">	db, err </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> mossdb.</span><span style="color:#8be9fd">New</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">&#x26;</span><span style="color:#f8f8f2">mossdb.Config{})</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> err </span><span style="color:#ff79c6">!=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">		log.</span><span style="color:#8be9fd">Fatal</span><span style="color:#f8f8f2">(err)</span></span>
+<span class="line"><span style="color:#f8f8f2">	}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// set, get data</span></span>
+<span class="line"><span style="color:#f8f8f2">	db.</span><span style="color:#8be9fd">Set</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">key1</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, []</span><span style="color:#8be9fd">byte</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">val1</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">))</span></span>
+<span class="line"><span style="color:#f8f8f2">    log.</span><span style="color:#8be9fd">Printf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">get key1: </span><span style="color:#bd93f9">%s</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, db.</span><span style="color:#8be9fd">Get</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">key1</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">))</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// transaction</span></span>
+<span class="line"><span style="color:#f8f8f2">    db.</span><span style="color:#8be9fd">Tx</span><span style="color:#f8f8f2">(</span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">(tx </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">mossdb.Tx) </span><span style="color:#8be9fd">error</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">        val1 </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> tx.</span><span style="color:#8be9fd">Get</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">key1</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">        tx.</span><span style="color:#8be9fd">Set</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">key2</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, val1)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">nil</span></span>
+<span class="line"><span style="color:#f8f8f2">    })</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>更多示例见<a href="https://github.com/qingwave/mossdb">源码</a></p><h2 id="具体实现">具体实现</h2><p>从下往上分别介绍下 MossDB 如何设计与实现，以及相关的细节。</p><h3 id="aof-持久化">AOF 持久化</h3><p>AOF 源于 Redis 提供两种持久化技术，另外一种是 RDB，AOF 是指在每次写操作后，将该操作序列化后追加到文件中，重启时重放文件中的对应操作，从而达到持久化的目的。其实现简单，用在 MossDB 是一个不错的选择，但需要注意的是 AOF 缺点同样明显，如果文件较大，每次重启会花费较多时间。</p><p>Redis 的 AOF 是一种后写式日志，先写内存直接返回给用户，再写磁盘文件持久化，可以保证其高性能，但如果中途宕机会丢失数据。MossDB 中的 AOF 采用了 WAL(预写式日志)实现，先写 Log 再写内存，用来保证数据不会丢失，从而可以进一步实现事务。</p><p>那么采用 WAL 会不会影响其性能？每次必须等到落盘后才进行其他操作，WAL 的每次写入会先写到内核缓冲区，这个调用很快就返回了，内核再将数据落盘。我们也可以使用<code>fsync</code>调用强制内核执行直接将数据写入磁盘。在 MossDB 中普通写操作之会不会直接调用<code>fsync</code>，事务写中强制开启<code>fsync</code>，从而平衡数据一致性与性能。</p><p>WAL 的实现引用了<a href="https://github.com/tidwall/wal">tiwall/wal</a>，其中封装了对 Log 文件的操作，可以支持批量写入。由于 WAL 是二进制的，必须将数据进行编码，通过<code>varint</code>编码实现，将数据长度插入到数据本体之前，读取时可以读取定长的数据长度，然后按长度读取数据本体。MossDB 中数据格式如下：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">Record</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">	Op        </span><span style="color:#8be9fd">uint16</span></span>
+<span class="line"><span style="color:#f8f8f2">	KeySize   </span><span style="color:#8be9fd">uint32</span></span>
+<span class="line"><span style="color:#f8f8f2">	ValSize   </span><span style="color:#8be9fd">uint32</span></span>
+<span class="line"><span style="color:#f8f8f2">	Timestamp </span><span style="color:#8be9fd">uint64</span></span>
+<span class="line"><span style="color:#f8f8f2">	TTL       </span><span style="color:#8be9fd">uint64</span></span>
+<span class="line"><span style="color:#f8f8f2">	Key       []</span><span style="color:#8be9fd">byte</span></span>
+<span class="line"><span style="color:#f8f8f2">	Val       []</span><span style="color:#8be9fd">byte</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>对应编码后的二进制格式为:</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">|------------------------------------------------------------|</span></span>
+<span class="line"><span style="color:#f8f8f2">| Op | KeySize | ValSize | Timestamp | TTL | Key    | Val    |</span></span>
+<span class="line"><span style="color:#f8f8f2">|------------------------------------------------------------|</span></span>
+<span class="line"><span style="color:#f8f8f2">| 2  | 4       | 4       | 8         | 8   | []byte | []byte |</span></span>
+<span class="line"><span style="color:#f8f8f2">|------------------------------------------------------------|</span></span></code></pre><p>使用<code>binary.BigEndian.PutUint16</code>进行编码，解码时通过<code>binary.BigEndian.Uint16</code>，从而依次取得生成完整的数据。</p><h3 id="存储引擎">存储引擎</h3><p>MossDB 提供了存储接口，只要实现了此接口都可以作为其后端存储</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">Store</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">interface</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Get</span><span style="color:#f8f8f2">(key </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">) ([]</span><span style="color:#8be9fd">byte</span><span style="color:#f8f8f2">, </span><span style="color:#8be9fd">bool</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Set</span><span style="color:#f8f8f2">(key </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">, val []</span><span style="color:#8be9fd">byte</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Delete</span><span style="color:#f8f8f2">(key </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Prefix</span><span style="color:#f8f8f2">(key </span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">) </span><span style="color:#ff79c6">map</span><span style="color:#f8f8f2">[</span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">][]</span><span style="color:#8be9fd">byte</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Dump</span><span style="color:#f8f8f2">() </span><span style="color:#ff79c6">map</span><span style="color:#f8f8f2">[</span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">][]</span><span style="color:#8be9fd">byte</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#8be9fd">Len</span><span style="color:#f8f8f2">() </span><span style="color:#8be9fd">int</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>内置提供了 HashMap 与 RadixTree 两种方式，HashMap 实现简单通过简单封装<code>map</code>可以快速进行查询与插入，但范围搜索性能差。RadixTree 即前缀树，查询插入的时间复杂度只与 Key 的长度相关，而且支持范围搜索，MossDB 采用<a href="https://github.com/arriqaaq/art">Adaptive Radix Tree</a>可以避免原生的前准树空间浪费。</p><p>由于 RadixTree 的特性，MossDB 可以方便的进行前缀搜索，目前支持<code>List</code>与<code>Watch</code>操作。</p><h3 id="事务实现">事务实现</h3><p>要实现事务必须要保证其 ACID 特性，MossDB 的事务定义如下：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">Tx</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">	db      </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">DB </span><span style="color:#6272a4">// DB实例</span></span>
+<span class="line"><span style="color:#f8f8f2">	commits []</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Record </span><span style="color:#6272a4">// 对于写操作生成 Record, 用来做持久化</span></span>
+<span class="line"><span style="color:#f8f8f2">	undos   []</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">Record </span><span style="color:#6272a4">// 对于写操作生成 Undo Record，用于回滚</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>MossDB 中一次事务的流程主要包含以下几个步骤：</p><ol><li>首先加锁，保证其数据一致性</li><li>对于写操作，生成 Commits 和 Undo Records，然后写入内存；读操作则直接执行</li><li>提交阶段，将 Commits 持久化到 WAL 中；若写入失败，则删除已写入数据；成功则设置数据的其他属性(TTL, Watch 等)</li><li>若中间发生错误，执行回滚操作，将 Undo Records 的记录执行</li><li>事务完成，释放锁</li></ol><h3 id="watch">Watch</h3><p>由于工作中经常使用 Kubernetes，对于其 Watch 接口印象深刻，通过 Watch 来充当其事件总线，保证其声明式对象的管理。Kubernetes 的 Watch 底层由 etcd 实现，MossDB 也实现了类似的功能。</p><p>Watch 的定义如下：</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">type</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">Watcher</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">	mu       sync.RWMutex </span><span style="color:#6272a4">// 锁</span></span>
+<span class="line"><span style="color:#f8f8f2">	watchers </span><span style="color:#ff79c6">map</span><span style="color:#f8f8f2">[</span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">]</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">SubWatcher </span><span style="color:#6272a4">// watchId与具体Watcher直接的映射</span></span>
+<span class="line"><span style="color:#f8f8f2">	keys     </span><span style="color:#ff79c6">map</span><span style="color:#f8f8f2">[</span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">]containerx.Set[</span><span style="color:#8be9fd">string</span><span style="color:#f8f8f2">] </span><span style="color:#6272a4">// Watch单个key</span></span>
+<span class="line"><span style="color:#f8f8f2">	ranges   </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">art.Tree </span><span style="color:#6272a4">// 前缀Watch</span></span>
+<span class="line"><span style="color:#f8f8f2">	queue    workqueue.WorkQueue </span><span style="color:#6272a4">// 工作队列，存放所有事件</span></span>
+<span class="line"><span style="color:#f8f8f2">	stop     </span><span style="color:#ff79c6">chan</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">struct</span><span style="color:#f8f8f2">{} </span><span style="color:#6272a4">// 是否中止</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>通过<a href="https://github.com/qingwave/gocorex/blob/main/syncx/workqueue/workqueue.go">工作队列</a>模式，任何写操作都会同步追加到队列中，如果存在单个 key 的监听者，则通过<code>watchers</code> map 获取到对应列表，依次发送事件。对于前缀 Watch，我们不可能记录此前缀的所有 Key，这里借鉴了 etcd，通过 RadixTree 保存<code>前缀Key</code>，当有新事件时，匹配 Key 所在的路径，如果有监听者，则进行事件通知。</p><p>调用 Watch 会返回一个 Channel，用户只需要监听 Channel 即可</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">func</span><span style="color:#f8f8f2"> </span><span style="color:#50fa7b">Watch</span><span style="color:#f8f8f2">(db </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">mossdb.DB) {</span></span>
+<span class="line"><span style="color:#f8f8f2">	key </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">watch-key</span><span style="color:#e9f284">"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	ctx, cancel </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> context.</span><span style="color:#8be9fd">WithTimeout</span><span style="color:#f8f8f2">(context.</span><span style="color:#8be9fd">Background</span><span style="color:#f8f8f2">(), </span><span style="color:#bd93f9">1000</span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2">time.Millisecond)</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">defer</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">cancel</span><span style="color:#f8f8f2">()</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// start watch key</span></span>
+<span class="line"><span style="color:#f8f8f2">	ch </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> db.</span><span style="color:#8be9fd">Watch</span><span style="color:#f8f8f2">(ctx, key)</span></span>
+<span class="line"><span style="color:#f8f8f2">	log.</span><span style="color:#8be9fd">Printf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">start watch key </span><span style="color:#bd93f9">%s</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, key)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">go</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">func</span><span style="color:#f8f8f2">() { </span><span style="color:#6272a4">// 模拟发送event</span></span>
+<span class="line"><span style="color:#f8f8f2">		db.</span><span style="color:#8be9fd">Set</span><span style="color:#f8f8f2">(key, mossdb.</span><span style="color:#8be9fd">Val</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">val1</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">))</span></span>
+<span class="line"><span style="color:#f8f8f2">		db.</span><span style="color:#8be9fd">Set</span><span style="color:#f8f8f2">(key, mossdb.</span><span style="color:#8be9fd">Val</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">val2</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">))</span></span>
+<span class="line"><span style="color:#f8f8f2">		db.</span><span style="color:#8be9fd">Delete</span><span style="color:#f8f8f2">(key)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">		time.</span><span style="color:#8be9fd">Sleep</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">100</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">*</span><span style="color:#f8f8f2"> time.Second)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">		db.</span><span style="color:#8be9fd">Set</span><span style="color:#f8f8f2">(key, mossdb.</span><span style="color:#8be9fd">Val</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">val3</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">))</span></span>
+<span class="line"><span style="color:#f8f8f2">	}()</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">select</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">case</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x3C;-</span><span style="color:#f8f8f2">ctx.</span><span style="color:#8be9fd">Done</span><span style="color:#f8f8f2">():</span></span>
+<span class="line"><span style="color:#f8f8f2">			log.</span><span style="color:#8be9fd">Printf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">context done</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">return</span></span>
+<span class="line"><span style="color:#f8f8f2">		</span><span style="color:#ff79c6">case</span><span style="color:#f8f8f2"> resp, ok </span><span style="color:#ff79c6">:=</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">&#x3C;-</span><span style="color:#f8f8f2">ch:</span></span>
+<span class="line"><span style="color:#f8f8f2">			</span><span style="color:#ff79c6">if</span><span style="color:#f8f8f2"> </span><span style="color:#ff79c6">!</span><span style="color:#f8f8f2">ok {</span></span>
+<span class="line"><span style="color:#f8f8f2">				log.</span><span style="color:#8be9fd">Printf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">watch done</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">				</span><span style="color:#ff79c6">return</span></span>
+<span class="line"><span style="color:#f8f8f2">			}</span></span>
+<span class="line"><span style="color:#f8f8f2">			log.</span><span style="color:#8be9fd">Printf</span><span style="color:#f8f8f2">(</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">receive event: </span><span style="color:#bd93f9">%s</span><span style="color:#f1fa8c">, key: </span><span style="color:#bd93f9">%s</span><span style="color:#f1fa8c">, new val: </span><span style="color:#bd93f9">%s</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">, resp.Event.Op, resp.Event.Key, resp.Event.Val)</span></span>
+<span class="line"><span style="color:#f8f8f2">		}</span></span>
+<span class="line"><span style="color:#f8f8f2">	}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// Output</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#6272a4">// 2023/02/23 09:48:50 start watch key watch-key</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// 2023/02/23 09:34:19 receive event: MODIFY, key: watch-key, new val: val1</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// 2023/02/23 09:34:19 receive event: MODIFY, key: watch-key, new val: val2</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// 2023/02/23 09:34:19 receive event: DELETE, key: watch-key, new val:</span></span>
+<span class="line"><span style="color:#f8f8f2">	</span><span style="color:#6272a4">// 2023/02/23 09:34:19 context done</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"></span></code></pre><h3 id="ttl">TTL</h3><p>过期删除再很多场景很有用，比如验证码过期、订单未支付关闭等。MossDB 采用时间堆来实现精确的 Key 过期策略，具体原理可以参考之前的文章<a href="/golang-distributed-system-x-cron">Golang 分布式应用之定时任务</a>，在查询操作时也会检查 Key 是否过期，如果过期则直接返回空数据。配合 Watch 操作可以精确管理数据的生命周期。</p><h2 id="总结">总结</h2><p>至此，MossDB 的实现细节已经分析完成，支持了事务、持久化、Watch 与过期删除等特性，后续可能会支持 HTTP API、存储快照等功能。</p><p>所有代码见<a href="https://github.com/qingwave/mossdb">https://github.com/qingwave/mossdb</a>，欢迎批评指正以及 Star。</p><blockquote><p>Explore more in <a href="https://qingwave.github.io">https://qingwave.github.io</a></p></blockquote></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/golang" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#golang</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/database" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#database</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/etcd" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#etcd</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="https://qingwave.github.io" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>

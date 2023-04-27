@@ -1,491 +1,161 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>k8s中fd与thread限制(一)</title><meta content="index,follow" name="robots"/><meta content="k8s中fd与thread限制(一)" property="og:title"/><meta content="https://qingwave.github.io/k8s-limit-fd-and-thread1" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/k8s-limit-fd-and-thread1" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noodp" />
-    <title class="pjax-title">
-        k8s中fd与thread限制(一)
-        
-    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="k8s中fd与thread限制(一)" />
-<meta property="og:description" content="
-    背景linux中为了防止进程恶意使用资源，系统使用ulimit来限制进程的资源使用情况（包括文件描述符，线程数，内存大小等）。同样地在容器化场景中，需要限制其系统资源的使用量。" />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://qingwave.github.io/k8s-limit-fd-and-thread1/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
-<meta property="article:published_time" content="2019-07-16T18:44:47+00:00" />
-<meta property="article:modified_time" content="2021-11-20T10:59:07+00:00" /><meta property="og:site_name" content="Qingwave" />
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
-
-<meta name="twitter:title" content="k8s中fd与thread限制(一)"/>
-<meta name="twitter:description" content="
-    背景linux中为了防止进程恶意使用资源，系统使用ulimit来限制进程的资源使用情况（包括文件描述符，线程数，内存大小等）。同样地在容器化场景中，需要限制其系统资源的使用量。"/>
-<meta name="application-name" content="Qingwave">
-<meta name="apple-mobile-web-app-title" content="Qingwave">
-
-<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/k8s-limit-fd-and-thread1/" /><link rel="prev" href="https://qingwave.github.io/container-memory/" /><link rel="next" href="https://qingwave.github.io/k8s-limit-fd-and-thread2/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
-    {
-        "@context": "http://schema.org",
-        "@type": "BlogPosting",
-        "headline": "k8s中fd与thread限制(一)",
-        "inLanguage": "zh-CN",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": "https:\/\/qingwave.github.io\/k8s-limit-fd-and-thread1\/"
-        },"genre": "posts","keywords": "k8s, docker","wordcount":  3458 ,
-        "url": "https:\/\/qingwave.github.io\/k8s-limit-fd-and-thread1\/","datePublished": "2019-07-16T18:44:47+00:00","dateModified": "2021-11-20T10:59:07+00:00","publisher": {
-            "@type": "Organization",
-            "name": ""},"author": {
-                "@type": "Person",
-                "name": "Qingwave"
-            },"description": ""
-    }
-    </script></head>
-
-<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
-        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
-        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
-        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
-        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
-        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
-        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
-    </script>
-    <div id="back-to-top"></div>
-    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
-    <div class="header-wrapper">
-        <div class="header-title">
-            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
-        </div>
-        <div class="menu">
-            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-        </div>
-    </div>
-</header><header class="mobile" id="header-mobile">
-    <div class="header-container">
-        <div class="header-wrapper">
-            <div class="header-title">
-                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
-            </div>
-            <div class="menu-toggle" id="menu-toggle-mobile">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-    </div>
-</header>
-<div class="search-dropdown desktop">
-    <div id="search-dropdown-desktop"></div>
-</div>
-<div class="search-dropdown mobile">
-    <div id="search-dropdown-mobile"></div>
-</div>
-<main class="main">
-            <div class="container"><div class="toc" id="toc-auto">
-        <h2 class="toc-title">目录</h2>
-        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#背景">背景</a></li>
-    <li><a href="#限制方法">限制方法</a></li>
-    <li><a href="#实验对比">实验对比</a>
-      <ul>
-        <li><a href="#环境">环境</a></li>
-        <li><a href="#ulimit">ulimit</a>
-          <ul>
-            <li><a href="#文件描述符限制">文件描述符限制</a></li>
-            <li><a href="#线程限制">线程限制</a>
-              <ul>
-                <li><a href="#容器uid">容器uid</a></li>
-                <li><a href="#验证不同用户下ulimit的限制">验证不同用户下ulimit的限制</a></li>
-                <li><a href="#验证ulimit在不同容器相同uid下的限制">验证ulimit在不同容器相同uid下的限制</a></li>
-                <li><a href="#总结">总结</a></li>
-              </ul>
-            </li>
-          </ul>
-        </li>
-        <li><a href="#cgroup">cgroup</a></li>
-        <li><a href="#limitsconfsysctlconf">limits.conf/sysctl.conf</a></li>
-      </ul>
-    </li>
-    <li><a href="#结论">结论</a></li>
-    <li><a href="#引用">引用</a></li>
-  </ul>
-</nav></div>
-    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">k8s中fd与thread限制(一)</h1><div class="post-meta">
-            <div class="post-meta-line"><time datetime="Jul 16, 2019">Jul 16, 2019</time>
-            </div>
-        </div><div class="details toc" id="toc-static"  kept="">
-                <div class="details-summary toc-title">
-                    <span>目录</span>
-                    <span><i class="details-icon fas fa-angle-right"></i></span>
-                </div>
-                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#背景">背景</a></li>
-    <li><a href="#限制方法">限制方法</a></li>
-    <li><a href="#实验对比">实验对比</a>
-      <ul>
-        <li><a href="#环境">环境</a></li>
-        <li><a href="#ulimit">ulimit</a>
-          <ul>
-            <li><a href="#文件描述符限制">文件描述符限制</a></li>
-            <li><a href="#线程限制">线程限制</a>
-              <ul>
-                <li><a href="#容器uid">容器uid</a></li>
-                <li><a href="#验证不同用户下ulimit的限制">验证不同用户下ulimit的限制</a></li>
-                <li><a href="#验证ulimit在不同容器相同uid下的限制">验证ulimit在不同容器相同uid下的限制</a></li>
-                <li><a href="#总结">总结</a></li>
-              </ul>
-            </li>
-          </ul>
-        </li>
-        <li><a href="#cgroup">cgroup</a></li>
-        <li><a href="#limitsconfsysctlconf">limits.conf/sysctl.conf</a></li>
-      </ul>
-    </li>
-    <li><a href="#结论">结论</a></li>
-    <li><a href="#引用">引用</a></li>
-  </ul>
-</nav></div>
-            </div><div class="content" id="content"><h2 id="背景" class="headerLink">
-    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>linux中为了防止进程恶意使用资源，系统使用ulimit来限制进程的资源使用情况（包括文件描述符，线程数，内存大小等）。同样地在容器化场景中，需要限制其系统资源的使用量。</p>
-<h2 id="限制方法" class="headerLink">
-    <a href="#%e9%99%90%e5%88%b6%e6%96%b9%e6%b3%95" class="header-mark"></a>限制方法</h2><ul>
-<li><strong>ulimit</strong>: docker 默认支持ulimit设置，可以在dockerd中配置 default-ulimits 可为宿主机所有容器配置默认的ulimit，docker启动时可添加 &ndash;ulimit 为每个容器配置ulimit会覆盖默认的设置；目前k8s暂不支持ulimit</li>
-<li><strong>cgroup</strong>: docker 默认支持cgroup中内存、cpu、pid等的限制，对于线程限制可通过 &ndash;pids-limit 可限制每个容器的pid总数，dockerd暂无默认的pid limit设置；k8s 限制线程数，可通过在kubelet中开启SupportPodPidsLimit特性，设置pod级别pid limit</li>
-<li><strong>/etc/securiy/limits.conf,systcl.confg</strong>: 通过ulimit命令设置只对当前登录用户有效，永久设置可通过limits.conf配置文件实现，以及系统级别限制可通过systcl.confg配置文件</li>
-</ul>
-<h2 id="实验对比" class="headerLink">
-    <a href="#%e5%ae%9e%e9%aa%8c%e5%af%b9%e6%af%94" class="header-mark"></a>实验对比</h2><h3 id="环境" class="headerLink">
-    <a href="#%e7%8e%af%e5%a2%83" class="header-mark"></a>环境</h3><p><strong>本地环境</strong>：
-os: Ubuntu 16.04.6 LTS 4.4.0-154-generic
-docker: 18.09.7
-base-image: alpine:v3.9</p>
-<p><strong>k8s环境</strong>：
-kubelet: v1.10.11.1
-docker: 18.09.6</p>
-<h3 id="ulimit" class="headerLink">
-    <a href="#ulimit" class="header-mark"></a>ulimit</h3><p>用户级别资源限制，分为soft限制与hard限制</p>
-<ul>
-<li>soft ： 用户可修改，但不能超过硬限制</li>
-<li>hard：只有root用户可修改</li>
-</ul>
-<p><strong>修改方式</strong>： ulimit命令，临时修改；/etc/security/limits.conf，永久修改</p>
-<p><strong>工作原理</strong>： 根据 PAM （ Pluggable Authentication Modules 简称 PAM）机制，应用程序启动时，按 /etc/pam.d 配置加载 pam_xxxx.so 模块。 /etc/pam.d 下包含了 login 、sshd 、su 、sudo 等程序的 PAM 配置文件， 因此用户重新登录时，将调用 pam_limits.so 加载 limits.conf 配置文件</p>
-<h4 id="文件描述符限制" class="headerLink">
-    <a href="#%e6%96%87%e4%bb%b6%e6%8f%8f%e8%bf%b0%e7%ac%a6%e9%99%90%e5%88%b6" class="header-mark"></a>文件描述符限制</h4><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">RLIMIT_NOFILE
-</span></span><span class="line"><span class="cl">              This specifies a value one greater than the maximum file
-</span></span><span class="line"><span class="cl">              descriptor number that can be opened by this process.
-</span></span><span class="line"><span class="cl">              Attempts (open(2), pipe(2), dup(2), etc.)  to exceed this
-</span></span><span class="line"><span class="cl">              limit yield the error EMFILE.  (Historically, this limit was
-</span></span><span class="line"><span class="cl">              named RLIMIT_OFILE on BSD.)
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">              Since Linux 4.5, this limit also defines the maximum number of
-</span></span><span class="line"><span class="cl">              file descriptors that an unprivileged process (one without the
-</span></span><span class="line"><span class="cl">              CAP_SYS_RESOURCE capability) may have &#34;in flight&#34; to other
-</span></span><span class="line"><span class="cl">              processes, by being passed across UNIX domain sockets.  This
-</span></span><span class="line"><span class="cl">              limit applies to the sendmsg(2) system call.  For further
-</span></span><span class="line"><span class="cl">              details, see unix(7).
-</span></span></code></pre></div><p>根据定义，nofile 限制进程所能最多打开的文件数量，作用范围进程。</p>
-<ol>
-<li>设置 ulimit nofile限制soft 100/hard 200，默认启动为root用户</li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">$ docker run -d --ulimit nofile=100:200  cr.d.xiaomi.net/containercloud/alpine:webtool top
-</span></span></code></pre></div><ol start="2">
-<li>进入容器查看， fd soft限制为100个</li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">/ # ulimit -a
-</span></span><span class="line"><span class="cl">-f: file size (blocks)             unlimited
-</span></span><span class="line"><span class="cl">-t: cpu time (seconds)             unlimited
-</span></span><span class="line"><span class="cl">-d: data seg size (kb)             unlimited
-</span></span><span class="line"><span class="cl">-s: stack size (kb)                8192
-</span></span><span class="line"><span class="cl">-c: core file size (blocks)        unlimited
-</span></span><span class="line"><span class="cl">-m: resident set size (kb)         unlimited
-</span></span><span class="line"><span class="cl">-l: locked memory (kb)             64
-</span></span><span class="line"><span class="cl">-p: processes                      unlimited
-</span></span><span class="line"><span class="cl">-n: file descriptors               100
-</span></span><span class="line"><span class="cl">-v: address space (kb)             unlimited
-</span></span><span class="line"><span class="cl">-w: locks                          unlimited
-</span></span><span class="line"><span class="cl">-e: scheduling priority            0
-</span></span><span class="line"><span class="cl">-r: real-time priority             0
-</span></span></code></pre></div><ol start="3">
-<li>使用ab测试，并发90个http请求，创建90个socket，正常运行</li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/ <span class="c1"># ab -n 1000000 -c 90 http://61.135.169.125:80/ &amp;</span>
-</span></span><span class="line"><span class="cl">/ <span class="c1"># lsof | wc -l </span>
-</span></span><span class="line"><span class="cl"><span class="m">108</span>
-</span></span><span class="line"><span class="cl">/ <span class="c1"># lsof | grep -c ab</span>
-</span></span><span class="line"><span class="cl"><span class="m">94</span>
-</span></span></code></pre></div><ol start="4">
-<li>并发100个http请求，受到ulimit限制
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/ <span class="c1">#  ab -n 1000000 -c 100 http://61.135.169.125:80/</span>
-</span></span><span class="line"><span class="cl">This is ApacheBench, Version 2.3 &lt;<span class="nv">$Revision</span>: <span class="m">1843412</span> $&gt;
-</span></span><span class="line"><span class="cl">Copyright <span class="m">1996</span> Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
-</span></span><span class="line"><span class="cl">Licensed to The Apache Software Foundation, http://www.apache.org/
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">Benchmarking 61.135.169.125 <span class="o">(</span>be patient<span class="o">)</span>
-</span></span><span class="line"><span class="cl">socket: No file descriptors available <span class="o">(</span>24<span class="o">)</span>
-</span></span></code></pre></div></li>
-</ol>
-<h4 id="线程限制" class="headerLink">
-    <a href="#%e7%ba%bf%e7%a8%8b%e9%99%90%e5%88%b6" class="header-mark"></a>线程限制</h4><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">RLIMIT_NPROC
-</span></span><span class="line"><span class="cl">              This is a limit on the number of extant process (or, more pre‐
-</span></span><span class="line"><span class="cl">              cisely on Linux, threads) for the real user ID of the calling
-</span></span><span class="line"><span class="cl">              process.  So long as the current number of processes belonging
-</span></span><span class="line"><span class="cl">              to this process&#39;s real user ID is greater than or equal to
-</span></span><span class="line"><span class="cl">              this limit, fork(2) fails with the error EAGAIN.
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">              The RLIMIT_NPROC limit is not enforced for processes that have
-</span></span><span class="line"><span class="cl">              either the CAP_SYS_ADMIN or the CAP_SYS_RESOURCE capability.
-</span></span></code></pre></div><p>由定义可知，nproc进程限制的范围是对于每个uid，并且对于root用户无效。</p>
-<h5 id="容器uid" class="headerLink">
-    <a href="#%e5%ae%b9%e5%99%a8uid" class="header-mark"></a>容器uid</h5><p>同一主机上运行的所有容器共享同一个内核(主机的内核)，docker通过namspace对pid/utc/network等进行了隔离，虽然docker中已经实现了user namespace，但由于各种原因，默认没有开启，见<a href="https://docs.docker.com/engine/security/userns-remap/" target="_blank" rel="noopener noreffer">docker user namespace</a></p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">$ docker run -d  cr.d.xiaomi.net/containercloud/alpine:webtool top
-</span></span></code></pre></div><p>宿主机中查看top进程，显示root用户</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">$ ps -ef |grep top
-</span></span><span class="line"><span class="cl">root      4096  4080  0 15:01 ?        00:00:01 top
-</span></span></code></pre></div><p>容器中查看id，uid为0对应宿主机的root用户,虽然同为root用户，但Linux Capabilities不同，实际权限与宿主机root要少很多</p>
-<p>在容器中切换用户到operator(uid为11)，执行sleep命令，主机中查看对应进程用户为app，对应uid同样为11</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">/ # id
-</span></span><span class="line"><span class="cl">uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),11(floppy),20(dialout),26(tape),27(video)
-</span></span><span class="line"><span class="cl">/ # su operator
-</span></span><span class="line"><span class="cl">/ $ id
-</span></span><span class="line"><span class="cl">uid=11(operator) gid=0(root) groups=0(root)
-</span></span><span class="line"><span class="cl">/ $ sleep 100
-</span></span><span class="line"><span class="cl">$ ps -ef |grep &#39;sleep 100&#39;
-</span></span><span class="line"><span class="cl">app      19302 19297  0 16:39 pts/0    00:00:00 sleep 100
-</span></span><span class="line"><span class="cl">$ cat /etc/passwd | grep app
-</span></span><span class="line"><span class="cl">app❌11:0::/home/app:
-</span></span></code></pre></div><h5 id="验证不同用户下ulimit的限制" class="headerLink">
-    <a href="#%e9%aa%8c%e8%af%81%e4%b8%8d%e5%90%8c%e7%94%a8%e6%88%b7%e4%b8%8bulimit%e7%9a%84%e9%99%90%e5%88%b6" class="header-mark"></a>验证不同用户下ulimit的限制</h5><p>设置 ulimit nproc限制soft 10/hard 20，默认启动为root用户</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">$ docker run -d --ulimit nproc=10:20  cr.d.xiaomi.net/containercloud/alpine:webtool top
-</span></span></code></pre></div><p>进入容器查看， fd soft限制为100个</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">/ # ulimit -a
-</span></span><span class="line"><span class="cl">-f: file size (blocks)             unlimited
-</span></span><span class="line"><span class="cl">-t: cpu time (seconds)             unlimited
-</span></span><span class="line"><span class="cl">-d: data seg size (kb)             unlimited
-</span></span><span class="line"><span class="cl">-s: stack size (kb)                8192
-</span></span><span class="line"><span class="cl">-c: core file size (blocks)        unlimited
-</span></span><span class="line"><span class="cl">-m: resident set size (kb)         unlimited
-</span></span><span class="line"><span class="cl">-l: locked memory (kb)             64
-</span></span><span class="line"><span class="cl">-p: processes                      10
-</span></span><span class="line"><span class="cl">-n: file descriptors               1048576
-</span></span><span class="line"><span class="cl">-v: address space (kb)             unlimited
-</span></span><span class="line"><span class="cl">-w: locks                          unlimited
-</span></span><span class="line"><span class="cl">-e: scheduling priority            0
-</span></span><span class="line"><span class="cl">-r: real-time priority             0
-</span></span></code></pre></div><p>启动30个进程</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">/ # for i in `seq 30`;do sleep 100 &amp;; done
-</span></span><span class="line"><span class="cl">/ # ps | wc -l 
-</span></span><span class="line"><span class="cl">36
-</span></span></code></pre></div><p>切换到operator用户</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">/ # su operator
-</span></span><span class="line"><span class="cl"># 启动多个进程，到第11个进程无法进行fork
-</span></span><span class="line"><span class="cl">/ $ for i in `seq 8`; do
-</span></span><span class="line"><span class="cl">&gt; sleep 100 &amp;
-</span></span><span class="line"><span class="cl">&gt; done
-</span></span><span class="line"><span class="cl">/ $ sleep 100 &amp;
-</span></span><span class="line"><span class="cl">/ $ sleep 100 &amp;
-</span></span><span class="line"><span class="cl">sh: can&#39;t fork: Resource temporarily unavailable
-</span></span></code></pre></div><p>root下查看</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">/ # ps -ef | grep operator
-</span></span><span class="line"><span class="cl">   79 operator  0:00 sh
-</span></span><span class="line"><span class="cl">   99 operator  0:00 sleep 100
-</span></span><span class="line"><span class="cl">  100 operator  0:00 sleep 100
-</span></span><span class="line"><span class="cl">  101 operator  0:00 sleep 100
-</span></span><span class="line"><span class="cl">  102 operator  0:00 sleep 100
-</span></span><span class="line"><span class="cl">  103 operator  0:00 sleep 100
-</span></span><span class="line"><span class="cl">  104 operator  0:00 sleep 100
-</span></span><span class="line"><span class="cl">  105 operator  0:00 sleep 100
-</span></span><span class="line"><span class="cl">  106 operator  0:00 sleep 100
-</span></span><span class="line"><span class="cl">  107 operator  0:00 sleep 100
-</span></span><span class="line"><span class="cl">  109 root      0:00 grep operator
-</span></span><span class="line"><span class="cl">/ # ps -ef | grep operator| wc -l
-</span></span><span class="line"><span class="cl">10
-</span></span></code></pre></div><h5 id="验证ulimit在不同容器相同uid下的限制" class="headerLink">
-    <a href="#%e9%aa%8c%e8%af%81ulimit%e5%9c%a8%e4%b8%8d%e5%90%8c%e5%ae%b9%e5%99%a8%e7%9b%b8%e5%90%8cuid%e4%b8%8b%e7%9a%84%e9%99%90%e5%88%b6" class="header-mark"></a>验证ulimit在不同容器相同uid下的限制</h5><p>设置 ulimit nproc限制soft 3/hard 3，默认启动为operator用户,起4个容器，第四个启动失败</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">$ docker run -d --ulimit nproc=3:3 --name nproc1 -u operator  cr.d.xiaomi.net/containercloud/alpine:webtool top
-</span></span><span class="line"><span class="cl">eeb1551bf757ad4f112c61cc48d7cbe959185f65109e4b44f28085f246043e65
-</span></span><span class="line"><span class="cl">$ docker run -d --ulimit nproc=3:3 --name nproc2 -u operator  cr.d.xiaomi.net/containercloud/alpine:webtool top
-</span></span><span class="line"><span class="cl">42ff29844565a9cb3af2c8dd560308b1f31306041d3dbd929011d65f1848a262
-</span></span><span class="line"><span class="cl">$ docker run -d --ulimit nproc=3:3 --name nproc3 -u operator  cr.d.xiaomi.net/containercloud/alpine:webtool top
-</span></span><span class="line"><span class="cl">b7c9b469e73f969d922841dd77265467959eda28ed06301af8bf83bcf18e8c23
-</span></span><span class="line"><span class="cl">$ docker run -d --ulimit nproc=3:3 --name nproc4 -u operator  cr.d.xiaomi.net/containercloud/alpine:webtool top
-</span></span><span class="line"><span class="cl">b49d8bb58757c88f69903059af2ee7e2a6cc2fa5774bc531941194c52edfd763
-</span></span><span class="line"><span class="cl">$
-</span></span><span class="line"><span class="cl">$ docker ps -a |grep nproc
-</span></span><span class="line"><span class="cl">b49d8bb58757        cr.d.xiaomi.net/containercloud/alpine:webtool      &#34;top&#34;                    16 seconds ago      Exited (1) 15 seconds ago                               nproc4
-</span></span><span class="line"><span class="cl">b7c9b469e73f        cr.d.xiaomi.net/containercloud/alpine:webtool      &#34;top&#34;                    23 seconds ago      Up 22 seconds                                           nproc3
-</span></span><span class="line"><span class="cl">42ff29844565        cr.d.xiaomi.net/containercloud/alpine:webtool      &#34;top&#34;                    31 seconds ago      Up 29 seconds                                           nproc2
-</span></span><span class="line"><span class="cl">eeb1551bf757        cr.d.xiaomi.net/containercloud/alpine:webtool      &#34;top&#34;                    38 seconds ago      Up 36 seconds                                           nproc1
-</span></span></code></pre></div><h5 id="总结" class="headerLink">
-    <a href="#%e6%80%bb%e7%bb%93" class="header-mark"></a>总结</h5><ul>
-<li>ulimit限制fd总数，限制级别进程，可对所有用户生效</li>
-<li>ulimit限制线程总数，限制级别用户（uid)，限制同一个uid下所有线程/进程数，对于root账号无效</li>
-<li>对于目前线上情况，有较小的概率因ulimit限制导致fork失败，如同一个宿主机中有多个work容器且基础镜像相同（即uid相同），若一个容器线程泄露，由于ulimit限制会影响其他容器正常运行</li>
-</ul>
-<h3 id="cgroup" class="headerLink">
-    <a href="#cgroup" class="header-mark"></a>cgroup</h3><p>cgroup中对pid进行了隔离，通过更改docker/kubelet配置，可以限制pid总数，从而达到限制线程总数的目的。线程数限制与系统中多处配置有关，取最小值，参考<a href="https://stackoverflow.com/questions/34452302/how-to-increase-maximum-number-of-jvm-threads-linux-64bit" target="_blank" rel="noopener noreffer">stackoverflow上线程数的设置</a></p>
-<ul>
-<li>docker，容器启动时设置 &ndash;pids-limit 参数，限制容器级别pid总数</li>
-<li>kubelet，开启SupportPodPidsLimit特性，设置&ndash;pod-max-pids参数，限制node每个pod的pid总数</li>
-</ul>
-<p>以kubelet为例，开启SupportPodPidsLimit，<code>--feature-gates=SupportPodPidsLimit=true</code></p>
-<ol>
-<li>配置kubelet，每个pod允许最大pid数目为150</li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="o">[</span>root@node01 ~<span class="o">]</span><span class="c1"># ps -ef |grep kubelet</span>
-</span></span><span class="line"><span class="cl">root     <span class="m">18735</span>     <span class="m">1</span> <span class="m">14</span> 11:19 ?        00:53:28 ./kubelet --v<span class="o">=</span><span class="m">1</span> --address<span class="o">=</span>0.0.0.0 --feature-gates<span class="o">=</span><span class="nv">SupportPodPidsLimit</span><span class="o">=</span><span class="nb">true</span> --pod-max-pids<span class="o">=</span><span class="m">150</span> --allow-privileged<span class="o">=</span><span class="nb">true</span> --pod-infra-container-image<span class="o">=</span>cr.d.xiaomi.net/kubernetes/pause-amd64:3.1 --root-dir<span class="o">=</span>/home/kubelet --node-status-update-frequency<span class="o">=</span>5s --kubeconfig<span class="o">=</span>/home/xbox/kubelet/conf/kubelet-kubeconfig --fail-swap-on<span class="o">=</span><span class="nb">false</span> --max-pods<span class="o">=</span><span class="m">254</span> --runtime-cgroups<span class="o">=</span>/systemd/system.slice/frigga.service --kubelet-cgroups<span class="o">=</span>/systemd/system.slice/frigga.service --make-iptables-util-chains<span class="o">=</span><span class="nb">false</span>
-</span></span></code></pre></div><ol start="2">
-<li>在pod中起测试线程，root下起100个线程</li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">/ # for i in `seq 100`; do
-</span></span><span class="line"><span class="cl">&gt; sleep 1000 &amp;
-</span></span><span class="line"><span class="cl">&gt; done
-</span></span><span class="line"><span class="cl">/ # ps | wc -l
-</span></span><span class="line"><span class="cl">106
-</span></span></code></pre></div><ol start="3">
-<li>operator 下，创建线程受到限制，系统最多只能创建150个</li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">/ # su operator
-</span></span><span class="line"><span class="cl">/ $ 
-</span></span><span class="line"><span class="cl">/ $ for i in `seq 100`; do
-</span></span><span class="line"><span class="cl">&gt; sleep 1000 &amp;
-</span></span><span class="line"><span class="cl">&gt; done
-</span></span><span class="line"><span class="cl">sh: can&#39;t fork: Resource temporarily unavailable
-</span></span><span class="line"><span class="cl">/ $ ps | wc -l
-</span></span><span class="line"><span class="cl">150
-</span></span></code></pre></div><ol start="4">
-<li>在cgroup中查看，pids达到最大限制</li>
-</ol>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">[root@node01 ~]# cat /sys/fs/cgroup/pids/kubepods/besteffort/pod8b61d4de-a7ad-11e9-b5b9-246e96ad0900/pids.current 
-</span></span><span class="line"><span class="cl">150
-</span></span><span class="line"><span class="cl">[root@node01 ~]# cat /sys/fs/cgroup/pids/kubepods/besteffort/pod8b61d4de-a7ad-11e9-b5b9-246e96ad0900/pids.max 
-</span></span><span class="line"><span class="cl">150
-</span></span></code></pre></div><ol start="5">
-<li>总结
-cgroup对于pid的限制能够达到限制线程数目的，目前docker只支持对每个容器的限制，不支持全局配置；kubelet只支持对于node所有pod的全局配置，不支持具体每个pod的配置</li>
-</ol>
-<h3 id="limitsconfsysctlconf" class="headerLink">
-    <a href="#limitsconfsysctlconf" class="header-mark"></a>limits.conf/sysctl.conf</h3><p>limits.conf是ulimit的具体配置，目录项/etc/security/limit.d/中的配置会覆盖limits.conf。</p>
-<p>sysctl.conf为机器级别的资源限制，root用户可修改，目录项/etc/security/sysctl.d/中的配置会覆盖sysctl.conf，在/etc/sysctl.conf中添加对应配置（fd: fs.file-max = {}; pid: kernel.pid_max = {}）</p>
-<ol>
-<li>
-<p>测试容器中修改sysctl.conf文件</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">$ docker run -d --ulimit nofile=100:200 cr.d.xiaomi.net/containercloud/alpine:webtool top
-</span></span><span class="line"><span class="cl">cb1250c8fd217258da51c6818fa2ce2e2f6e35bf1d52648f1f432e6ce579cf0d
-</span></span><span class="line"><span class="cl">$ docker exec -it cb1250c sh
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">/ # ulimit -a
-</span></span><span class="line"><span class="cl">-f: file size (blocks)             unlimited
-</span></span><span class="line"><span class="cl">-t: cpu time (seconds)             unlimited
-</span></span><span class="line"><span class="cl">-d: data seg size (kb)             unlimited
-</span></span><span class="line"><span class="cl">-s: stack size (kb)                8192
-</span></span><span class="line"><span class="cl">-c: core file size (blocks)        unlimited
-</span></span><span class="line"><span class="cl">-m: resident set size (kb)         unlimited
-</span></span><span class="line"><span class="cl">-l: locked memory (kb)             64
-</span></span><span class="line"><span class="cl">-p: processes                      unlimited
-</span></span><span class="line"><span class="cl">-n: file descriptors               100
-</span></span><span class="line"><span class="cl">-v: address space (kb)             unlimited
-</span></span><span class="line"><span class="cl">-w: locks                          unlimited
-</span></span><span class="line"><span class="cl">-e: scheduling priority            0
-</span></span><span class="line"><span class="cl">-r: real-time priority             0
-</span></span><span class="line"><span class="cl">/ # 
-</span></span><span class="line"><span class="cl">/ # echo 10 &gt; /proc/sys/kernel/pid_max
-</span></span><span class="line"><span class="cl">sh: can&#39;t create /proc/sys/kernel/pid_max: Read-only file system
-</span></span><span class="line"><span class="cl">/ # echo 10 &gt; /proc/sys/kernel/pid_max
-</span></span><span class="line"><span class="cl">sh: can&#39;t create /proc/sys/kernel/pid_max: Read-only file system
-</span></span><span class="line"><span class="cl">/ # echo &#34;fs.file-max=5&#34; &gt;&gt; /etc/sysctl.conf
-</span></span><span class="line"><span class="cl">/ # sysctl -p
-</span></span><span class="line"><span class="cl">sysctl: error setting key &#39;fs.file-max&#39;: Read-only file system
-</span></span></code></pre></div></li>
-<li>
-<p>以priviledged模式测试，谨慎测试</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">$ cat /proc/sys/kernel/pid_max
-</span></span><span class="line"><span class="cl">32768
-</span></span><span class="line"><span class="cl">$ docker run -d -- --ulimit nofile=100:200 cr.d.xiaomi.net/containercloud/alpine:webtool top
-</span></span><span class="line"><span class="cl">$ docker exec -it pedantic_vaughan sh
-</span></span><span class="line"><span class="cl">/ # cat /proc/sys/kernel/pid_max
-</span></span><span class="line"><span class="cl">32768
-</span></span><span class="line"><span class="cl">/ # echo 50000 &gt; /proc/sys/kernel/pid_max
-</span></span><span class="line"><span class="cl">/ # cat /proc/sys/kernel/pid_max
-</span></span><span class="line"><span class="cl">50000
-</span></span><span class="line"><span class="cl">/ # exit
-</span></span><span class="line"><span class="cl">$ cat /proc/sys/kernel/pid_max
-</span></span><span class="line"><span class="cl">50000 # 宿主机的文件也变成50000
-</span></span></code></pre></div></li>
-<li>
-<p>总结
-由于docker隔离的不彻底，在docker中修改sysctl会覆盖主机中的配置，不能用来实现容器级别资源限制
-limits.conf可以在容器中设置，效果同ulimit</p>
-</li>
-</ol>
-<h2 id="结论" class="headerLink">
-    <a href="#%e7%bb%93%e8%ae%ba" class="header-mark"></a>结论</h2><p><img
-        class="lazyload"
-        data-src="/img/blogImg/pod-fd-limit.png"
-        data-srcset="/img/blogImg/pod-fd-limit.png, /img/blogImg/pod-fd-limit.png 1.5x, /img/blogImg/pod-fd-limit.png 2x"
-        data-sizes="auto"
-        alt="/img/blogImg/pod-fd-limit.png"
-        title="pod-fd-limit">
-
-</p>
-<p>推荐方案如下：</p>
-<ul>
-<li>fd限制： 修改dockerd配置<code>default-ulimits</code>，限制进程级别fd</li>
-<li>thread限制：修改kubelet配置<code>--feature-gates=SupportPodPidsLimit=true --pod-max-pids={}</code>，cgroup级别限制pid，从而限制线程数</li>
-<li>其他注意事项，调整节点pid.max参数；放开或者调大镜像中ulimit对非root账户nproc限制</li>
-</ul>
-<h2 id="引用" class="headerLink">
-    <a href="#%e5%bc%95%e7%94%a8" class="header-mark"></a>引用</h2><ul>
-<li><a href="https://docs.docker.com/engine/reference/commandline/run/#set-ulimits-in-container---ulimit" target="_blank" rel="noopener noreffer">https://docs.docker.com/engine/reference/commandline/run/#set-ulimits-in-container---ulimit</a></li>
-<li><a href="http://man7.org/linux/man-pages/man2/getrlimit.2.html" target="_blank" rel="noopener noreffer">http://man7.org/linux/man-pages/man2/getrlimit.2.html</a></li>
-<li><a href="https://feichashao.com/ulimit_demo/" target="_blank" rel="noopener noreffer">https://feichashao.com/ulimit_demo/</a></li>
-<li><a href="https://medium.com/@mccode/understanding-how-uid-and-gid-work-in-docker-containers-c37a01d01cf" target="_blank" rel="noopener noreffer">https://medium.com/@mccode/understanding-how-uid-and-gid-work-in-docker-containers-c37a01d01cf</a></li>
-<li><a href="https://docs.docker.com/engine/security/userns-remap/" target="_blank" rel="noopener noreffer">https://docs.docker.com/engine/security/userns-remap/</a></li>
-</ul></div>
-
-        
-        <div class="post-footer" id="post-footer">
-    <div class="post-meta-line"><span class="single-tag">
-                <a href='/tags/k8s/'>#k8s</a>
-                    <span class="separator"> </span>
-                <a href='/tags/docker/'>#docker</a></span></div>
-
-    <div class="post-info">
-        <div class="post-info-line">
-            <div class="post-info-link">
-                <a href='/about'>About Me</a>
-            </div>
-        </div>
-        <div class="post-info-line">
-            <div class="post-info-md"></div>
-        </div>
-    </div><div class="post-nav"><a href="/container-memory/" class="prev" rel="prev" title="容器内存分析"><i class="fas fa-angle-left fa-fw"></i>容器内存分析</a>
-            <a href="/k8s-limit-fd-and-thread2/" class="next" rel="next" title="k8s中fd与thread限制(二)">k8s中fd与thread限制(二)<i class="fas fa-angle-right fa-fw"></i></a></div></div>
-<div id="comments"><div id="giscus"></div><noscript>
-                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
-            </noscript></div></article></div>
-        </main><footer class="footer">
-        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
-            <div class="footer-line"></div>
-            <div class="footer-line">
-            </div>
-        </div></footer></div>
-
-    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
-            <i class="fas fa-arrow-up fa-fw"></i>
-        </a>
-    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
-            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
-            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
-        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
-
-<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
-</body>
-
-</html>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    window.dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+  gtag("config", id);
+})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.b8ddc4ce.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img src="/favicon.svg" class="h-6 w-6 dark:invert invert-0"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Tue Jul 16 2019 18:44:47 GMT+0000 (Coordinated Universal Time)">Jul 16, 2019</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">k8s中fd与thread限制(一)</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="背景">背景</h2><p>linux 中为了防止进程恶意使用资源，系统使用 ulimit 来限制进程的资源使用情况（包括文件描述符，线程数，内存大小等）。同样地在容器化场景中，需要限制其系统资源的使用量。</p><h2 id="限制方法">限制方法</h2><ul><li><strong>ulimit</strong>: docker 默认支持 ulimit 设置，可以在 dockerd 中配置 default-ulimits 可为宿主机所有容器配置默认的 ulimit，docker 启动时可添加 —ulimit 为每个容器配置 ulimit 会覆盖默认的设置；目前 k8s 暂不支持 ulimit</li><li><strong>cgroup</strong>: docker 默认支持 cgroup 中内存、cpu、pid 等的限制，对于线程限制可通过 —pids-limit 可限制每个容器的 pid 总数，dockerd 暂无默认的 pid limit 设置；k8s 限制线程数，可通过在 kubelet 中开启 SupportPodPidsLimit 特性，设置 pod 级别 pid limit</li><li><strong>/etc/securiy/limits.conf,systcl.confg</strong>: 通过 ulimit 命令设置只对当前登录用户有效，永久设置可通过 limits.conf 配置文件实现，以及系统级别限制可通过 systcl.confg 配置文件</li></ul><h2 id="实验对比">实验对比</h2><h3 id="环境">环境</h3><p><strong>本地环境</strong>： os: Ubuntu 16.04.6 LTS 4.4.0-154-generic docker: 18.09.7 base-image: alpine:v3.9</p><p><strong>k8s 环境</strong>： kubelet: v1.10.11.1 docker: 18.09.6</p><h3 id="ulimit">ulimit</h3><p>用户级别资源限制，分为 soft 限制与 hard 限制</p><ul><li>soft ： 用户可修改，但不能超过硬限制</li><li>hard：只有 root 用户可修改</li></ul><p><strong>修改方式</strong>： ulimit 命令，临时修改；/etc/security/limits.conf，永久修改</p><p><strong>工作原理</strong>： 根据 PAM （ Pluggable Authentication Modules 简称 PAM）机制，应用程序启动时，按 /etc/pam.d 配置加载 pam_xxxx.so 模块。 /etc/pam.d 下包含了 login 、sshd 、su 、sudo 等程序的 PAM 配置文件， 因此用户重新登录时，将调用 pam_limits.so 加载 limits.conf 配置文件</p><h4 id="文件描述符限制">文件描述符限制</h4><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">RLIMIT_NOFILE</span></span>
+<span class="line"><span style="color:#f8f8f2">              This specifies a value one greater than the maximum file</span></span>
+<span class="line"><span style="color:#f8f8f2">              descriptor number that can be opened by this process.</span></span>
+<span class="line"><span style="color:#f8f8f2">              Attempts (open(2), pipe(2), dup(2), etc.)  to exceed this</span></span>
+<span class="line"><span style="color:#f8f8f2">              limit yield the error EMFILE.  (Historically, this limit was</span></span>
+<span class="line"><span style="color:#f8f8f2">              named RLIMIT_OFILE on BSD.)</span></span>
+<span class="line"><span style="color:#f8f8f2"></span></span>
+<span class="line"><span style="color:#f8f8f2">              Since Linux 4.5, this limit also defines the maximum number of</span></span>
+<span class="line"><span style="color:#f8f8f2">              file descriptors that an unprivileged process (one without the</span></span>
+<span class="line"><span style="color:#f8f8f2">              CAP_SYS_RESOURCE capability) may have "in flight" to other</span></span>
+<span class="line"><span style="color:#f8f8f2">              processes, by being passed across UNIX domain sockets.  This</span></span>
+<span class="line"><span style="color:#f8f8f2">              limit applies to the sendmsg(2) system call.  For further</span></span>
+<span class="line"><span style="color:#f8f8f2">              details, see unix(7).</span></span></code></pre><p>根据定义，nofile 限制进程所能最多打开的文件数量，作用范围进程。</p><ol><li>设置 ulimit nofile 限制 soft 100/hard 200，默认启动为 root 用户</li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ docker run -d --ulimit nofile=100:200  cr.d.xiaomi.net/containercloud/alpine:webtool top</span></span></code></pre><ol start="2"><li>进入容器查看， fd soft 限制为 100 个</li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ # ulimit -a</span></span>
+<span class="line"><span style="color:#f8f8f2">-f: file size (blocks)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-t: cpu time (seconds)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-d: data seg size (kb)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-s: stack size (kb)                8192</span></span>
+<span class="line"><span style="color:#f8f8f2">-c: core file size (blocks)        unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-m: resident set size (kb)         unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-l: locked memory (kb)             64</span></span>
+<span class="line"><span style="color:#f8f8f2">-p: processes                      unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-n: file descriptors               100</span></span>
+<span class="line"><span style="color:#f8f8f2">-v: address space (kb)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-w: locks                          unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-e: scheduling priority            0</span></span>
+<span class="line"><span style="color:#f8f8f2">-r: real-time priority             0</span></span></code></pre><ol start="3"><li>使用 ab 测试，并发 90 个 http 请求，创建 90 个 socket，正常运行</li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4"># ab -n 1000000 -c 90 http://61.135.169.125:80/ &#x26;</span></span>
+<span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4"># lsof | wc -l</span></span>
+<span class="line"><span style="color:#f8f8f2">108</span></span>
+<span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4"># lsof | grep -c ab</span></span>
+<span class="line"><span style="color:#f8f8f2">94</span></span></code></pre><ol start="4"><li><p>并发 100 个 http 请求，受到 ulimit 限制</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ </span><span style="color:#6272a4">#  ab -n 1000000 -c 100 http://61.135.169.125:80/</span></span>
+<span class="line"><span style="color:#f8f8f2">This is ApacheBench, Version 2.3 </span><span style="color:#ff79c6">&#x3C;</span><span style="color:#bd93f9">$Revision</span><span style="color:#f8f8f2">: 1843412 $</span><span style="color:#ff79c6">></span></span>
+<span class="line"><span style="color:#f8f8f2">Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/</span></span>
+<span class="line"><span style="color:#f8f8f2">Licensed to The Apache Software Foundation, http://www.apache.org/</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">Benchmarking 61.135.169.125 (be patient)</span></span>
+<span class="line"><span style="color:#f8f8f2">socket: No file descriptors available (24)</span></span></code></pre></li></ol><h4 id="线程限制">线程限制</h4><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">RLIMIT_NPROC</span></span>
+<span class="line"><span style="color:#f8f8f2">              This is a limit on the number of extant process (or, more pre‐</span></span>
+<span class="line"><span style="color:#f8f8f2">              cisely on Linux, threads) for the real user ID of the calling</span></span>
+<span class="line"><span style="color:#f8f8f2">              process.  So long as the current number of processes belonging</span></span>
+<span class="line"><span style="color:#f8f8f2">              to this process's real user ID is greater than or equal to</span></span>
+<span class="line"><span style="color:#f8f8f2">              this limit, fork(2) fails with the error EAGAIN.</span></span>
+<span class="line"><span style="color:#f8f8f2"></span></span>
+<span class="line"><span style="color:#f8f8f2">              The RLIMIT_NPROC limit is not enforced for processes that have</span></span>
+<span class="line"><span style="color:#f8f8f2">              either the CAP_SYS_ADMIN or the CAP_SYS_RESOURCE capability.</span></span></code></pre><p>由定义可知，nproc 进程限制的范围是对于每个 uid，并且对于 root 用户无效。</p><h5 id="容器-uid">容器 uid</h5><p>同一主机上运行的所有容器共享同一个内核(主机的内核)，docker 通过 namspace 对 pid/utc/network 等进行了隔离，虽然 docker 中已经实现了 user namespace，但由于各种原因，默认没有开启，见<a href="https://docs.docker.com/engine/security/userns-remap/">docker user namespace</a></p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ docker run -d  cr.d.xiaomi.net/containercloud/alpine:webtool top</span></span></code></pre><p>宿主机中查看 top 进程，显示 root 用户</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ ps -ef |grep top</span></span>
+<span class="line"><span style="color:#f8f8f2">root      4096  4080  0 15:01 ?        00:00:01 top</span></span></code></pre><p>容器中查看 id，uid 为 0 对应宿主机的 root 用户,虽然同为 root 用户，但 Linux Capabilities 不同，实际权限与宿主机 root 要少很多</p><p>在容器中切换用户到 operator(uid 为 11)，执行 sleep 命令，主机中查看对应进程用户为 app，对应 uid 同样为 11</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ # id</span></span>
+<span class="line"><span style="color:#f8f8f2">uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),11(floppy),20(dialout),26(tape),27(video)</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # su operator</span></span>
+<span class="line"><span style="color:#f8f8f2">/ $ id</span></span>
+<span class="line"><span style="color:#f8f8f2">uid=11(operator) gid=0(root) groups=0(root)</span></span>
+<span class="line"><span style="color:#f8f8f2">/ $ sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">$ ps -ef |grep 'sleep 100'</span></span>
+<span class="line"><span style="color:#f8f8f2">app      19302 19297  0 16:39 pts/0    00:00:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">$ cat /etc/passwd | grep app</span></span>
+<span class="line"><span style="color:#f8f8f2">app:x:11:0::/home/app:</span></span></code></pre><h5 id="验证不同用户下-ulimit-的限制">验证不同用户下 ulimit 的限制</h5><p>设置 ulimit nproc 限制 soft 10/hard 20，默认启动为 root 用户</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ docker run -d --ulimit nproc=10:20  cr.d.xiaomi.net/containercloud/alpine:webtool top</span></span></code></pre><p>进入容器查看， fd soft 限制为 100 个</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ # ulimit -a</span></span>
+<span class="line"><span style="color:#f8f8f2">-f: file size (blocks)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-t: cpu time (seconds)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-d: data seg size (kb)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-s: stack size (kb)                8192</span></span>
+<span class="line"><span style="color:#f8f8f2">-c: core file size (blocks)        unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-m: resident set size (kb)         unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-l: locked memory (kb)             64</span></span>
+<span class="line"><span style="color:#f8f8f2">-p: processes                      10</span></span>
+<span class="line"><span style="color:#f8f8f2">-n: file descriptors               1048576</span></span>
+<span class="line"><span style="color:#f8f8f2">-v: address space (kb)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-w: locks                          unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-e: scheduling priority            0</span></span>
+<span class="line"><span style="color:#f8f8f2">-r: real-time priority             0</span></span></code></pre><p>启动 30 个进程</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ # for i in `seq 30`;do sleep 100 &#x26;; done</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # ps | wc -l</span></span>
+<span class="line"><span style="color:#f8f8f2">36</span></span></code></pre><p>切换到 operator 用户</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ # su operator</span></span>
+<span class="line"><span style="color:#f8f8f2"># 启动多个进程，到第11个进程无法进行fork</span></span>
+<span class="line"><span style="color:#f8f8f2">/ $ for i in `seq 8`; do</span></span>
+<span class="line"><span style="color:#f8f8f2">> sleep 100 &#x26;</span></span>
+<span class="line"><span style="color:#f8f8f2">> done</span></span>
+<span class="line"><span style="color:#f8f8f2">/ $ sleep 100 &#x26;</span></span>
+<span class="line"><span style="color:#f8f8f2">/ $ sleep 100 &#x26;</span></span>
+<span class="line"><span style="color:#f8f8f2">sh: can't fork: Resource temporarily unavailable</span></span></code></pre><p>root 下查看</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ # ps -ef | grep operator</span></span>
+<span class="line"><span style="color:#f8f8f2">   79 operator  0:00 sh</span></span>
+<span class="line"><span style="color:#f8f8f2">   99 operator  0:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">  100 operator  0:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">  101 operator  0:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">  102 operator  0:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">  103 operator  0:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">  104 operator  0:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">  105 operator  0:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">  106 operator  0:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">  107 operator  0:00 sleep 100</span></span>
+<span class="line"><span style="color:#f8f8f2">  109 root      0:00 grep operator</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # ps -ef | grep operator| wc -l</span></span>
+<span class="line"><span style="color:#f8f8f2">10</span></span></code></pre><h5 id="验证-ulimit-在不同容器相同-uid-下的限制">验证 ulimit 在不同容器相同 uid 下的限制</h5><p>设置 ulimit nproc 限制 soft 3/hard 3，默认启动为 operator 用户,起 4 个容器，第四个启动失败</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ docker run -d --ulimit nproc=3:3 --name nproc1 -u operator  cr.d.xiaomi.net/containercloud/alpine:webtool top</span></span>
+<span class="line"><span style="color:#f8f8f2">eeb1551bf757ad4f112c61cc48d7cbe959185f65109e4b44f28085f246043e65</span></span>
+<span class="line"><span style="color:#f8f8f2">$ docker run -d --ulimit nproc=3:3 --name nproc2 -u operator  cr.d.xiaomi.net/containercloud/alpine:webtool top</span></span>
+<span class="line"><span style="color:#f8f8f2">42ff29844565a9cb3af2c8dd560308b1f31306041d3dbd929011d65f1848a262</span></span>
+<span class="line"><span style="color:#f8f8f2">$ docker run -d --ulimit nproc=3:3 --name nproc3 -u operator  cr.d.xiaomi.net/containercloud/alpine:webtool top</span></span>
+<span class="line"><span style="color:#f8f8f2">b7c9b469e73f969d922841dd77265467959eda28ed06301af8bf83bcf18e8c23</span></span>
+<span class="line"><span style="color:#f8f8f2">$ docker run -d --ulimit nproc=3:3 --name nproc4 -u operator  cr.d.xiaomi.net/containercloud/alpine:webtool top</span></span>
+<span class="line"><span style="color:#f8f8f2">b49d8bb58757c88f69903059af2ee7e2a6cc2fa5774bc531941194c52edfd763</span></span>
+<span class="line"><span style="color:#f8f8f2">$</span></span>
+<span class="line"><span style="color:#f8f8f2">$ docker ps -a |grep nproc</span></span>
+<span class="line"><span style="color:#f8f8f2">b49d8bb58757        cr.d.xiaomi.net/containercloud/alpine:webtool      "top"                    16 seconds ago      Exited (1) 15 seconds ago                               nproc4</span></span>
+<span class="line"><span style="color:#f8f8f2">b7c9b469e73f        cr.d.xiaomi.net/containercloud/alpine:webtool      "top"                    23 seconds ago      Up 22 seconds                                           nproc3</span></span>
+<span class="line"><span style="color:#f8f8f2">42ff29844565        cr.d.xiaomi.net/containercloud/alpine:webtool      "top"                    31 seconds ago      Up 29 seconds                                           nproc2</span></span>
+<span class="line"><span style="color:#f8f8f2">eeb1551bf757        cr.d.xiaomi.net/containercloud/alpine:webtool      "top"                    38 seconds ago      Up 36 seconds                                           nproc1</span></span></code></pre><h5 id="总结">总结</h5><ul><li>ulimit 限制 fd 总数，限制级别进程，可对所有用户生效</li><li>ulimit 限制线程总数，限制级别用户（uid)，限制同一个 uid 下所有线程/进程数，对于 root 账号无效</li><li>对于目前线上情况，有较小的概率因 ulimit 限制导致 fork 失败，如同一个宿主机中有多个 work 容器且基础镜像相同（即 uid 相同），若一个容器线程泄露，由于 ulimit 限制会影响其他容器正常运行</li></ul><h3 id="cgroup">cgroup</h3><p>cgroup 中对 pid 进行了隔离，通过更改 docker/kubelet 配置，可以限制 pid 总数，从而达到限制线程总数的目的。线程数限制与系统中多处配置有关，取最小值，参考<a href="https://stackoverflow.com/questions/34452302/how-to-increase-maximum-number-of-jvm-threads-linux-64bit">stackoverflow 上线程数的设置</a></p><ul><li>docker，容器启动时设置 —pids-limit 参数，限制容器级别 pid 总数</li><li>kubelet，开启 SupportPodPidsLimit 特性，设置—pod-max-pids 参数，限制 node 每个 pod 的 pid 总数</li></ul><p>以 kubelet 为例，开启 SupportPodPidsLimit，<code>--feature-gates=SupportPodPidsLimit=true</code></p><ol><li>配置 kubelet，每个 pod 允许最大 pid 数目为 150</li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">[root@node01 </span><span style="color:#ff79c6">~</span><span style="color:#f8f8f2">]</span><span style="color:#6272a4"># ps -ef |grep kubelet</span></span>
+<span class="line"><span style="color:#f8f8f2">root     18735     1 14 11:19 </span><span style="color:#ff79c6">?</span><span style="color:#f8f8f2">        00:53:28 ./kubelet --v=1 --address=0.0.0.0 --feature-gates=SupportPodPidsLimit=true --pod-max-pids=150 --allow-privileged=true --pod-infra-container-image=cr.d.xiaomi.net/kubernetes/pause-amd64:3.1 --root-dir=/home/kubelet --node-status-update-frequency=5s --kubeconfig=/home/xbox/kubelet/conf/kubelet-kubeconfig --fail-swap-on=false --max-pods=254 --runtime-cgroups=/systemd/system.slice/frigga.service --kubelet-cgroups=/systemd/system.slice/frigga.service --make-iptables-util-chains=false</span></span></code></pre><ol start="2"><li>在 pod 中起测试线程，root 下起 100 个线程</li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ # for i in `seq 100`; do</span></span>
+<span class="line"><span style="color:#f8f8f2">> sleep 1000 &#x26;</span></span>
+<span class="line"><span style="color:#f8f8f2">> done</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # ps | wc -l</span></span>
+<span class="line"><span style="color:#f8f8f2">106</span></span></code></pre><ol start="3"><li>operator 下，创建线程受到限制，系统最多只能创建 150 个</li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">/ # su operator</span></span>
+<span class="line"><span style="color:#f8f8f2">/ $</span></span>
+<span class="line"><span style="color:#f8f8f2">/ $ for i in `seq 100`; do</span></span>
+<span class="line"><span style="color:#f8f8f2">> sleep 1000 &#x26;</span></span>
+<span class="line"><span style="color:#f8f8f2">> done</span></span>
+<span class="line"><span style="color:#f8f8f2">sh: can't fork: Resource temporarily unavailable</span></span>
+<span class="line"><span style="color:#f8f8f2">/ $ ps | wc -l</span></span>
+<span class="line"><span style="color:#f8f8f2">150</span></span></code></pre><ol start="4"><li>在 cgroup 中查看，pids 达到最大限制</li></ol><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">[root@node01 ~]# cat /sys/fs/cgroup/pids/kubepods/besteffort/pod8b61d4de-a7ad-11e9-b5b9-246e96ad0900/pids.current</span></span>
+<span class="line"><span style="color:#f8f8f2">150</span></span>
+<span class="line"><span style="color:#f8f8f2">[root@node01 ~]# cat /sys/fs/cgroup/pids/kubepods/besteffort/pod8b61d4de-a7ad-11e9-b5b9-246e96ad0900/pids.max</span></span>
+<span class="line"><span style="color:#f8f8f2">150</span></span></code></pre><ol start="5"><li>总结 cgroup 对于 pid 的限制能够达到限制线程数目的，目前 docker 只支持对每个容器的限制，不支持全局配置；kubelet 只支持对于 node 所有 pod 的全局配置，不支持具体每个 pod 的配置</li></ol><h3 id="limitsconfsysctlconf">limits.conf/sysctl.conf</h3><p>limits.conf 是 ulimit 的具体配置，目录项/etc/security/limit.d/中的配置会覆盖 limits.conf。</p><p>sysctl.conf 为机器级别的资源限制，root 用户可修改，目录项/etc/security/sysctl.d/中的配置会覆盖 sysctl.conf，在/etc/sysctl.conf 中添加对应配置（fd: fs.file-max = {}; pid: kernel.pid_max = {}）</p><ol><li><p>测试容器中修改 sysctl.conf 文件</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ docker run -d --ulimit nofile=100:200 cr.d.xiaomi.net/containercloud/alpine:webtool top</span></span>
+<span class="line"><span style="color:#f8f8f2">cb1250c8fd217258da51c6818fa2ce2e2f6e35bf1d52648f1f432e6ce579cf0d</span></span>
+<span class="line"><span style="color:#f8f8f2">$ docker exec -it cb1250c sh</span></span>
+<span class="line"><span style="color:#f8f8f2"></span></span>
+<span class="line"><span style="color:#f8f8f2">/ # ulimit -a</span></span>
+<span class="line"><span style="color:#f8f8f2">-f: file size (blocks)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-t: cpu time (seconds)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-d: data seg size (kb)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-s: stack size (kb)                8192</span></span>
+<span class="line"><span style="color:#f8f8f2">-c: core file size (blocks)        unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-m: resident set size (kb)         unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-l: locked memory (kb)             64</span></span>
+<span class="line"><span style="color:#f8f8f2">-p: processes                      unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-n: file descriptors               100</span></span>
+<span class="line"><span style="color:#f8f8f2">-v: address space (kb)             unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-w: locks                          unlimited</span></span>
+<span class="line"><span style="color:#f8f8f2">-e: scheduling priority            0</span></span>
+<span class="line"><span style="color:#f8f8f2">-r: real-time priority             0</span></span>
+<span class="line"><span style="color:#f8f8f2">/ #</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # echo 10 > /proc/sys/kernel/pid_max</span></span>
+<span class="line"><span style="color:#f8f8f2">sh: can't create /proc/sys/kernel/pid_max: Read-only file system</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # echo 10 > /proc/sys/kernel/pid_max</span></span>
+<span class="line"><span style="color:#f8f8f2">sh: can't create /proc/sys/kernel/pid_max: Read-only file system</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # echo "fs.file-max=5" >> /etc/sysctl.conf</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # sysctl -p</span></span>
+<span class="line"><span style="color:#f8f8f2">sysctl: error setting key 'fs.file-max': Read-only file system</span></span></code></pre></li><li><p>以 priviledged 模式测试，谨慎测试</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ cat /proc/sys/kernel/pid_max</span></span>
+<span class="line"><span style="color:#f8f8f2">32768</span></span>
+<span class="line"><span style="color:#f8f8f2">$ docker run -d -- --ulimit nofile=100:200 cr.d.xiaomi.net/containercloud/alpine:webtool top</span></span>
+<span class="line"><span style="color:#f8f8f2">$ docker exec -it pedantic_vaughan sh</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # cat /proc/sys/kernel/pid_max</span></span>
+<span class="line"><span style="color:#f8f8f2">32768</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # echo 50000 > /proc/sys/kernel/pid_max</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # cat /proc/sys/kernel/pid_max</span></span>
+<span class="line"><span style="color:#f8f8f2">50000</span></span>
+<span class="line"><span style="color:#f8f8f2">/ # exit</span></span>
+<span class="line"><span style="color:#f8f8f2">$ cat /proc/sys/kernel/pid_max</span></span>
+<span class="line"><span style="color:#f8f8f2">50000 # 宿主机的文件也变成50000</span></span></code></pre></li><li><p>总结 由于 docker 隔离的不彻底，在 docker 中修改 sysctl 会覆盖主机中的配置，不能用来实现容器级别资源限制 limits.conf 可以在容器中设置，效果同 ulimit</p></li></ol><h2 id="结论">结论</h2><p><img src="/img/blog/pod-fd-limit.png" alt="pod-fd-limit"></p><p>推荐方案如下：</p><ul><li>fd 限制： 修改 dockerd 配置<code>default-ulimits</code>，限制进程级别 fd</li><li>thread 限制：修改 kubelet 配置<code>--feature-gates=SupportPodPidsLimit=true --pod-max-pids={}</code>，cgroup 级别限制 pid，从而限制线程数</li><li>其他注意事项，调整节点 pid.max 参数；放开或者调大镜像中 ulimit 对非 root 账户 nproc 限制</li></ul><h2 id="引用">引用</h2><ul><li><a href="https://docs.docker.com/engine/reference/commandline/run/#set-ulimits-in-container---ulimit">https://docs.docker.com/engine/reference/commandline/run/#set-ulimits-in-container---ulimit</a></li><li><a href="http://man7.org/linux/man-pages/man2/getrlimit.2.html">http://man7.org/linux/man-pages/man2/getrlimit.2.html</a></li><li><a href="https://feichashao.com/ulimit_demo/">https://feichashao.com/ulimit_demo/</a></li><li><a href="https://medium.com/@mccode/understanding-how-uid-and-gid-work-in-docker-containers-c37a01d01cf">https://medium.com/@mccode/understanding-how-uid-and-gid-work-in-docker-containers-c37a01d01cf</a></li><li><a href="https://docs.docker.com/engine/security/userns-remap/">https://docs.docker.com/engine/security/userns-remap/</a></li></ul></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/docker" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#docker</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="https://qingwave.github.io" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>

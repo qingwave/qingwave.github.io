@@ -1,337 +1,167 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!DOCTYPE html><html class="2xl:text-[20px]" dir="ltr" lang="zh"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1" name="viewport"><title>多端口服务的Ingress IP-hash问题</title><meta content="index,follow" name="robots"/><meta content="多端口服务的Ingress IP-hash问题" property="og:title"/><meta content="https://qingwave.github.io/ingress-ip-hash" property="og:url"/><meta content="article" property="og:type"/><link href="https://qingwave.github.io/ingress-ip-hash" rel="canonical"/><style is:global>:root{--aw-font-sans:'InterVariable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" name="google-site-verification"><script async src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type="text/partytown"></script><script type="text/partytown">(function(){const id = "UA-134548083-1";
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noodp" />
-    <title class="pjax-title">
-        多端口服务的Ingress IP-hash问题
-        
-    </title><meta name="Description" content="Coding, Reading and Daydreaming"><meta property="og:title" content="多端口服务的Ingress IP-hash问题" />
-<meta property="og:description" content="背景业务反馈使用Ingress的ip-hash, 同一个服务开启了http和websocket分别是两个端口, 但是配置ip-hash后, 同一个client的请求http和websocket不在同一个后端" />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://qingwave.github.io/ingress-ip-hash/" /><meta property="og:image" content="https://qingwave.github.io/img/favicon.png"/><meta property="article:section" content="posts" />
-<meta property="article:published_time" content="2020-04-15T15:47:09+00:00" />
-<meta property="article:modified_time" content="2021-11-20T10:59:07+00:00" /><meta property="og:site_name" content="Qingwave" />
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:image" content="https://qingwave.github.io/img/favicon.png"/>
-
-<meta name="twitter:title" content="多端口服务的Ingress IP-hash问题"/>
-<meta name="twitter:description" content="背景业务反馈使用Ingress的ip-hash, 同一个服务开启了http和websocket分别是两个端口, 但是配置ip-hash后, 同一个client的请求http和websocket不在同一个后端"/>
-<meta name="application-name" content="Qingwave">
-<meta name="apple-mobile-web-app-title" content="Qingwave">
-
-<meta name="theme-color" content="#f8f8f8"><meta name="msapplication-TileColor" content="#da532c"><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"><link rel="canonical" href="https://qingwave.github.io/ingress-ip-hash/" /><link rel="prev" href="https://qingwave.github.io/pod-graceful-lifecycle/" /><link rel="next" href="https://qingwave.github.io/kube-apiserver-authorization-code/" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css"><link rel="stylesheet" href="/css/style.min.css"><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"></noscript><link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
-        <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"></noscript><meta name="google-site-verification" content="-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI" /><meta name="baidu-site-verification" content="muFp3xopwC" /><script type="application/ld+json">
-    {
-        "@context": "http://schema.org",
-        "@type": "BlogPosting",
-        "headline": "多端口服务的Ingress IP-hash问题",
-        "inLanguage": "zh-CN",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": "https:\/\/qingwave.github.io\/ingress-ip-hash\/"
-        },"genre": "posts","keywords": "k8s, ingress, nginx","wordcount":  1080 ,
-        "url": "https:\/\/qingwave.github.io\/ingress-ip-hash\/","datePublished": "2020-04-15T15:47:09+00:00","dateModified": "2021-11-20T10:59:07+00:00","publisher": {
-            "@type": "Organization",
-            "name": ""},"author": {
-                "@type": "Person",
-                "name": "qinng"
-            },"description": ""
-    }
-    </script></head>
-
-<body header-desktop="normal" header-mobile="auto"><script type="text/javascript">
-        function setTheme(theme) {document.body.setAttribute('theme', theme); document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');}
-        function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
-        function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
-        if (window.localStorage && localStorage.getItem('theme')) {let theme = localStorage.getItem('theme');theme === 'light' || theme === 'dark' ? setTheme(theme) : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light')); } else { if ('light' === 'light' || 'light' === 'dark') setTheme('light'), saveTheme('light'); else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');}
-        let metaColors = {'light': '#f8f8f8','dark': '#252627'}
-        getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
-    </script>
-    <div id="back-to-top"></div>
-    <div id="mask"></div><div class="wrapper"><header class="desktop" id="header-desktop">
-    <div class="header-wrapper">
-        <div class="header-title">
-            <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span><span class="header-title-post"> Time</span></a>
-        </div>
-        <div class="menu">
-            <div class="menu-inner"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-        </div>
-    </div>
-</header><header class="mobile" id="header-mobile">
-    <div class="header-container">
-        <div class="header-wrapper">
-            <div class="header-title">
-                <a href="/" title="Qingwave">Qingwave<span class="header-title-inner">'</span></a>
-            </div>
-            <div class="menu-toggle" id="menu-toggle-mobile">
-                <span></span><span></span><span></span>
-            </div>
-        </div>
-        <div class="menu" id="menu-mobile"><a class="menu-item" href="/about/" title="About">About</a><a class="menu-item" href="/tags/" title="Tags">Tags</a><a class="menu-item" href="/categories/" title="Categories">Categories</a></div>
-    </div>
-</header>
-<div class="search-dropdown desktop">
-    <div id="search-dropdown-desktop"></div>
-</div>
-<div class="search-dropdown mobile">
-    <div id="search-dropdown-mobile"></div>
-</div>
-<main class="main">
-            <div class="container"><div class="toc" id="toc-auto">
-        <h2 class="toc-title">目录</h2>
-        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#背景">背景</a></li>
-    <li><a href="#探究">探究</a></li>
-    <li><a href="#解决建议">解决建议</a></li>
-  </ul>
-</nav></div>
-    </div><script>document.getElementsByTagName("main")[0].setAttribute("pageStyle", "normal")</script><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single"><h1 class="single-title">多端口服务的Ingress IP-hash问题</h1><div class="post-meta">
-            <div class="post-meta-line"><time datetime="Apr 15, 2020">Apr 15, 2020</time>
-            </div>
-        </div><div class="details toc" id="toc-static"  kept="">
-                <div class="details-summary toc-title">
-                    <span>目录</span>
-                    <span><i class="details-icon fas fa-angle-right"></i></span>
-                </div>
-                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
-  <ul>
-    <li><a href="#背景">背景</a></li>
-    <li><a href="#探究">探究</a></li>
-    <li><a href="#解决建议">解决建议</a></li>
-  </ul>
-</nav></div>
-            </div><div class="content" id="content"><h2 id="背景" class="headerLink">
-    <a href="#%e8%83%8c%e6%99%af" class="header-mark"></a>背景</h2><p>业务反馈使用Ingress的ip-hash, 同一个服务开启了http和websocket分别是两个端口, 但是配置ip-hash后, 同一个client的请求http和websocket不在同一个后端.</p>
-<h2 id="探究" class="headerLink">
-    <a href="#%e6%8e%a2%e7%a9%b6" class="header-mark"></a>探究</h2><p>根据业务Ingress配置,配置如下实例:</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l">extensions/v1beta1</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l">Ingress</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">metadata</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">annotations</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/cors-allow-origin</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;*&#39;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/enable-cors</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;true&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/proxy-body-size</span><span class="p">:</span><span class="w"> </span><span class="l">200m</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/proxy-read-timeout</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;300&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">nginx.ingress.kubernetes.io/upstream-hash-by</span><span class="p">:</span><span class="w"> </span><span class="l">$binary_remote_addr</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="nt">spec</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">rules</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">  </span>- <span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo.d.xiaomi.net</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">http</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">paths</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">backend</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo</span><span class="w"> </span><span class="c">#http1, 8080</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="m">8080</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/8080</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">backend</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo</span><span class="w"> </span><span class="c">#http2, 9090</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="m">9090</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/9090</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">backend</span><span class="p">:</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">serviceName</span><span class="p">:</span><span class="w"> </span><span class="l">hellogo</span><span class="w"> </span><span class="c">#websocket, 8081</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">servicePort</span><span class="p">:</span><span class="w"> </span><span class="m">8081</span><span class="w">
-</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l">/ws</span><span class="w">
-</span></span></span></code></pre></div><p>创建多个副本</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ kubectl get po -l <span class="nv">app</span><span class="o">=</span>hellogo
-</span></span><span class="line"><span class="cl">NAME                       READY   STATUS    RESTARTS   AGE
-</span></span><span class="line"><span class="cl">hellogo-699f997454-b5vs4   1/1     Running   <span class="m">0</span>          66m
-</span></span><span class="line"><span class="cl">hellogo-699f997454-hm924   1/1     Running   <span class="m">0</span>          66m
-</span></span><span class="line"><span class="cl">hellogo-699f997454-mfbqv   1/1     Running   <span class="m">0</span>          66m
-</span></span><span class="line"><span class="cl">hellogo-699f997454-qdrwn   1/1     Running   <span class="m">0</span>          66m
-</span></span><span class="line"><span class="cl">hellogo-699f997454-srh9b   1/1     Running   <span class="m">0</span>          66m
-</span></span><span class="line"><span class="cl">hellogo-699f997454-wlwfh   1/1     Running   <span class="m">0</span>          66m
-</span></span></code></pre></div><p>测试http 8080端口, 请求到pod hellogo-699f997454-qdrwn</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ curl http://hellogo.d.xiaomi.net/8080
-</span></span><span class="line"><span class="cl">hello 8080!
-</span></span><span class="line"><span class="cl">host hellogo.d.xiaomi.net
-</span></span><span class="line"><span class="cl">remoteaddr 10.46.23.1:15340
-</span></span><span class="line"><span class="cl">realip 10.232.41.102
-</span></span><span class="line"><span class="cl">hostname hellogo-699f997454-qdrwn 
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">$ curl http://hellogo.d.xiaomi.net/8080
-</span></span><span class="line"><span class="cl">hello 8080!
-</span></span><span class="line"><span class="cl">host hellogo.d.xiaomi.net
-</span></span><span class="line"><span class="cl">remoteaddr 10.46.23.1:15866
-</span></span><span class="line"><span class="cl">realip 10.232.41.102
-</span></span><span class="line"><span class="cl">hostname hellogo-699f997454-qdrwn
-</span></span></code></pre></div><p>测试http 8080端口, 请求到pod hellogo-699f997454-b5vs4</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ curl http://hellogo.d.xiaomi.net/9090
-</span></span><span class="line"><span class="cl">hello 9090!
-</span></span><span class="line"><span class="cl">host hellogo.d.xiaomi.net
-</span></span><span class="line"><span class="cl">remoteaddr 10.38.200.195:23706
-</span></span><span class="line"><span class="cl">realip 10.232.41.102
-</span></span><span class="line"><span class="cl">hostname hellogo-699f997454-b5vs4
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">$ curl http://hellogo.d.xiaomi.net/9090
-</span></span><span class="line"><span class="cl">hello 9090!
-</span></span><span class="line"><span class="cl">host hellogo.d.xiaomi.net
-</span></span><span class="line"><span class="cl">remoteaddr 10.38.200.195:23706
-</span></span><span class="line"><span class="cl">realip 10.232.41.102
-</span></span><span class="line"><span class="cl">hostname hellogo-699f997454-b5vs4
-</span></span></code></pre></div><p>猜想是由于获取的nginx server列表顺序不一致导致的, 但是看源码ip list是直接从endpoint获取的, 进入nginx-ingress查看</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ kubectl <span class="nb">exec</span> -it -n kube-system nginx-ingress-controller-m496n sh
-</span></span><span class="line"><span class="cl"><span class="c1"># dbg工具查看nginx后端列表</span>
-</span></span><span class="line"><span class="cl">/etc/nginx $ /dbg backends list <span class="p">|</span> grep hellogo
-</span></span><span class="line"><span class="cl">default-hellogo-8080
-</span></span><span class="line"><span class="cl">default-hellogo-8081
-</span></span><span class="line"><span class="cl">default-hellogo-9090
-</span></span><span class="line"><span class="cl"><span class="c1"># 8080端口的列表</span>
-</span></span><span class="line"><span class="cl">/etc/nginx $ /dbg backends get default-hellogo-8080
-</span></span><span class="line"><span class="cl"><span class="o">{</span>
-</span></span><span class="line"><span class="cl">  <span class="s2">&#34;endpoints&#34;</span>: <span class="o">[</span>
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.107&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.108&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.109&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.23&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.25&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.29&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;8080&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>
-</span></span><span class="line"><span class="cl">  <span class="o">]</span>,
-</span></span><span class="line"><span class="cl">  <span class="s2">&#34;name&#34;</span>: <span class="s2">&#34;default-hellogo-8080&#34;</span>,
-</span></span><span class="line"><span class="cl">  <span class="s2">&#34;noServer&#34;</span>: false,
-</span></span><span class="line"><span class="cl">  <span class="s2">&#34;port&#34;</span>: 8080,
-</span></span><span class="line"><span class="cl">  ...
-</span></span><span class="line"><span class="cl"><span class="o">}</span>
-</span></span><span class="line"><span class="cl"><span class="c1"># 9090端口的列表</span>
-</span></span><span class="line"><span class="cl">/etc/nginx $ /dbg backends get default-hellogo-9090
-</span></span><span class="line"><span class="cl"><span class="o">{</span>
-</span></span><span class="line"><span class="cl">  <span class="s2">&#34;endpoints&#34;</span>: <span class="o">[</span>
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.107&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.108&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.12.109&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.23&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.25&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>,
-</span></span><span class="line"><span class="cl">    <span class="o">{</span>
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;address&#34;</span>: <span class="s2">&#34;10.46.23.29&#34;</span>,
-</span></span><span class="line"><span class="cl">      <span class="s2">&#34;port&#34;</span>: <span class="s2">&#34;9090&#34;</span>
-</span></span><span class="line"><span class="cl">    <span class="o">}</span>
-</span></span><span class="line"><span class="cl">  <span class="o">]</span>,
-</span></span><span class="line"><span class="cl">  <span class="s2">&#34;name&#34;</span>: <span class="s2">&#34;default-hellogo-9090&#34;</span>,
-</span></span><span class="line"><span class="cl">  <span class="s2">&#34;noServer&#34;</span>: false,
-</span></span><span class="line"><span class="cl">  <span class="s2">&#34;port&#34;</span>: 9090,
-</span></span><span class="line"><span class="cl">  ...
-</span></span><span class="line"><span class="cl"><span class="o">}</span>
-</span></span></code></pre></div><p>对比发现两个端口的列表是一样的,只能看看代码.</p>
-<p>ip-hash代码在https://github.com/kubernetes/ingress-nginx/blob/master/rootfs/etc/nginx/lua/balancer/chash.lua</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-lua" data-lang="lua"><span class="line"><span class="cl"><span class="kr">function</span> <span class="nc">_M</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">self</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">nodes</span> <span class="o">=</span> <span class="n">util.get_nodes</span><span class="p">(</span><span class="n">backend.endpoints</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">o</span> <span class="o">=</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">instance</span> <span class="o">=</span> <span class="n">self.factory</span><span class="p">:</span><span class="n">new</span><span class="p">(</span><span class="n">nodes</span><span class="p">),</span>  <span class="c1">--获取后端pod ip列表</span>
-</span></span><span class="line"><span class="cl">    <span class="n">hash_by</span> <span class="o">=</span> <span class="n">backend</span><span class="p">[</span><span class="s2">&#34;upstreamHashByConfig&#34;</span><span class="p">][</span><span class="s2">&#34;upstream-hash-by&#34;</span><span class="p">],</span>
-</span></span><span class="line"><span class="cl">    <span class="n">traffic_shaping_policy</span> <span class="o">=</span> <span class="n">backend.trafficShapingPolicy</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">    <span class="n">alternative_backends</span> <span class="o">=</span> <span class="n">backend.alternativeBackends</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">setmetatable</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">self</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">  <span class="n">self.__index</span> <span class="o">=</span> <span class="n">self</span>
-</span></span><span class="line"><span class="cl">  <span class="kr">return</span> <span class="n">o</span>
-</span></span><span class="line"><span class="cl"><span class="kr">end</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kr">function</span> <span class="nc">_M</span><span class="p">.</span><span class="nf">balance</span><span class="p">(</span><span class="n">self</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">key</span> <span class="o">=</span> <span class="n">util.lua_ngx_var</span><span class="p">(</span><span class="n">self.hash_by</span><span class="p">)</span> <span class="c1">--获取需要hash的变量</span>
-</span></span><span class="line"><span class="cl">  <span class="kr">return</span> <span class="n">self.instance</span><span class="p">:</span><span class="n">find</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>  <span class="c1">--计算hash值</span>
-</span></span><span class="line"><span class="cl"><span class="kr">end</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="kr">return</span> <span class="n">_M</span>
-</span></span></code></pre></div><p>关键是在<code>get_nodes</code>函数,位于https://github.com/kubernetes/ingress-nginx/blob/master/rootfs/etc/nginx/lua/util.lua</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-lua" data-lang="lua"><span class="line"><span class="cl"><span class="kr">function</span> <span class="nc">_M</span><span class="p">.</span><span class="nf">get_nodes</span><span class="p">(</span><span class="n">endpoints</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">nodes</span> <span class="o">=</span> <span class="p">{}</span>
-</span></span><span class="line"><span class="cl">  <span class="kd">local</span> <span class="n">weight</span> <span class="o">=</span> <span class="mi">1</span> <span class="c1">--所有后端weight相同都为1</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="kr">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">endpoint</span> <span class="kr">in</span> <span class="n">pairs</span><span class="p">(</span><span class="n">endpoints</span><span class="p">)</span> <span class="kr">do</span>
-</span></span><span class="line"><span class="cl">    <span class="kd">local</span> <span class="n">endpoint_string</span> <span class="o">=</span> <span class="n">endpoint.address</span> <span class="o">..</span> <span class="s2">&#34;:&#34;</span> <span class="o">..</span> <span class="n">endpoint.port</span> <span class="c1">--endpoint为ip+port</span>
-</span></span><span class="line"><span class="cl">    <span class="n">nodes</span><span class="p">[</span><span class="n">endpoint_string</span><span class="p">]</span> <span class="o">=</span> <span class="n">weight</span>
-</span></span><span class="line"><span class="cl">  <span class="kr">end</span>
-</span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="kr">return</span> <span class="n">nodes</span>
-</span></span><span class="line"><span class="cl"><span class="kr">end</span>
-</span></span></code></pre></div><p>通过代码可以看到在<code>ingress-nginx</code>中,实际的后端(upstream)是包含端口的,通过hash计算得到的值也不一样。</p>
-<h2 id="解决建议" class="headerLink">
-    <a href="#%e8%a7%a3%e5%86%b3%e5%bb%ba%e8%ae%ae" class="header-mark"></a>解决建议</h2><p>首先确认系统的架构是不是合理，不同的端口提供不同的服务，一般是相互独立的。
-如果确实有类似需求：</p>
-<ul>
-<li>通过同一个端口提供服务，使用path来区分不同功能</li>
-<li>修改代码，也比较简单</li>
-</ul>
-</div>
-
-        
-        <div class="post-footer" id="post-footer">
-    <div class="post-meta-line"><span class="single-tag">
-                <a href='/tags/k8s/'>#k8s</a>
-                    <span class="separator"> </span>
-                <a href='/tags/ingress/'>#ingress</a>
-                    <span class="separator"> </span>
-                <a href='/tags/nginx/'>#nginx</a></span></div>
-
-    <div class="post-info">
-        <div class="post-info-line">
-            <div class="post-info-link">
-                <a href='/about'>About Me</a>
-            </div>
-        </div>
-        <div class="post-info-line">
-            <div class="post-info-md"></div>
-        </div>
-    </div><div class="post-nav"><a href="/pod-graceful-lifecycle/" class="prev" rel="prev" title="如何做一个优雅的Pod"><i class="fas fa-angle-left fa-fw"></i>如何做一个优雅的Pod</a>
-            <a href="/kube-apiserver-authorization-code/" class="next" rel="next" title="kube-apiserver鉴权源码分析">kube-apiserver鉴权源码分析<i class="fas fa-angle-right fa-fw"></i></a></div></div>
-<div id="comments"><div id="giscus"></div><noscript>
-                Please enable JavaScript to view the comments powered by <a href="https://giscus.app/">giscus</a>.
-            </noscript></div></article></div>
-        </main><footer class="footer">
-        <div class="footer-container"><div class="footer-line"><i class="far fa-copyright fa-fw"></i><span itemprop="copyrightYear">2023</span><span class="author" itemprop="copyrightHolder">&nbsp;<a href="https://qingwave.github.io" target="_blank" rel="noopener noreferrer">Qingwave</a></span></div>
-            <div class="footer-line"></div>
-            <div class="footer-line">
-            </div>
-        </div></footer></div>
-
-    <div id="fixed-buttons"><a href="#back-to-top" id="back-to-top-button" class="fixed-button" title="回到顶部">
-            <i class="fas fa-arrow-up fa-fw"></i>
-        </a>
-    </div><div class="assets"><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lazysizes@5.3.2/lazysizes.min.js"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@sliphua/pjax@2.4.0/dist/pjax.min.js"></script><script type="text/javascript" src="/js/theme.min.js" defer></script><script type="text/javascript">
-            window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());
-            gtag('config', 'UA-134548083-1', { 'anonymize_ip': true });
-        </script><script type="text/javascript" src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" async></script></div>
-
-<div class="pjax-assets"><script type="text/javascript">window.config={"code":{"maxShownLines":-1},"comment":{"giscus":{"customTheme":"light","darkTheme":"dark","dataCategory":"Announcements","dataCategoryId":"DIC_kwDOCg97r84CBQfL","dataEmitMetadata":"0","dataInputPosition":"top","dataLang":"en","dataMapping":"title","dataReactionsEnabled":"1","dataRepo":"qingwave/qingwave.github.io","dataRepoId":"MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=","lightTheme":"light"}}};</script><script type="text/javascript" src="/js/giscus.min.js" defer></script></div>
-</body>
-
-</html>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    window.dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+  gtag("config", id);
+})();</script><link href="/favicon.ico" rel="shortcut icon"><link href="/favicon.svg" rel="icon" type="image/svg+xml"><link href="/favicon.svg" rel="mask-icon" color="#8D46E7"><link href="/_astro/_...page_.b8ddc4ce.css" rel="stylesheet"/><script>!function(t,e,n,i){(i=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(i[n]||[]).concat(["dataLayer.push"])}(window,"partytown","forward"),function(t,e,n,i,a,o,r,d,s,c,p,l){function u(){l||(l=1,"/"==(r=(o.lib||"/~partytown/")+(o.debug?"debug/":""))[0]&&(s=e.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(f,1e4),e.addEventListener("pt0",h),a?w(1):n.serviceWorker?n.serviceWorker.register(r+(o.swPath||"partytown-sw.js"),{scope:r}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):f())))}function w(t){c=e.createElement(t?"script":"iframe"),t||(c.setAttribute("style","display:block;width:0;height:0;border:0;visibility:hidden"),c.setAttribute("aria-hidden",!0)),c.src=r+"partytown-"+(t?"atomics.js?v=0.7.6":"sandbox-sw.html?"+Date.now()),e.body.appendChild(c)}function f(n,a){for(h(),i==t&&(o.forward||[]).map((function(e){delete t[e.split(".")[0]]})),n=0;n<s.length;n++)(a=e.createElement("script")).innerHTML=s[n].innerHTML,e.head.appendChild(a);c&&c.parentNode.removeChild(c)}function h(){clearTimeout(d)}o=t.partytown||{},i==t&&(o.forward||[]).map((function(e){p=t,e.split(".").map((function(e,n,i){p=p[i[n]]=n+1<i.length?"push"==i[n+1]?[]:p[i[n]]||{}:function(){(t._ptf=t._ptf||[]).push(i,arguments)}}))})),"complete"==e.readyState?u():(t.addEventListener("DOMContentLoaded",u),t.addEventListener("load",u))}(window,document,navigator,top,window.crossOriginIsolated)</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="py-8 flex-none mt-8 sticky top-0 w-full z-40" id="header"><div class="mx-auto max-w-3xl sm:px-6 px-6 md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href="/" class="items-center flex"><img class="h-6 w-6 dark:invert invert-0" src="/favicon.svg"></a><div class="items-center flex md:hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-8 w-8" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button> <button aria-label="Toggle Menu" class="items-center transition dark:focus:ring-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 inline-flex ml-1.5 p-2.5 rounded-lg text-gray-500 text-sm" type="button" data-aw-toggle-menu><svg astro-icon="tabler:menu" class="h-6 w-6" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 8h16"/><path d="M4 16h16"/></g></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 text-xl w-full"><li class=""><a href="/blogs" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">写作</a></li><li class=""><a href="/project" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">项目</a></li><li class=""><a href="/tags" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">标签</a></li><li class=""><a href="/about" class="items-center flex dark:hover:text-white duration-150 ease-in-out hover:text-gray-900 px-4 py-3 transition visited:font-bold">关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button aria-label="Toggle between Dark and Light mode" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" type="button" data-aw-toggle-color-scheme><svg astro-icon="ph:moon-fill" class="h-6 w-6" viewBox="0 0 256 256"><path d="M224.3 154.9A100 100 0 1 1 101 31.7a7.9 7.9 0 0 1 10.3 8.1 5.7 5.7 0 0 1-.3 1.8A84 84 0 0 0 214.3 145l2.2-.4a8.1 8.1 0 0 1 7.8 5.7 7.2 7.2 0 0 1 0 4.6z" fill="currentColor"/></svg></button></div></div></div></header><main><section class="mx-auto lg:py-20 py-8 sm:py-16"><article><header class=""><div class="flex px-4 flex-col justify-between max-w-3xl mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Wed Apr 15 2020 15:47:09 GMT+0000 (Coordinated Universal Time)">Apr 15, 2020</time> · <a href="/categories/cloud" class="capitalize hover:underline">cloud</a></p></div><h1 class="mx-auto max-w-3xl sm:px-6 px-4 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">多端口服务的Ingress IP-hash问题</h1><p class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto max-w-3xl sm:px-6 px-6 mt-8 dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert lg:prose-xl prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow-lg prose-lg prose-md"><h2 id="背景">背景</h2><p>业务反馈使用 Ingress 的 ip-hash, 同一个服务开启了 http 和 websocket 分别是两个端口, 但是配置 ip-hash 后, 同一个 client 的请求 http 和 websocket 不在同一个后端.</p><h2 id="探究">探究</h2><p>根据业务 Ingress 配置,配置如下实例:</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#8be9fd">apiVersion</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">extensions/v1beta1</span></span>
+<span class="line"><span style="color:#8be9fd">kind</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">Ingress</span></span>
+<span class="line"><span style="color:#8be9fd">metadata</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">annotations</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">nginx.ingress.kubernetes.io/cors-allow-origin</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">*</span><span style="color:#e9f284">'</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">nginx.ingress.kubernetes.io/enable-cors</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">true</span><span style="color:#e9f284">'</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">nginx.ingress.kubernetes.io/proxy-body-size</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">200m</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">nginx.ingress.kubernetes.io/proxy-read-timeout</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">'</span><span style="color:#f1fa8c">300</span><span style="color:#e9f284">'</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#8be9fd">nginx.ingress.kubernetes.io/upstream-hash-by</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">$binary_remote_addr</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">name</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">hellogo</span></span>
+<span class="line"><span style="color:#8be9fd">spec</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">rules</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">host</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">hellogo.d.xiaomi.net</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#8be9fd">http</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">        </span><span style="color:#8be9fd">paths</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">backend</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">serviceName</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">hellogo</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#http1, 8080</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">servicePort</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">8080</span></span>
+<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#8be9fd">path</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">/8080</span></span>
+<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">backend</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">serviceName</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">hellogo</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#http2, 9090</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">servicePort</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">9090</span></span>
+<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#8be9fd">path</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">/9090</span></span>
+<span class="line"><span style="color:#f8f8f2">          </span><span style="color:#ff79c6">-</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">backend</span><span style="color:#ff79c6">:</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">serviceName</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">hellogo</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">#websocket, 8081</span></span>
+<span class="line"><span style="color:#f8f8f2">              </span><span style="color:#8be9fd">servicePort</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">8081</span></span>
+<span class="line"><span style="color:#f8f8f2">            </span><span style="color:#8be9fd">path</span><span style="color:#ff79c6">:</span><span style="color:#f8f8f2"> </span><span style="color:#f1fa8c">/ws</span></span></code></pre><p>创建多个副本</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ kubectl get po -l app=hellogo</span></span>
+<span class="line"><span style="color:#f8f8f2">NAME                       READY   STATUS    RESTARTS   AGE</span></span>
+<span class="line"><span style="color:#f8f8f2">hellogo-699f997454-b5vs4   1/1     Running   0          66m</span></span>
+<span class="line"><span style="color:#f8f8f2">hellogo-699f997454-hm924   1/1     Running   0          66m</span></span>
+<span class="line"><span style="color:#f8f8f2">hellogo-699f997454-mfbqv   1/1     Running   0          66m</span></span>
+<span class="line"><span style="color:#f8f8f2">hellogo-699f997454-qdrwn   1/1     Running   0          66m</span></span>
+<span class="line"><span style="color:#f8f8f2">hellogo-699f997454-srh9b   1/1     Running   0          66m</span></span>
+<span class="line"><span style="color:#f8f8f2">hellogo-699f997454-wlwfh   1/1     Running   0          66m</span></span></code></pre><p>测试 http 8080 端口, 请求到 pod hellogo-699f997454-qdrwn</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ curl http://hellogo.d.xiaomi.net/8080</span></span>
+<span class="line"><span style="color:#f8f8f2">hello 8080</span><span style="color:#ff79c6">!</span></span>
+<span class="line"><span style="color:#f8f8f2">host hellogo.d.xiaomi.net</span></span>
+<span class="line"><span style="color:#f8f8f2">remoteaddr 10.46.23.1:15340</span></span>
+<span class="line"><span style="color:#f8f8f2">realip 10.232.41.102</span></span>
+<span class="line"><span style="color:#f8f8f2">hostname hellogo-699f997454-qdrwn</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">$ curl http://hellogo.d.xiaomi.net/8080</span></span>
+<span class="line"><span style="color:#f8f8f2">hello 8080</span><span style="color:#ff79c6">!</span></span>
+<span class="line"><span style="color:#f8f8f2">host hellogo.d.xiaomi.net</span></span>
+<span class="line"><span style="color:#f8f8f2">remoteaddr 10.46.23.1:15866</span></span>
+<span class="line"><span style="color:#f8f8f2">realip 10.232.41.102</span></span>
+<span class="line"><span style="color:#f8f8f2">hostname hellogo-699f997454-qdrwn</span></span></code></pre><p>测试 http 8080 端口, 请求到 pod hellogo-699f997454-b5vs4</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ curl http://hellogo.d.xiaomi.net/9090</span></span>
+<span class="line"><span style="color:#f8f8f2">hello 9090</span><span style="color:#ff79c6">!</span></span>
+<span class="line"><span style="color:#f8f8f2">host hellogo.d.xiaomi.net</span></span>
+<span class="line"><span style="color:#f8f8f2">remoteaddr 10.38.200.195:23706</span></span>
+<span class="line"><span style="color:#f8f8f2">realip 10.232.41.102</span></span>
+<span class="line"><span style="color:#f8f8f2">hostname hellogo-699f997454-b5vs4</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">$ curl http://hellogo.d.xiaomi.net/9090</span></span>
+<span class="line"><span style="color:#f8f8f2">hello 9090</span><span style="color:#ff79c6">!</span></span>
+<span class="line"><span style="color:#f8f8f2">host hellogo.d.xiaomi.net</span></span>
+<span class="line"><span style="color:#f8f8f2">remoteaddr 10.38.200.195:23706</span></span>
+<span class="line"><span style="color:#f8f8f2">realip 10.232.41.102</span></span>
+<span class="line"><span style="color:#f8f8f2">hostname hellogo-699f997454-b5vs4</span></span></code></pre><p>猜想是由于获取的 nginx server 列表顺序不一致导致的, 但是看源码 ip list 是直接从 endpoint 获取的, 进入 nginx-ingress 查看</p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#f8f8f2">$ kubectl </span><span style="color:#8be9fd">exec</span><span style="color:#f8f8f2"> -it -n kube-system nginx-ingress-controller-m496n sh</span></span>
+<span class="line"><span style="color:#6272a4"># dbg工具查看nginx后端列表</span></span>
+<span class="line"><span style="color:#f8f8f2">/etc/nginx $ /dbg backends list </span><span style="color:#ff79c6">|</span><span style="color:#f8f8f2"> grep hellogo</span></span>
+<span class="line"><span style="color:#f8f8f2">default-hellogo-8080</span></span>
+<span class="line"><span style="color:#f8f8f2">default-hellogo-8081</span></span>
+<span class="line"><span style="color:#f8f8f2">default-hellogo-9090</span></span>
+<span class="line"><span style="color:#6272a4"># 8080端口的列表</span></span>
+<span class="line"><span style="color:#f8f8f2">/etc/nginx $ /dbg backends get default-hellogo-8080</span></span>
+<span class="line"><span style="color:#f8f8f2">{</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">endpoints</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: [</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.12.107</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">8080</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.12.108</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">8080</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.12.109</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">8080</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.23.23</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">8080</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.23.25</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">8080</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.23.29</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">8080</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    }</span></span>
+<span class="line"><span style="color:#f8f8f2">  ],</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">name</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">default-hellogo-8080</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">noServer</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: false,</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: 8080,</span></span>
+<span class="line"><span style="color:#f8f8f2">  ...</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span>
+<span class="line"><span style="color:#6272a4"># 9090端口的列表</span></span>
+<span class="line"><span style="color:#f8f8f2">/etc/nginx $ /dbg backends get default-hellogo-9090</span></span>
+<span class="line"><span style="color:#f8f8f2">{</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">endpoints</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: [</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.12.107</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">9090</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.12.108</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">9090</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.12.109</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">9090</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.23.23</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">9090</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.23.25</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">9090</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    },</span></span>
+<span class="line"><span style="color:#f8f8f2">    {</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">address</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">10.46.23.29</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">      </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">9090</span><span style="color:#e9f284">"</span></span>
+<span class="line"><span style="color:#f8f8f2">    }</span></span>
+<span class="line"><span style="color:#f8f8f2">  ],</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">name</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">default-hellogo-9090</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">,</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">noServer</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: false,</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">port</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">: 9090,</span></span>
+<span class="line"><span style="color:#f8f8f2">  ...</span></span>
+<span class="line"><span style="color:#f8f8f2">}</span></span></code></pre><p>对比发现两个端口的列表是一样的,只能看看代码.</p><p>ip-hash 代码在<a href="https://github.com/kubernetes/ingress-nginx/blob/master/rootfs/etc/nginx/lua/balancer/chash.lua">https://github.com/kubernetes/ingress-nginx/blob/master/rootfs/etc/nginx/lua/balancer/chash.lua</a></p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">function</span><span style="color:#f8f8f2"> </span><span style="color:#50fa7b">_M</span><span style="color:#f8f8f2">.</span><span style="color:#50fa7b">new</span><span style="color:#f8f8f2">(</span><span style="color:#ffb86c">self</span><span style="color:#f8f8f2">, </span><span style="color:#ffb86c">backend</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">local</span><span style="color:#f8f8f2"> nodes </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> util.</span><span style="color:#50fa7b">get_nodes</span><span style="color:#f8f8f2">(backend.endpoints)</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">local</span><span style="color:#f8f8f2"> o </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> {</span></span>
+<span class="line"><span style="color:#f8f8f2">    instance </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">self</span><span style="color:#f8f8f2">.</span><span style="color:#8be9fd">factory</span><span style="color:#f8f8f2">:</span><span style="color:#50fa7b">new</span><span style="color:#f8f8f2">(nodes),  </span><span style="color:#6272a4">--获取后端pod ip列表</span></span>
+<span class="line"><span style="color:#f8f8f2">    hash_by </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> backend[</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">upstreamHashByConfig</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">][</span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">upstream-hash-by</span><span style="color:#e9f284">"</span><span style="color:#f8f8f2">],</span></span>
+<span class="line"><span style="color:#f8f8f2">    traffic_shaping_policy </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> backend.trafficShapingPolicy,</span></span>
+<span class="line"><span style="color:#f8f8f2">    alternative_backends </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> backend.alternativeBackends,</span></span>
+<span class="line"><span style="color:#f8f8f2">  }</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#8be9fd">setmetatable</span><span style="color:#f8f8f2">(o, </span><span style="color:#bd93f9">self</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#bd93f9">self</span><span style="color:#f8f8f2">.__index </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">self</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> o</span></span>
+<span class="line"><span style="color:#ff79c6">end</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">function</span><span style="color:#f8f8f2"> </span><span style="color:#50fa7b">_M</span><span style="color:#f8f8f2">.</span><span style="color:#50fa7b">balance</span><span style="color:#f8f8f2">(</span><span style="color:#ffb86c">self</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">local</span><span style="color:#f8f8f2"> key </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> util.</span><span style="color:#50fa7b">lua_ngx_var</span><span style="color:#f8f8f2">(</span><span style="color:#bd93f9">self</span><span style="color:#f8f8f2">.hash_by) </span><span style="color:#6272a4">--获取需要hash的变量</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">self</span><span style="color:#f8f8f2">.</span><span style="color:#8be9fd">instance</span><span style="color:#f8f8f2">:</span><span style="color:#50fa7b">find</span><span style="color:#f8f8f2">(key)  </span><span style="color:#6272a4">--计算hash值</span></span>
+<span class="line"><span style="color:#ff79c6">end</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> _M</span></span></code></pre><p>关键是在<code>get_nodes</code>函数,位于<a href="https://github.com/kubernetes/ingress-nginx/blob/master/rootfs/etc/nginx/lua/util.lua">https://github.com/kubernetes/ingress-nginx/blob/master/rootfs/etc/nginx/lua/util.lua</a></p><pre class="astro-code" is:raw="" style="background-color:#282a36;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word"><code><span class="line"><span style="color:#ff79c6">function</span><span style="color:#f8f8f2"> </span><span style="color:#50fa7b">_M</span><span style="color:#f8f8f2">.</span><span style="color:#50fa7b">get_nodes</span><span style="color:#f8f8f2">(</span><span style="color:#ffb86c">endpoints</span><span style="color:#f8f8f2">)</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">local</span><span style="color:#f8f8f2"> nodes </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> {}</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">local</span><span style="color:#f8f8f2"> weight </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> </span><span style="color:#bd93f9">1</span><span style="color:#f8f8f2"> </span><span style="color:#6272a4">--所有后端weight相同都为1</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">for</span><span style="color:#f8f8f2"> _, endpoint </span><span style="color:#ff79c6">in</span><span style="color:#f8f8f2"> </span><span style="color:#8be9fd">pairs</span><span style="color:#f8f8f2">(endpoints) </span><span style="color:#ff79c6">do</span></span>
+<span class="line"><span style="color:#f8f8f2">    </span><span style="color:#ff79c6">local</span><span style="color:#f8f8f2"> endpoint_string </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> endpoint.address </span><span style="color:#ff79c6">..</span><span style="color:#f8f8f2"> </span><span style="color:#e9f284">"</span><span style="color:#f1fa8c">:</span><span style="color:#e9f284">" </span><span style="color:#ff79c6">..</span><span style="color:#f8f8f2"> endpoint.port </span><span style="color:#6272a4">--endpoint为ip+port</span></span>
+<span class="line"><span style="color:#f8f8f2">    nodes[endpoint_string] </span><span style="color:#ff79c6">=</span><span style="color:#f8f8f2"> weight</span></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">end</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#f8f8f2">  </span><span style="color:#ff79c6">return</span><span style="color:#f8f8f2"> nodes</span></span>
+<span class="line"><span style="color:#ff79c6">end</span></span></code></pre><p>通过代码可以看到在<code>ingress-nginx</code>中,实际的后端(upstream)是包含端口的,通过 hash 计算得到的值也不一样。</p><h2 id="解决建议">解决建议</h2><p>首先确认系统的架构是不是合理，不同的端口提供不同的服务，一般是相互独立的。 如果确实有类似需求：</p><ul><li>通过同一个端口提供服务，使用 path 来区分不同功能</li><li>修改代码，也比较简单</li></ul></div><div class="flex flex-col justify-between max-w-3xl mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class="mr-5"><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/k8s" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#k8s</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/ingress" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#ingress</a></li><li class="rounded-lg bg-gray-100 dark:bg-slate-700 font-medium inline-block mx-1 my-1 px-2 py-1"><a href="/tags/nginx" class="dark:text-slate-300 dark:hover:text-gray-200 hover:text-primary text-muted">#nginx</a></li></ul></div></article><div class="mx-auto max-w-3xl sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script async src="https://giscus.app/client.js" crossorigin="anonymous" data-category="Announcements" data-category-id="DIC_kwDOCg97r84CBQfL" data-emit-metadata="0" data-input-position="bottom" data-lang="en" data-mapping="title" data-reactions-enabled="1" data-repo="qingwave/qingwave.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict="0" data-theme="light"></script></div></section></main><footer class="relative"><div class="mx-auto max-w-3xl sm:px-6 px-4"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden="true"></div><div class="mx-auto max-w-3xl sm:px-6 px-4 dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="flex md:mb-0 -ml-2 mb-4 md:ml-4 md:order-1"><li><a href="/rss.xml" class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label="RSS"><svg astro-icon="tabler:rss" class="h-5 w-5" viewBox="0 0 24 24"><g class="icon-tabler" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="5" cy="19" r="1"/><path d="M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9"/></g></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href="https://qingwave.github.io" class="hover:brightness-50">Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function a(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:"dark"===localStorage.theme?"dark":"light"}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),a=encodeURIComponent(t.getAttribute("data-aw-text"));let c;switch(o){case"facebook":c=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":c=`https://twitter.com/intent/tweet?url=${n}&text=${a}`;break;case"linkedin":c=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${a}`;break;case"whatsapp":c=`https://wa.me/?text=${a}%20${n}`;break;case"mail":c=`mailto:?subject=%22${a}%22&body=${a}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=c,s.click()})),a(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{a()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>
