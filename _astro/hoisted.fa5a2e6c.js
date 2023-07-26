@@ -1,1 +1,0 @@
-function e(o){const t=o.getAttribute("href");window.location.pathname==t||window.location.origin+location==t?o.classList.toggle("font-bold"):o.classList.remove("font-bold")}const n=document.querySelectorAll("[memu-item]");n.forEach(o=>{e(o)});
