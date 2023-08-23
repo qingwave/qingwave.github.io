@@ -14,7 +14,6 @@ jobs:
         dst: gitee.com/qiuming520
         dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
         dst_token:  ${{ secrets.GITEE_TOKEN }}
-        account_type: org
         timeout: 600
         debug: true
         static_list: "qingwave.github.io"
