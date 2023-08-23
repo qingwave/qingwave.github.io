@@ -1,0 +1,20 @@
+name: Github repos mirror periodic job
+on:
+  push:
+    # Runs at every pull requests submitted in master branch 
+    branches: [ master ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Mirror the Github organization repos to Gitee.
+      uses: Yikun/hub-mirror-action@v1.0
+      with:
+        src: github.com/qiuming520
+        dst: gitee.com/qiuming520
+        dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
+        dst_token:  ${{ secrets.GITEE_TOKEN }}
+        account_type: org
+        timeout: 600
+        debug: true
+        static_list: "qingwave.github.io"
