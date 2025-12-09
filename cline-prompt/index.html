@@ -1,0 +1,298 @@
+<!DOCTYPE html><html class=2xl:text-[20px] dir=ltr lang=zh><head><meta charset=UTF-8><meta content="width=device-width,initial-scale=1" name=viewport><title>Cline Prompt 设计分析</title><meta content="通过 Cline Prompt 了解 Agent 设计" name=description><meta content=index,follow name=robots><link href=https://qingwave.github.io/cline-prompt/ rel=canonical><meta content="Cline Prompt 设计分析" property=og:title><meta content="通过 Cline Prompt 了解 Agent 设计" property=og:description><meta content=https://qingwave.github.io/cline-prompt/ property=og:url><meta content=article property=og:type><meta content=https://plus.unsplash.com/premium_photo-1726079246917-46f2b37f7e9e property=og:image><meta content="Cline Prompt 设计分析" property=og:image:alt><meta content=summary_large_image name=twitter:card><style is:global>:root{--aw-font-sans:'Inter Variable';--aw-font-serif:var(--aw-font-sans);--aw-font-heading:var(--aw-font-sans);--aw-color-primary:#10b981;--aw-color-secondary:rgb(30 58 138);--aw-color-accent:rgb(109 40 217);--aw-color-text-page:rgb(17 24 39);--aw-color-text-muted:rgb(75 85 99);--aw-color-bg-page:rgb(255 255 255)}</style><meta content=-8bOgP-V4XsxXZtXVx9DIXkdIuruvAYiY37vBg26acI name=google-site-verification><script src="https://www.googletagmanager.com/gtag/js?id=UA-134548083-1" type=text/partytown async></script><script type=text/partytown>(function(){const id = "UA-134548083-1";
+
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    window.dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+  gtag("config", id);
+})();</script><link href=/favicon.ico rel="shortcut icon"><link href=/favicon.svg rel=icon type=image/svg+xml><link href=/favicon.svg rel=mask-icon color=#8D46E7><link href=/sitemap-index.xml rel=sitemap><link href=/_astro/_page_.CmPh90bh.css rel=stylesheet><link href=/_astro/_page_.CJatalt_.css rel=stylesheet><script src=/_astro/hoisted.DNuUAAyM.js type=module></script><script src=/_astro/page.DZx9IW7X.js type=module></script><script>!function(t,e,n,r){(window.crossOriginIsolated||navigator.serviceWorker)&&((r=t[e]=Object.assign(t[e]||{},{lib:"/~partytown/",debug:!1}))[n]=(r[n]||[]).concat(["dataLayer.push"]))}(window,"partytown","forward");const t={preserveBehavior:!1},e=e=>{if("string"==typeof e)return[e,t];const[n,r=t]=e;return[n,{...t,...r}]},n=Object.freeze((()=>{const t=new Set;let e=[];do{Object.getOwnPropertyNames(e).forEach((n=>{"function"==typeof e[n]&&t.add(n)}))}while((e=Object.getPrototypeOf(e))!==Object.prototype);return Array.from(t)})());!function(t,r,o,i,a,s,c,d,l,p,u=t,f){function y(){f||(f=1,"/"==(c=(s.lib||"/~partytown/")+(s.debug?"debug/":""))[0]&&(l=r.querySelectorAll('script[type="text/partytown"]'),i!=t?i.dispatchEvent(new CustomEvent("pt1",{detail:t})):(d=setTimeout(h,(null==s?void 0:s.fallbackTimeout)||1e4),r.addEventListener("pt0",b),a?w(1):o.serviceWorker?o.serviceWorker.register(c+(s.swPath||"partytown-sw.js"),{scope:c}).then((function(t){t.active?w():t.installing&&t.installing.addEventListener("statechange",(function(t){"activated"==t.target.state&&w()}))}),console.error):h())))}function w(e){p=r.createElement(e?"script":"iframe"),t._pttab=Date.now(),e||(p.style.display="block",p.style.width="0",p.style.height="0",p.style.border="0",p.style.visibility="hidden",p.setAttribute("aria-hidden",!0)),p.src=c+"partytown-"+(e?"atomics.js?v=0.11.2":"sandbox-sw.html?"+t._pttab),r.querySelector(s.sandboxParent||"body").appendChild(p)}function h(n,o){for(b(),i==t&&(s.forward||[]).map((function(n){const[r]=e(n);delete t[r.split(".")[0]]})),n=0;n<l.length;n++)(o=r.createElement("script")).innerHTML=l[n].innerHTML,o.nonce=s.nonce,r.head.appendChild(o);p&&p.parentNode.removeChild(p)}function b(){clearTimeout(d)}s=t.partytown||{},i==t&&(s.forward||[]).map((function(r){const[o,{preserveBehavior:i}]=e(r);u=t,o.split(".").map((function(e,r,o){var a;u=u[o[r]]=r+1<o.length?u[o[r]]||(a=o[r+1],n.includes(a)?[]:{}):(()=>{let e=null;if(i){const{methodOrProperty:n,thisObject:r}=((t,e)=>{let n=t;for(let t=0;t<e.length-1;t+=1)n=n[e[t]];return{thisObject:n,methodOrProperty:e.length>0?n[e[e.length-1]]:void 0}})(t,o);"function"==typeof n&&(e=(...t)=>n.apply(r,...t))}return function(){let n;return e&&(n=e(arguments)),(t._ptf=t._ptf||[]).push(o,arguments),n}})()}))})),"complete"==r.readyState?y():(t.addEventListener("DOMContentLoaded",y),t.addEventListener("load",y))}(window,document,navigator,top,window.crossOriginIsolated),document.addEventListener("astro:before-swap",(t=>{let e=document.body.querySelector("iframe[src*='/~partytown/']");e&&t.newDocument.body.append(e)}))</script></head><body class="dark:text-slate-300 antialiased bg-light dark:bg-dark text-page tracking-tight"><header class="md:py-8 flex-none mt-8 py-4 sticky top-0 w-full z-40" id=header><div class="px-4 mx-auto sm:px-6 max-w-3xl md:flex md:justify-between"><div class="items-center md:flex"><div class="flex justify-between"><a href=/ class="items-center flex"><img alt="" class="h-6 w-6 dark:invert invert-0" src=/favicon.svg></a><div class="items-center flex md:hidden"><button class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" aria-label="Toggle between Dark and Light mode" type=button data-aw-toggle-color-scheme><svg class="h-7 w-7" data-icon=tabler:moon-filled height=1em width=1em><symbol id=ai:tabler:moon-filled viewBox="0 0 24 24"><path d="M12 1.992a10 10 0 1 0 9.236 13.838c.341-.82-.476-1.644-1.298-1.31a6.5 6.5 0 0 1-6.864-10.787l.077-.08c.551-.63.113-1.653-.758-1.653h-.266l-.068-.006z" fill=currentColor /></symbol><use href=#ai:tabler:moon-filled></use></svg></button> <button class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:focus:ring-gray-700 dark:hover:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-200 hover:bg-gray-100 ml-1.5 rounded-lg text-gray-500 transition" aria-label="Toggle Menu" type=button data-aw-toggle-menu><svg class="h-6 w-6" data-icon=tabler:menu height=1em width=1em><symbol id=ai:tabler:menu viewBox="0 0 24 24"><path d="M4 8h16M4 16h16" fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 /></symbol><use href=#ai:tabler:menu></use></svg></button></div></div><nav aria-label="Main navigation" class="items-center md:flex hidden dark:text-slate-200 h-[calc(100vh-72px)] md:h-auto md:mx-5 md:overflow-visible md:w-auto overflow-y-auto pr-4 w-full"><ul class="flex flex-col md:flex-row md:pt-0 md:self-center md:text-base md:w-auto pt-8 w-full"><li class=""><a href=/blog/ class="items-center flex dark:text-neutral-300 font-medium px-4 py-3 text-neutral-500" memu-item>文章</a></li><li class=""><a href=/project/ class="items-center flex dark:text-neutral-300 font-medium px-4 py-3 text-neutral-500" memu-item>项目</a></li><li class=""><a href=/reading/ class="items-center flex dark:text-neutral-300 font-medium px-4 py-3 text-neutral-500" memu-item>阅读</a></li><li class=""><a href=/about/ class="items-center flex dark:text-neutral-300 font-medium px-4 py-3 text-neutral-500" memu-item>关于我</a></li></ul></nav></div><div class="items-center flex md:mb-0 md:self-center"><div class="items-center md:flex hidden"><button class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm dark:hover:text-slate-300 hover:text-slate-950 text-slate-800" aria-label="Toggle between Dark and Light mode" type=button data-aw-toggle-color-scheme><svg class="h-6 w-6" data-icon=tabler:moon-filled height=1em width=1em viewBox="0 0 24 24"><use href=#ai:tabler:moon-filled></use></svg></button></div></div></div></header><main><section class=page><article><header class=""><div class="flex px-4 flex-col justify-between mb-2 mt-0 mx-auto sm:flex-row sm:items-center sm:px-6"><p class="text-sm dark:text-slate-400 leading-6 text-slatey-700"><time datetime="Tue Dec 02 2025 08:13:57 GMT+0000 (Coordinated Universal Time)">Dec 2, 2025</time> · <a href=/categories/ai/ class="capitalize hover:underline">ai</a></p></div><h1 class="px-4 mx-auto sm:px-6 font-bold font-heading leading-tighter md:text-5xl text-4xl tracking-tighter">Cline Prompt 设计分析</h1><p class="px-4 mx-auto sm:px-6 dark:text-slate-400 mb-8 md:text-2xl mt-4 text-justify text-muted text-xl"></p><div class="px-4 mx-auto sm:px-6"><div class="border-t dark:border-slate-700"></div></div></header><div class="mx-auto sm:px-6 px-6 mt-8 3xl:prose-xl break-words dark:prose-a:text-blue-400 dark:prose-headings:text-slate-300 dark:prose-invert overflow-x-hidden prose prose-a:text-primary prose-headings:font-bold prose-headings:font-heading prose-headings:leading-tighter prose-headings:tracking-tighter prose-img:rounded-md prose-img:shadow prose-lg"><p>最近一直在使用 Cline 辅助编程，确实效果不错，比 Github Copilot 要强不少。Cline 提供的功能也非常强大，今天重点分析下它的 prompt 设计。</p><h2 id=什么是-cline>什么是 Cline</h2><p>按照官方的解释：</p><blockquote><p>Cline 是一个运行在 VS Code 中的 AI 编程助手，不仅能够跨多个文件进行读写、执行命令，还功能深层次的理解项目，执行复杂的重构任务。</p></blockquote><p>以使用体验来看，Cline 不仅仅是一个 AI 编程助手，更像是一个 AI Agent，只是内置了很多编程相关的功能。除此之外，Cline 提供了很高的扩展性，用户可以通过自定义 Rule 来扩展系统 Prompt；定义 Workflow 来实现更复杂的任务处理；通过支持 MCP 协议，Cline 可以和本地或远程的 MCP 服务器进行交互，使用其提供的工具与资源。</p><h2 id=cline-工作流程架构>Cline 工作流程架构</h2><p>在深入分析 Cline 的 Prompt 设计之前，我们先通过架构图直观了解其完整的工作流程：</p><pre class=mermaid>graph TB
+    Start([用户任务输入&#x3C;br/>User Task Input]) --> Assemble[消息组装层&#x3C;br/>Message Assembly]
+    
+    Assemble --> |包含| UserReq[用户请求&#x3C;br/>User Request]
+    Assemble --> |包含| SysPrompt[系统提示词&#x3C;br/>System Prompt]
+    Assemble --> |包含| EnvCtx[环境上下文&#x3C;br/>Environment Context]
+    
+    UserReq -.-> Assemble
+    SysPrompt -.-> Assemble
+    EnvCtx -.-> Assemble
+    
+    Assemble --> ModeCheck{当前模式?&#x3C;br/>Current Mode}
+    
+    ModeCheck -->|PLAN MODE| PlanMode[PLAN MODE&#x3C;br/>规划模式]
+    ModeCheck -->|ACT MODE| ActMode[ACT MODE&#x3C;br/>执行模式]
+    
+    %% PLAN MODE Flow
+    PlanMode --> PlanExplore[信息收集&#x3C;br/>read_file, search_files&#x3C;br/>ask_followup_question]
+    PlanExplore --> PlanAnalyze[分析与规划&#x3C;br/>Analyze &#x26; Plan]
+    PlanAnalyze --> PlanRespond[呈现方案&#x3C;br/>plan_mode_respond]
+    PlanRespond --> UserReview{用户审查&#x3C;br/>User Review}
+    UserReview -->|需要修改| PlanExplore
+    UserReview -->|批准| SwitchToAct[切换到 ACT MODE]
+    SwitchToAct --> ActMode
+    
+    %% ACT MODE Flow
+    ActMode --> ActAnalyze[任务分析&#x3C;br/>Task Analysis]
+    ActAnalyze --> SetGoals[设定目标与成功标准&#x3C;br/>Set Goals &#x26; Success Criteria]
+    SetGoals --> InitProgress[创建任务进度清单&#x3C;br/>Initialize task_progress]
+    InitProgress --> SelectTool[选择工具&#x3C;br/>Tool Selection]
+    
+    SelectTool --> ToolExec[执行工具&#x3C;br/>Tool Execution]
+    
+    ToolExec --> |需要批准| ApprovalCheck{requires_approval?}
+    ApprovalCheck -->|true| UserApproval{用户批准?}
+    ApprovalCheck -->|false/auto-approve| ToolRun[运行工具&#x3C;br/>Run Tool]
+    UserApproval -->|拒绝| SelectTool
+    UserApproval -->|批准| ToolRun
+    
+    ToolRun --> ToolResult[获取工具结果&#x3C;br/>Tool Result]
+    ToolResult --> UpdateProgress[更新进度&#x3C;br/>Update task_progress]
+    UpdateProgress --> AnalyzeResult[分析结果&#x3C;br/>Analyze Result]
+    
+    AnalyzeResult --> TaskComplete{任务完成?&#x3C;br/>Task Complete?}
+    TaskComplete -->|否| SelectTool
+    TaskComplete -->|是| Completion[呈现结果&#x3C;br/>attempt_completion]
+    
+    Completion --> UserFeedback{用户反馈&#x3C;br/>User Feedback}
+    UserFeedback -->|需要改进| SelectTool
+    UserFeedback --> End([任务完成&#x3C;br/>Task Done])
+    
+    %% Styling
+    classDef planStyle fill:#E3F2FD,stroke:#90CAF9,stroke-width:2px
+    classDef actStyle fill:#FFF8E1,stroke:#FFD54F,stroke-width:2px
+    classDef toolStyle fill:#F3E5F5,stroke:#CE93D8,stroke-width:2px
+    classDef decisionStyle fill:#FFEBEE,stroke:#EF9A9A,stroke-width:2px
+    classDef resultStyle fill:#E8F5E9,stroke:#A5D6A7,stroke-width:2px
+    
+    class PlanMode,PlanExplore,PlanAnalyze,PlanRespond planStyle
+    class ActMode,ActAnalyze,SetGoals,InitProgress,SelectTool actStyle
+    class ToolExec,ToolRun,ToolResult toolStyle
+    class ModeCheck,UserReview,ApprovalCheck,UserApproval,TaskComplete,UserFeedback decisionStyle
+    class Completion,End resultStyle</pre><p><strong>架构图说明</strong>：</p><p>该图展示了 Cline 从接收用户任务到完成任务的完整流程，主要包括：</p><ol><li><strong>消息组装层</strong>：整合用户请求、系统提示词和环境上下文</li><li><strong>双模式工作流</strong>：<ul><li><strong>PLAN MODE</strong>：规划阶段，收集信息并制定执行方案</li><li><strong>ACT MODE</strong>：执行阶段，逐步使用工具完成任务</li></ul></li><li><strong>工具执行机制</strong>：单次调用、批准机制、结果分析</li><li><strong>决策节点</strong>：模式选择、用户批准、任务完成判断</li><li><strong>进度跟踪</strong>：通过<code>task_progress</code>实时更新任务状态</li><li><strong>完成状态</strong>：任务完成与结果呈现</li></ol><h2 id=cline-的-prompt-设计>Cline 的 Prompt 设计</h2><p>Cline 的系统提示词是一个高度模块化的架构，支持多种 AI 模型和自定义配置。模版如下：</p><pre class="astro-code dracula" data-language=ts style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#ff79c6>export</span><span style=color:#ff79c6> const</span><span style=color:#f8f8f2> baseTemplate </span><span style=color:#ff79c6>=</span><span style=color:#f1fa8c> `{{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>AGENT_ROLE</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>{{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>TOOL_USE</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>TASK_PROGRESS</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>RULES</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>ACT_VS_PLAN</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>CLI_SUBAGENTS</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>CAPABILITIES</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>EDITING_FILES</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>TODO</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>MCP</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>SYSTEM_INFO</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>OBJECTIVE</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f1fa8c>## {{</span><span style=color:#ff79c6>${</span><span style=color:#f8f8f2>SystemPromptSection.</span><span style=color:#bd93f9>USER_INSTRUCTIONS</span><span style=color:#ff79c6>}</span><span style=color:#f1fa8c>}}`</span></span>
+<span class=line></span></code></pre><blockquote><p>为什么要使用模块化的 Prompt 设计？主要有以下几个好处：</p><ul><li><strong>可维护性</strong>: 各个部分独立，便于更新和维护</li><li><strong>可扩展性</strong>: 不同 LLM 模型有不同的偏好和限制，模块化设计允许针对不同模型进行定制，比如 Claude 偏好 XML 格式，GLM 需要更简洁的指令</li><li><strong>灵活性</strong>: 具体启用的模块因模型变体与运行环境而异，某些段落（如 CLI_SUBAGENTS、TODO）可能被裁剪或由宿主环境动态注入</li></ul></blockquote><p>系统 Prompt 包含了角色定义、工具使用、任务处理、上下文管理等等，这些都是我们在设计 Agent 时必须定义的部分，除此之外还涉及到文件操作、用户自定义规则等。完整的系统 Prompt 包含以下核心部分：</p><ul><li><code>AGENT_ROLE</code>: 定义 Cline 的身份和能力</li><li><code>TOOL_USE</code>: 工具使用规则和约定</li><li><code>TASK_PROGRESS</code>: 任务进度跟踪</li><li><code>RULES</code>: 操作规则和约束</li><li><code>ACT_VS_PLAN</code>: ACT MODE 和 PLAN MODE 的区别</li><li><code>CAPABILITIES</code>: 详细能力描述</li><li><code>EDITING_FILES</code>: 文件编辑指南</li><li><code>MCP</code>: Model Context Protocol 集成</li><li><code>OBJECTIVE</code>: 任务执行处理的规范和流程</li><li><code>USER_INSTRUCTIONS</code>: 用户自定义指令</li></ul><h3 id=agent-role>Agent Role</h3><p><code>AGENT_ROLE</code> 用来定义 Cline 的身份和能力。以某个模型变体为例（<a href=https://github.com/cline/cline/blob/4baa2474/src/core/prompts/system-prompt/variants/native-gpt-5-1/overrides.ts>GPT-5.1</a>），角色定义如下：</p><blockquote><p>You are Cline, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.</p></blockquote><p>注意：不同模型变体可能有不同的角色定义与能力描述。</p><h3 id=tool-use>Tool Use</h3><p><code>TOOL_USE</code> 部分定义了 Cline 可以使用的工具和命令，以 GPT-5.1 变体为例：</p><pre class="astro-code dracula" data-language=md style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#f8f8f2>You have access to a set of tools that are executed upon the user's approval. You can only use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#bd93f9;font-weight:700>## Tool-Calling Convention and Preambles</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>When switching domains or task_progress steps, you may want to provide a brief preamble explaining:</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>- </span><span style=color:#ffb86c;font-weight:700>**What tool**</span><span style=color:#f8f8f2> you are about to use</span></span>
+<span class=line><span style=color:#f8f8f2>- </span><span style=color:#ffb86c;font-weight:700>**Why**</span><span style=color:#f8f8f2> you are using it (what problem it solves or what information it will provide)</span></span>
+<span class=line><span style=color:#f8f8f2>- </span><span style=color:#ffb86c;font-weight:700>**What result**</span><span style=color:#f8f8f2> you expect from the tool call</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>Format: "Now that we have [very brief summary of last task_progress items that was completed], I will use [</span><span style=color:#ff79c6>ToolName</span><span style=color:#f8f8f2>] to [specific action/goal]"</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>After receiving the tool result, briefly reflect on whether the result matches your expectations. If it doesn't, explain the discrepancy and adjust your approach accordingly. This improves transparency, accuracy, and helps you catch potential issues early.`</span></span>
+<span class=line></span></code></pre><p>对于工具的使用有以下约定：</p><ul><li>每次只能使用一个工具</li><li>潜在有副作用的操作（如写文件、执行命令、网络操作）需设置 <code>requires_approval=true</code>；安全的读取/查询类操作可设置为 <code>false</code>。用户可启用自动批准模式，此时安全操作会直接执行</li><li>使用工具前说明使用目的和预期结果、使用后对结果进行反思是<strong>推荐的最佳实践</strong>，具体执行取决于模型变体与提示词覆盖</li></ul><h3 id=task-progress>Task Progress</h3><p><code>TASK_PROGRESS</code> 用于跟踪任务进度和展示完成进度，通过 Checklist 格式来展示工具执行后的任务状态。</p><pre class="astro-code dracula" data-language=ts style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#6272a4>/**</span></span>
+<span class=line><span style=color:#6272a4> * Common parameter shared between tools for tracking task progress</span></span>
+<span class=line><span style=color:#6272a4> */</span></span>
+<span class=line><span style=color:#ff79c6>export</span><span style=color:#ff79c6> const</span><span style=color:#f8f8f2> TASK_PROGRESS_PARAMETER </span><span style=color:#ff79c6>=</span><span style=color:#f8f8f2> {</span></span>
+<span class=line><span style=color:#f8f8f2>	name</span><span style=color:#ff79c6>:</span><span style=color:#e9f284> "</span><span style=color:#f1fa8c>task_progress</span><span style=color:#e9f284>"</span><span style=color:#f8f8f2>,</span></span>
+<span class=line><span style=color:#f8f8f2>	required</span><span style=color:#ff79c6>:</span><span style=color:#bd93f9> false</span><span style=color:#f8f8f2>,</span></span>
+<span class=line><span style=color:#f8f8f2>	instruction</span><span style=color:#ff79c6>:</span><span style=color:#f1fa8c> `A checklist showing task progress after this tool use is completed. The task_progress parameter must be included as a separate parameter inside of the parent tool call, it must be separate from other parameters such as content, arguments, etc. (See 'UPDATING TASK PROGRESS' section for more details)`</span><span style=color:#f8f8f2>,</span></span>
+<span class=line><span style=color:#f8f8f2>	usage</span><span style=color:#ff79c6>:</span><span style=color:#e9f284> "</span><span style=color:#f1fa8c>Checklist here (optional)</span><span style=color:#e9f284>"</span><span style=color:#f8f8f2>,</span></span>
+<span class=line><span style=color:#f8f8f2>}</span></span>
+<span class=line></span></code></pre><h3 id=rules>Rules</h3><p><code>RULES</code> 定义了 Cline 的操作规则和约束条件，比如在 GPT-5.1 变体中定义了执行命令、创建项目、输出格式等规范。主要规则包括：</p><pre class="astro-code dracula" data-language=md style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#f8f8f2>- The current working directory is </span><span style=color:#ff79c6>\`</span><span style=color:#f8f8f2>{{CWD}}</span><span style=color:#ff79c6>\`</span><span style=color:#f8f8f2> - this is the directory where all the tools will be executed from.</span></span>
+<span class=line><span style=color:#f8f8f2>- When creating a new application from scratch, you must implement it locally and not use global packages or tools that are not part of the local project dependencies. For example, if npm couldn't create the Vite app because the global npm cache is owned by root, create the project using a local cache in the repo (no sudo required)</span></span>
+<span class=line><span style=color:#f8f8f2>- After completing reasoning traces, provide a concise summary of your conclusions and next steps in the final response to the user. You should do this prior to tool calls.</span></span>
+<span class=line><span style=color:#f8f8f2>- When responding to the user outside of tool calls, include rich markdown formatting where applicable.</span></span>
+<span class=line><span style=color:#f8f8f2>- Ensure that any code snippets you provide are properly formatted with syntax highlighting for better readability.</span></span>
+<span class=line><span style=color:#f8f8f2>- When performing regex searches, try to craft search patterns that will not return an excessive amount of results.</span></span>
+<span class=line></span></code></pre><h3 id=act-mode-vs-plan-mode>ACT MODE vs PLAN MODE</h3><p>Cline 提供了两种工作模式：</p><ul><li><strong>ACT MODE</strong>: 执行模式，可以使用除 <code>plan_mode_respond</code> 外的所有工具来完成用户任务。每条消息只能调用一个工具，并需等待工具执行结果后再继续。任务完成后使用 <code>attempt_completion</code> 工具呈现结果。进度通过 <code>task_progress</code> 参数跟踪</li><li><strong>PLAN MODE</strong>: 规划模式，主要使用 <code>plan_mode_respond</code> 与探索类工具（如 <code>read_file</code>、<code>search_files</code>）收集信息并创建详细计划，与用户讨论方案，确认后切换到 ACT MODE 实施</li></ul><pre class="astro-code dracula" data-language=md style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#f8f8f2>ACT MODE V.S. PLAN MODE</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>In each user message, the environment_details will specify the current mode. There are two modes:</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>- ACT MODE: In this mode, you have access to all tools EXCEPT the plan_mode_respond tool.</span></span>
+<span class=line><span style=color:#f8f8f2> - In ACT MODE, you can use the act_mode_respond tool to provide progress updates to the user without interrupting your workflow. Use this tool to explain what you're about to do before executing tools, or to provide updates during long-running tasks.</span></span>
+<span class=line><span style=color:#f8f8f2> - In ACT MODE, you use tools to accomplish the user's task. Once you've fully completed the user's task, you use the attempt_completion tool to present the result of the task to the user.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>- PLAN MODE: In this special mode, you have access to the plan_mode_respond tool.</span></span>
+<span class=line><span style=color:#f8f8f2> - In PLAN MODE, the goal is to gather information and get context to create a detailed plan for accomplishing the task, which the user will review and approve before switching to ACT MODE to implement the solution.</span></span>
+<span class=line><span style=color:#f8f8f2> - In PLAN MODE, when you need to converse with the user or present a plan, you should use the plan_mode_respond tool to deliver your response directly.</span></span>
+<span class=line><span style=color:#f8f8f2> - In PLAN MODE, depending on the user's request, you may need to do some information gathering e.g. using read_file or search_files to get more context about the task.${context.yoloModeToggled !== true ? " You may also ask the user clarifying questions with ask_followup_question to get a better understanding of the task." : ""}</span></span>
+<span class=line><span style=color:#f8f8f2> - In PLAN MODE, Once you've gained more context about the user's request, you should architect a detailed plan for how you will accomplish the task. Present the plan to the user using the plan_mode_respond tool.</span></span>
+<span class=line><span style=color:#f8f8f2> - In PLAN MODE, once you have presented a plan to the user, you should request that the user switch you to ACT MODE so that you may proceed with implementation.</span></span>
+<span class=line></span></code></pre><h3 id=objective>Objective</h3><p><code>OBJECTIVE</code> 定义了任务执行的总体目标和方法论，确保 Cline 在执行任务时有明确的方向，是执行任务的核心指南：</p><pre class="astro-code dracula" data-language=md style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#f8f8f2>OBJECTIVE</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>You accomplish a given task iteratively, breaking it down into clear steps and working through them methodically.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#bd93f9;font-weight:700>## Deliverables and Success Criteria</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>For every task, establish clear deliverables and success criteria at the outset:</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>- </span><span style=color:#ffb86c;font-weight:700>**Goal**</span><span style=color:#f8f8f2>: What specific feature, bug fix, or improvement are you delivering?</span></span>
+<span class=line><span style=color:#f8f8f2>- </span><span style=color:#ffb86c;font-weight:700>**Deliverables**</span><span style=color:#f8f8f2>: What code changes, tests, documentation, or configuration updates will be produced?</span></span>
+<span class=line><span style=color:#f8f8f2>- </span><span style=color:#ffb86c;font-weight:700>**Success Criteria**</span><span style=color:#f8f8f2>: How will you know when you're done? (e.g., code passes existing tests, follows domain-driven design boundaries, uses TypeScript conventions, integrates with existing Git-based checkpoint workflow)</span></span>
+<span class=line><span style=color:#f8f8f2>- </span><span style=color:#ffb86c;font-weight:700>**Constraints**</span><span style=color:#f8f8f2>: What are the technical, architectural, or project-specific constraints? (e.g., must not modify core interfaces, must maintain backward compatibility, must follow existing patterns)</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>Report progress via task_progress parameter throughout the task to maintain visibility into what's been accomplished and what remains.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#bd93f9;font-weight:700>## Context Boundaries and Clarification</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>When working in a codebase:</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>- Always reference the </span><span style=color:#ffb86c;font-weight:700>**relevant module/file path**</span><span style=color:#f8f8f2> and </span><span style=color:#ffb86c;font-weight:700>**domain concept**</span><span style=color:#f8f8f2> before proposing or making edits</span></span>
+<span class=line><span style=color:#f8f8f2>- Track context across files, modules, and feature boundaries to ensure changes are coherent</span></span>
+<span class=line><span style=color:#f8f8f2>- If task scope is ambiguous, existing architecture is unclear, or constraints are undefined, ${context.yoloModeToggled !== true ? "</span><span style=color:#ffb86c;font-weight:700>**ask clarifying questions**</span><span style=color:#f8f8f2> using ask_followup_question rather than making assumptions" : "state your assumptions clearly before proceeding"}</span></span>
+<span class=line><span style=color:#f8f8f2>- When in doubt about existing patterns, conventions, or dependencies, </span><span style=color:#ffb86c;font-weight:700>**investigate first**</span><span style=color:#f8f8f2> using read_file and search_files before making changes</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>This ensures your work aligns with the existing codebase structure and avoids unintended side effects.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#bd93f9;font-weight:700>## Implementation Workflow</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>1. </span><span style=color:#ffb86c;font-weight:700>**Analyze the user's task**</span><span style=color:#f8f8f2> and establish deliverables, success criteria, and constraints (as above). Prioritize goals in a logical order.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>2. </span><span style=color:#ffb86c;font-weight:700>**Work through goals sequentially**</span><span style=color:#f8f8f2>, utilizing available tools one at a time as necessary. Each goal should correspond to a distinct step in your problem-solving process. You will be informed on the work completed and what's remaining as you go. </span></span>
+<span class=line><span style=color:#f8f8f2>   </span></span>
+<span class=line><span style=color:#ffb86c;font-weight:700>   **IMPORTANT: In ACT MODE, make use of the act_mode_respond tool when switching domains or task_progress steps to keep the conversation informative:**</span></span>
+<span class=line><span style=color:#f8f8f2>   - ALWAYS use act_mode_respond when switching domains or task_progress steps to briefly explain your progress and intended changes</span></span>
+<span class=line><span style=color:#f8f8f2>   - Use act_mode_respond when starting a new logical phase of work (e.g., moving from backend to frontend, or from one feature to another)</span></span>
+<span class=line><span style=color:#f8f8f2>   - Use act_mode_respond during long sequences of operations to provide progress updates</span></span>
+<span class=line><span style=color:#f8f8f2>   - Use act_mode_respond to explain your reasoning when changing approaches or encountering issues/mistakes</span></span>
+<span class=line><span style=color:#f8f8f2>   </span></span>
+<span class=line><span style=color:#f8f8f2>   This tool is non-blocking, so using it frequently improves user experience and ensures long tasks are completed successfully.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>   Additionally, you MUST NOT call act_mode_respond more than once in a row. After using act_mode_respond, your next assistant message MUST either call a different tool or perform additional work without using act_mode_respond again. If you attempt to call act_mode_respond consecutively, the tool call will fail with an explicit error and you must choose a different action instead.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>3. Remember, you have extensive capabilities with access to a wide range of tools that can be used in powerful and clever ways as necessary to accomplish each goal. First, analyze the file structure provided in environment_details to gain context and insights for proceeding effectively. Then, think about which of the provided tools is the most relevant tool to accomplish the user's task. Next, go through each of the required parameters of the relevant tool and determine if the user has directly provided or given enough information to infer a value. When deciding if the parameter can be inferred, carefully consider all the context to see if it supports a specific value. If all of the required parameters are present or can be reasonably inferred, close the thinking tag and proceed with the tool use. BUT, if one of the values for a required parameter is missing, DO NOT invoke the tool (not even with fillers for the missing params)${context.yoloModeToggled !== true ? " and instead, ask the user to provide the missing parameters using the ask_followup_question tool" : ""}. DO NOT ask for more information on optional parameters if it is not provided.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>4. </span><span style=color:#ffb86c;font-weight:700>**Code Generation Self-Review Loop**</span><span style=color:#f8f8f2>: After generating code, evaluate against an internal quality rubric using your reasoning:</span></span>
+<span class=line><span style=color:#f8f8f2>   - </span><span style=color:#ffb86c;font-weight:700>**Readability**</span><span style=color:#f8f8f2>: Is the code clear, well-named, and easy to understand?</span></span>
+<span class=line><span style=color:#f8f8f2>   - </span><span style=color:#ffb86c;font-weight:700>**Modularity**</span><span style=color:#f8f8f2>: Are concerns properly separated? Is the code DRY (Don't Repeat Yourself)?</span></span>
+<span class=line><span style=color:#f8f8f2>   - </span><span style=color:#ffb86c;font-weight:700>**Testability**</span><span style=color:#f8f8f2>: Can this code be easily tested? Are dependencies injectable?</span></span>
+<span class=line><span style=color:#f8f8f2>   - </span><span style=color:#ffb86c;font-weight:700>**Domain Alignment**</span><span style=color:#f8f8f2>: Does it respect domain-driven design boundaries and follow existing architectural patterns?</span></span>
+<span class=line><span style=color:#f8f8f2>   - </span><span style=color:#ffb86c;font-weight:700>**Best Practices**</span><span style=color:#f8f8f2>: Does it follow language idioms, framework conventions, and project standards?</span></span>
+<span class=line><span style=color:#f8f8f2>   </span></span>
+<span class=line><span style=color:#f8f8f2>   If issues are found during this self-review, refine the code and present the improved version. Mention what you improved and why.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>5. Once you've completed the user's task, you must use the attempt_completion tool to present the result of the task to the user. You may also provide a CLI command to showcase the result of your task; this can be particularly useful for web development tasks, where you can run e.g. </span><span style=color:#ff79c6>\`</span><span style=color:#f8f8f2>open index.html</span><span style=color:#ff79c6>\`</span><span style=color:#f8f8f2> to show the website you've built.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>6. If the task is not actionable, you may use the attempt_completion tool to explain to the user why the task cannot be completed, or provide a simple answer if that is what the user is looking for.</span></span>
+<span class=line></span></code></pre><p>在执行任务时，Cline 会遵循上述工作流程。当接收到用户请求后，Cline 会生成任务目标、完成标准，然后拆分任务，逐步使用工具完成任务（每次只调用一个工具并等待结果），最后通过 <code>attempt_completion</code> 工具向用户展示结果。这是一个典型的 Plan &#x26; Execute Agent 流程。</p><h3 id=其他核心部分>其他核心部分</h3><ul><li><strong>CAPABILITIES</strong>: 详细描述 Cline 的能力，包括文件操作、命令执行、浏览器交互、MCP 服务器集成等</li><li><strong>EDITING_FILES</strong>: 提供 <code>write_to_file</code> 和 <code>replace_in_file</code> 两种文件编辑工具以及使用方法。小范围修改优先使用 <code>replace_in_file</code>（需精确匹配完整行），大范围修改或新建文件使用 <code>write_to_file</code>。注意自动格式化可能影响 SEARCH 块的精确匹配</li><li><strong>MCP</strong>: 除了内置的基础工具，Cline 也支持 Model Context Protocol 协议，允许与本地或远程的 MCP 服务器通信，使用其提供的工具与资源，这极大扩展了 Cline 的能力</li><li><strong>USER_INSTRUCTIONS</strong>: 用户可以通过自定义指令（仓库内的 <code>.clinerules</code> 或全局 Rules）来扩展或修改系统行为。仓库内规则通常优先于全局规则，多层规则会被合并，最终生效的系统提示词由变体与环境共同决定</li></ul><h2 id=示例>示例</h2><p>我们来实际看一个简单的 Task，输入<code>获取北京的最近一周的天气，输出到文件</code></p><ol><li>首先 Cline 会将用户请求、系统提示词、运行时上下文等信息打包成消息发送给模型</li></ol><pre class="astro-code dracula" data-language=json style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#f8f8f2>{</span></span>
+<span class=line><span style=color:#8be9fe>        "</span><span style=color:#8be9fd>role</span><span style=color:#8be9fe>"</span><span style=color:#ff79c6>:</span><span style=color:#e9f284> "</span><span style=color:#f1fa8c>user</span><span style=color:#e9f284>"</span><span style=color:#f8f8f2>,</span></span>
+<span class=line><span style=color:#8be9fe>        "</span><span style=color:#8be9fd>content</span><span style=color:#8be9fe>"</span><span style=color:#ff79c6>:</span><span style=color:#f8f8f2> [</span></span>
+<span class=line><span style=color:#f8f8f2>            {</span></span>
+<span class=line><span style=color:#8be9fe>                "</span><span style=color:#8be9fd>type</span><span style=color:#8be9fe>"</span><span style=color:#ff79c6>:</span><span style=color:#e9f284> "</span><span style=color:#f1fa8c>text</span><span style=color:#e9f284>"</span><span style=color:#f8f8f2>,</span></span>
+<span class=line><span style=color:#8be9fe>                "</span><span style=color:#8be9fd>text</span><span style=color:#8be9fe>"</span><span style=color:#ff79c6>:</span><span style=color:#e9f284> "</span><span style=color:#f1fa8c>&#x3C;task>获取北京的最近一周的天气，输出到文件&#x3C;/task></span><span style=color:#e9f284>"</span></span>
+<span class=line><span style=color:#f8f8f2>            },</span></span>
+<span class=line><span style=color:#f8f8f2>            {</span></span>
+<span class=line><span style=color:#8be9fe>                "</span><span style=color:#8be9fd>type</span><span style=color:#8be9fe>"</span><span style=color:#ff79c6>:</span><span style=color:#e9f284> "</span><span style=color:#f1fa8c>text</span><span style=color:#e9f284>"</span><span style=color:#f8f8f2>,</span></span>
+<span class=line><span style=color:#8be9fe>                "</span><span style=color:#8be9fd>text</span><span style=color:#8be9fe>"</span><span style=color:#ff79c6>:</span><span style=color:#e9f284> "</span><span style=color:#f1fa8c>Prompt...</span><span style=color:#e9f284>"</span></span>
+<span class=line><span style=color:#f8f8f2>            },</span></span>
+<span class=line><span style=color:#f8f8f2>            {</span></span>
+<span class=line><span style=color:#8be9fe>                "</span><span style=color:#8be9fd>type</span><span style=color:#8be9fe>"</span><span style=color:#ff79c6>:</span><span style=color:#e9f284> "</span><span style=color:#f1fa8c>text</span><span style=color:#e9f284>"</span><span style=color:#f8f8f2>,</span></span>
+<span class=line><span style=color:#8be9fe>                "</span><span style=color:#8be9fd>text</span><span style=color:#8be9fe>"</span><span style=color:#ff79c6>:</span><span style=color:#e9f284> "</span><span style=color:#f1fa8c>Environment Details: {...}</span><span style=color:#e9f284>"</span></span>
+<span class=line><span style=color:#f8f8f2>            }</span></span>
+<span class=line><span style=color:#f8f8f2>        ]</span></span>
+<span class=line><span style=color:#f8f8f2>}</span></span>
+<span class=line></span></code></pre><p>系统 Prompt 示例如下（实际内容因模型变体而异）：</p><pre class="astro-code dracula" data-language=md style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#bd93f9;font-weight:700># task_progress RECOMMENDED</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>When starting a new task, it is recommended to include a todo list using the task_progress parameter.</span></span>
+<span class=line></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>1. Include a todo list using the task_progress parameter in your next tool call</span></span>
+<span class=line><span style=color:#f8f8f2>2. Create a comprehensive checklist of all steps needed</span></span>
+<span class=line><span style=color:#f8f8f2>3. Use markdown format: - [ ] for incomplete, - [</span><span style=color:#ff79c6>x</span><span style=color:#f8f8f2>] for complete</span></span>
+<span class=line></span>
+<span class=line><span style=color:#ffb86c;font-weight:700>**Benefits of creating a todo/task_progress list now:**</span></span>
+<span class=line><span style=color:#f8f8f2>	- Clear roadmap for implementation</span></span>
+<span class=line><span style=color:#f8f8f2>	- Progress tracking throughout the task</span></span>
+<span class=line><span style=color:#f8f8f2>	- Nothing gets forgotten or missed</span></span>
+<span class=line><span style=color:#f8f8f2>	- Users can see, monitor, and edit the plan</span></span>
+<span class=line></span>
+<span class=line><span style=color:#ffb86c;font-weight:700>**Example structure:**</span><span style=color:#f8f8f2>```</span></span>
+<span class=line><span style=color:#f8f8f2>- [ ] Analyze requirements</span></span>
+<span class=line><span style=color:#f8f8f2>- [ ] Set up necessary files</span></span>
+<span class=line><span style=color:#f8f8f2>- [ ] Implement main functionality</span></span>
+<span class=line><span style=color:#f8f8f2>- [ ] Handle edge cases</span></span>
+<span class=line><span style=color:#f8f8f2>- [ ] Test the implementation</span></span>
+<span class=line><span style=color:#f8f8f2>- [ ] Verify results```</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>Keeping the task_progress list updated helps track progress and ensures nothing is missed.</span></span>
+<span class=line></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;environment_details></span></span>
+<span class=line><span style=color:#bd93f9;font-weight:700># Visual Studio Code Visible Files</span></span>
+<span class=line></span>
+<span class=line><span style=color:#bd93f9;font-weight:700># Visual Studio Code Open Tabs</span></span>
+<span class=line></span>
+<span class=line><span style=color:#bd93f9;font-weight:700># Current Time</span></span>
+<span class=line><span style=color:#f8f8f2>12/3/2025, 11:42:01 AM (UTC, UTC+0:00)</span></span>
+<span class=line></span>
+<span class=line><span style=color:#bd93f9;font-weight:700># Current Working Directory</span></span>
+<span class=line><span style=color:#f8f8f2>...</span></span>
+<span class=line></span>
+<span class=line><span style=color:#bd93f9;font-weight:700># Detected CLI Tools</span></span>
+<span class=line><span style=color:#f8f8f2>These are some of the tools on the user's machine, and may be useful if needed to accomplish the task: gh, git, docker, podman, kubectl, go, curl, jq, make, python, code, grep, sed, awk, helm, wget. This list is not exhaustive, and other tools may be available.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#bd93f9;font-weight:700># Current Mode</span></span>
+<span class=line><span style=color:#f8f8f2>ACT MODE</span></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;/environment_details></span></span>
+<span class=line></span></code></pre><p>可以看到 Cline 会建议创建一个任务进度列表，帮助跟踪任务完成情况。需要注意的是，<code>environment_details</code> 是运行时上下文，由宿主系统自动注入，并非系统 Prompt 的固有段落，但它可能影响命令路径、工具选择与模型行为。</p><ol start=2><li>Assistant 收到消息后，结合系统 Prompt 和上下文，生成响应内容，决定使用哪些工具来完成任务：</li></ol><pre class="astro-code dracula" data-language=xml style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#f8f8f2>Model: Claude 4.5 Sonnet</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>I'll help you fetch the weather forecast for Beijing for the next week and save it to a file. Let me break this down into steps.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;</span><span style=color:#ff79c6>thinking</span><span style=color:#f8f8f2>></span></span>
+<span class=line><span style=color:#f8f8f2>The user wants to:</span></span>
+<span class=line><span style=color:#f8f8f2>1. Get weather forecast for Beijing for the next week</span></span>
+<span class=line><span style=color:#f8f8f2>2. Save the output to a file</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>I need to:</span></span>
+<span class=line><span style=color:#f8f8f2>1. Find a way to get weather data for Beijing</span></span>
+<span class=line><span style=color:#f8f8f2>2. Save the result to a file</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>I can use curl to fetch weather data from a free weather API. One good option is wttr.in which provides weather information in a simple format. I can also try using a weather API if available.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>Let me first check if there are any MCP tools available that might help with weather data. Looking at the environment details, I can see there's a dod-assistant MCP server, but it's for JIRA tickets and HanaCloud questions, not weather data.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>I'll use curl with wttr.in service which provides weather forecasts. The command would be:</span></span>
+<span class=line><span style=color:#f8f8f2>- curl wttr.in/Beijing to get weather for Beijing</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>Then I'll save the output to a file.</span></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;/</span><span style=color:#ff79c6>thinking</span><span style=color:#f8f8f2>></span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>I'll fetch the weather forecast for Beijing for the next week and save it to a file.</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;</span><span style=color:#ff79c6>execute_command</span><span style=color:#f8f8f2>></span></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;</span><span style=color:#ff79c6>command</span><span style=color:#f8f8f2>>curl -s "wttr.in/Beijing?format=j1" > beijing_weather.json </span><span style=color:#f55;font-style:italic;text-decoration:underline>&#x26;&#x26;</span><span style=color:#f8f8f2> curl -s "wttr.in/Beijing?lang=zh-cn" > beijing_weather.txt&#x3C;/</span><span style=color:#ff79c6>command</span><span style=color:#f8f8f2>></span></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;</span><span style=color:#ff79c6>requires_approval</span><span style=color:#f8f8f2>>false&#x3C;/</span><span style=color:#ff79c6>requires_approval</span><span style=color:#f8f8f2>></span></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;</span><span style=color:#ff79c6>task_progress</span><span style=color:#f8f8f2>></span></span>
+<span class=line><span style=color:#f8f8f2>- [x] Fetch weather data for Beijing</span></span>
+<span class=line><span style=color:#f8f8f2>- [ ] Verify the data was saved correctly</span></span>
+<span class=line><span style=color:#f8f8f2>- [ ] Format and present the results</span></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;/</span><span style=color:#ff79c6>task_progress</span><span style=color:#f8f8f2>></span></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;/</span><span style=color:#ff79c6>execute_command</span><span style=color:#f8f8f2>></span></span>
+<span class=line></span></code></pre><p>在第二步生成了任务计划，并使用<code>execute_command</code>工具获取天气数据，并保存到文件中，同时更新了任务进度。</p><ol start=3><li>工具执行后，Assistant 会收到工具调用结果，然后<strong>必须等待并分析结果</strong>后再继续执行后续步骤，最终通过 <code>attempt_completion</code> 工具将结果返回给用户。</li></ol><pre class="astro-code dracula" data-language=xml style=background-color:#282a36;color:#f8f8f2;overflow-x:auto tabindex=0><code><span class=line><span style=color:#f8f8f2>[execute_command for 'curl -s "wttr.in/Beijing?format=j1" > beijing_weather.json </span><span style=color:#f55;font-style:italic;text-decoration:underline>&#x26;&#x26;</span><span style=color:#f8f8f2> curl -s "wttr.in/Beijing?lang=zh-cn" > beijing_weather.txt'] Result:</span></span>
+<span class=line><span style=color:#f8f8f2>Command executed.</span></span>
+<span class=line><span style=color:#f8f8f2>Output:</span></span>
+<span class=line><span style=color:#f8f8f2>The command's output could not be captured due to some technical issue, however it has been executed successfully. Here's the current terminal's content to help you get the command's output:</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>➜ curl -s "wttr.in/Beijing?format=j1" > beijing_weather.json </span><span style=color:#f55;font-style:italic;text-decoration:underline>&#x26;&#x26;</span><span style=color:#f8f8f2> curl -s "wttr.in/Beijing?lang=zh-cn" > beijing_weather.txt</span></span>
+<span class=line></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;</span><span style=color:#ff79c6>environment_details</span><span style=color:#f8f8f2>></span></span>
+<span class=line><span style=color:#f8f8f2>...</span></span>
+<span class=line><span style=color:#f8f8f2>&#x3C;/</span><span style=color:#ff79c6>environment_details</span><span style=color:#f8f8f2>></span></span>
+<span class=line></span></code></pre><p>后续会调用其他工具来验证文件内容，最后通过<code>attempt_completion</code>工具将结果返回给用户。至此，一个完整的任务执行流程结束。</p><p>对比上面完整的 Prompt 模板，示例中的 Prompt 省略了很多部分，这与使用的具体模型有关。不同模型会裁剪或增强不同的功能模块，对应的 Prompt 部分也会相应调整。</p><h2 id=总结>总结</h2><p>Cline 通过精心设计的系统提示词，实现了一个强大而灵活的 AI 编程助手。其模块化的架构使得系统易于扩展和维护，同时通过 MCP 协议提供了与本地或远程工具的集成能力。</p><p>通过分析 Cline 的 Prompt 设计，我们可以学到以下几点：</p><ol><li><strong>模块化设计</strong>：将系统提示词分解为独立模块，便于针对不同模型变体进行定制</li><li><strong>严格的工具使用规范</strong>：每次只调用一个工具、等待结果、明确批准机制，确保任务执行的可靠性</li><li><strong>双模式工作流</strong>：Plan Mode 用于规划，Act Mode 用于执行，实现了典型的 Plan &#x26; Execute Agent 模式</li><li><strong>进度跟踪机制</strong>：通过 <code>task_progress</code> 参数实时展示任务完成情况</li><li><strong>高扩展性</strong>：通过 MCP 协议与用户自定义规则，可以灵活扩展系统能力</li></ol><p>这些设计原则对构建高效的 AI Agent 系统具有重要的参考价值，当前大模型在指令遵循、意图理解方面已有显著提升，结合合理的 Prompt 设计与工具集成，能够实现更复杂的任务处理。</p><blockquote><p>Explore more in <a href=https://qingwave.github.io>https://qingwave.github.io</a></p></blockquote></div><div class="flex flex-col justify-between mx-auto sm:flex-row sm:px-6 mt-8 px-6"><ul class=mr-5><li class="rounded-full border border-slate-500 dark:border-slate-100 font-medium inline-block mx-1 my-1 px-2 py-1"><a href=/tags/ai/ class="dark:text-slate-300 dark:hover:text-blue-400 hover:text-primary text-muted">#ai</a></li></ul></div></article><div class="mx-auto sm:px-6 px-6 dark:text-slate-400 giscus-container py-16 text-muted"><script src=https://giscus.app/client.js async crossorigin=anonymous data-category=Announcements data-category-id=DIC_kwDOCg97r84CBQfL data-emit-metadata=0 data-input-position=top data-lang=en data-loading=lazy data-mapping=title data-reactions-enabled=1 data-repo=qingwave/qingwave.github.io data-repo-id="MDEwOlJlcG9zaXRvcnkxNjg3ODY4NjM=" data-strict=0 data-theme=light></script></div></section><div class="bottom-8 fixed hidden right-6 z-50" id=back-to-top><button class="rounded-full dark:hover:bg-slate-800 dark:hover:text-gray-100 dark:text-gray-300 hover:bg-neutral-100 hover:text-neutral-500 p-3 text-neutral-300"><svg class="h-6 w-6" data-icon=ph:rocket-fill height=1em width=1em><symbol id=ai:ph:rocket-fill viewBox="0 0 256 256"><path d="M152 224a8 8 0 0 1-8 8h-32a8 8 0 0 1 0-16h32a8 8 0 0 1 8 8m71.62-68.17l-12.36 55.63a16 16 0 0 1-25.51 9.11L158.51 200h-61l-27.26 20.57a16 16 0 0 1-25.51-9.11l-12.36-55.63a16.09 16.09 0 0 1 3.32-13.71l28.56-34.26a123 123 0 0 1 8.57-36.67c12.9-32.34 36-52.63 45.37-59.85a16 16 0 0 1 19.6 0c9.34 7.22 32.47 27.51 45.37 59.85a123 123 0 0 1 8.57 36.67l28.56 34.26a16.09 16.09 0 0 1 3.32 13.71m-139.23 34q-16.11-29.33-19.56-57.67L48 152.36L60.36 208l.18-.13ZM140 100a12 12 0 1 0-12 12a12 12 0 0 0 12-12m68 52.36l-16.83-20.2q-3.42 28.28-19.56 57.69l23.85 18l.18.13Z" fill=currentColor /></symbol><use href=#ai:ph:rocket-fill></use></svg></button></div></main><footer class=relative><div class="px-4 mx-auto sm:px-6 max-w-3xl"><div class="border-t border-gray-200 dark:border-slate-800"></div></div><div class="dark:bg-dark absolute inset-0 pointer-events-none" aria-hidden=true></div><div class="px-4 mx-auto sm:px-6 max-w-3xl dark:text-slate-300 relative"><div class="md:flex md:justify-between md:items-center md:py-8 py-6"><ul class="md:flex hidden -ml-2 mb-4 md:mb-0 md:ml-4 md:order-1"><li><a href=/rss.xml class="items-center dark:text-gray-400 inline-flex p-2.5 text-sm text-muted" aria-label=RSS><svg class="h-5 w-5" data-icon=tabler:rss height=1em width=1em><symbol id=ai:tabler:rss viewBox="0 0 24 24"><path d="M4 19a1 1 0 1 0 2 0a1 1 0 1 0-2 0M4 4a16 16 0 0 1 16 16M4 11a9 9 0 0 1 9 9" fill=none stroke=currentColor stroke-linecap=round stroke-linejoin=round stroke-width=2 /></symbol><use href=#ai:tabler:rss></use></svg></a></li></ul><div class="text-sm dark:text-slate-400 mr-4"><span class="h-5 w-5 bg-[url(/favicon.ico)] bg-cover float-left md:-mt-0.5 mr-1.5 rounded-sm"></span> <span class="dark:text-slate-300 text-slate-700"><a href=https://qingwave.github.io class=hover:brightness-50>Qingwave</a> · All rights reserved.</span></div></div></div></footer><script>!function(){const e="light";function t(e){"dark"===e?document.documentElement.classList.add("dark"):document.documentElement.classList.remove("dark")}function o(e,t,o){const n="string"==typeof e?document.querySelectorAll(e):e;n&&n.length&&n.forEach((e=>{e.addEventListener(t,(t=>o(t,e)),!1)}))}e&&e.endsWith(":only")||!localStorage.theme?t(e.replace(":only","")):"dark"===localStorage.theme||!("theme"in localStorage)&&window.matchMedia("(prefers-color-scheme: dark)").matches?t("dark"):t("light"),window.onload=function(){let t=window.scrollY,n=!0;function c(){const e=document.getElementById("header");t>60&&!e.classList.contains("scroll")?document.getElementById("header").classList.add("scroll"):t<=60&&e.classList.contains("scroll")&&document.getElementById("header").classList.remove("scroll"),n=!1}o("[data-aw-toggle-menu]","click",(function(e,t){t.classList.toggle("expanded"),document.body.classList.toggle("overflow-hidden"),document.getElementById("header")?.classList.toggle("h-screen"),document.querySelector("#header nav")?.classList.toggle("hidden")})),o("[data-aw-toggle-color-scheme]","click",(function(){e.endsWith(":only")||(document.documentElement.classList.toggle("dark"),localStorage.theme=document.documentElement.classList.contains("dark")?"dark":"light",function(e){const t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:e},"https://giscus.app")}({setConfig:{theme:localStorage.theme}}))})),o("[data-aw-social-share]","click",(function(e,t){const o=t.getAttribute("data-aw-social-share"),n=encodeURIComponent(t.getAttribute("data-aw-url")),c=encodeURIComponent(t.getAttribute("data-aw-text"));let a;switch(o){case"facebook":a=`https://www.facebook.com/sharer.php?u=${n}`;break;case"twitter":a=`https://twitter.com/intent/tweet?url=${n}&text=${c}`;break;case"linkedin":a=`https://www.linkedin.com/shareArticle?mini=true&url=${n}&title=${c}`;break;case"whatsapp":a=`https://wa.me/?text=${c}%20${n}`;break;case"mail":a=`mailto:?subject=%22${c}%22&body=${c}%20${n}`;break;default:return}const s=document.createElement("a");s.target="_blank",s.href=a,s.click()})),c(),o([document],"scroll",(function(){t=window.scrollY,n||(window.requestAnimationFrame((()=>{c()})),n=!0)}))},window.onpageshow=function(){document.documentElement.classList.add("motion-safe:scroll-smooth");const e=document.querySelector("[data-aw-toggle-menu]");e&&e.classList.remove("expanded"),document.body.classList.remove("overflow-hidden"),document.getElementById("header")?.classList.remove("h-screen"),document.querySelector("#header nav")?.classList.add("hidden")}}()</script></body></html>
